@@ -1,73 +1,78 @@
 /**
- * VanLoadBuilder
- * Premium POS-style UI for loading stock from the warehouse onto a vehicle.
- * Mirrors VanSaleBuilder's layout (left product list, right load list).
+ * VanLoadBuilder (web redesign, vehicles-11 to 14)
+ * Pick products and quantities to move warehouse -> van (load) or
+ * van -> warehouse (unload), then show what moved, line by line.
  *
  * Props:
- *  vehicle        — target vehicle object ({ name, plate, plateNumber })
- *  warehouseItems — [{ productId, productName, available, image }]
- *  onSubmit       — async fn({ items:[{productId,quantity}] }) → { success, error }
- *  onClose        — fn() to close
+ *  vehicle        — target vehicle ({ name, plate, type })
+ *  warehouseItems — [{ productId, productName, available }]: what can be picked
+ *  mode           — 'load' | 'unload'
+ *  onSubmit       — async ({ items:[{productId,quantity}] }) → loadVan / unloadVan's own
+ *                   { success, transferred, errors } (passed through untouched)
+ *  fromNow / toNow — { productId: qty } at the source and destination, for the
+ *                   before → after words on the results screen
+ *  onRecheck      — re-read stock (after a dropped connection, or before a retry)
+ *  onClose        — back to Vehicles
  */
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useDialogClose } from '../hooks/useDialogClose';
-import {
-  Search, Plus, Minus, X, Package, Truck, Check,
-  CheckCircle2, ArrowRight, Warehouse,
-} from 'lucide-react';
+import { Search, X, Plus, Check, Warehouse } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
+import { useDialogClose } from '../hooks/useDialogClose';
+import { Button } from './ui/button';
+import { cn } from '../lib/utils';
+import { transferOutcome, retryItems, plural } from '../lib/vehiclesView';
+import { BackLink, VehicleIcon, Initials, Stepper, IconBtn, Empty, Pill } from './vehicles/parts';
+import WriteFailure from './invoices/WriteFailure';
 
-const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose, mode = 'load' }) => {
-  useDialogClose(onClose);
+const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose, mode = 'load', fromNow = {}, toNow = {}, onRecheck }) => {
   const unload = mode === 'unload';
+  const vanName = vehicle?.name || 'Vehicle';
+  const vanPlate = vehicle?.plate || vehicle?.plateNumber || '';
   const L = {
-    title:   unload ? 'Unload Van'  : 'Load Van',
-    list:    unload ? 'Unload List' : 'Load List',
-    search:  unload ? 'Search van products…' : 'Search warehouse products…',
-    empty:   unload ? 'No stock on van.'     : 'No warehouse stock available.',
-    tap:     unload ? 'Tap products to unload' : 'Tap products to load',
-    inWord:  unload ? 'to unload' : 'to load',
-    stockTag: unload ? 'on van'   : 'in WH',
-    done:    unload ? 'Van Unloaded' : 'Van Loaded',
-    cta:     unload ? 'Unload Vehicle' : 'Load Vehicle',
-    cap:     unload ? 'Only %n on van' : 'Only %n in warehouse',
+    title: `${unload ? 'Unload' : 'Load'} ${vanName}`,
+    way: unload ? 'from the van back to the warehouse' : 'from the warehouse onto the van',
+    list: unload ? 'Unload list' : 'Load list',
+    search: unload ? 'Search van products' : 'Search warehouse products',
+    tap: unload ? 'Tap products to unload' : 'Tap products to load',
+    stockTag: unload ? 'on van' : 'in warehouse',
+    cta: unload ? 'Unload vehicle' : 'Load vehicle',
+    cap: unload ? 'Only %n on van' : 'Only %n in warehouse',
+    from: unload ? vanName : 'Warehouse',
+    to: unload ? 'Warehouse' : vanName,
   };
   const { addNotification } = useNotifications();
+  useDialogClose(onClose, { lockScroll: false });
 
-  const [loadList, setLoadList]     = useState([]);   // [{productId, name, quantity, max}]
+  const [loadList, setLoadList] = useState([]); // [{productId, name, quantity, max}]
   const [searchTerm, setSearchTerm] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState('');
-  const [done, setDone]             = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [done, setDone] = useState(null); // { outcome, before: {from, to} }
 
   const searchRef = useRef(null);
   useEffect(() => { searchRef.current?.focus(); }, []);
 
   const stockMap = useMemo(() => {
     const m = {};
-    warehouseItems.forEach(i => { m[i.productId] = i.available; });
+    warehouseItems.forEach((i) => { m[i.productId] = i.available; });
     return m;
   }, [warehouseItems]);
 
   const filtered = useMemo(() => {
     const q = searchTerm.toLowerCase().trim();
     if (!q) return warehouseItems;
-    return warehouseItems.filter(p => (p.productName || '').toLowerCase().includes(q));
+    return warehouseItems.filter((p) => (p.productName || '').toLowerCase().includes(q));
   }, [warehouseItems, searchTerm]);
 
   const maxOf = (pid) => stockMap[pid] ?? 0;
 
   const addItem = (item) => {
     const avail = maxOf(item.productId);
-    setLoadList(prev => {
-      const ex = prev.find(c => c.productId === item.productId);
+    setLoadList((prev) => {
+      const ex = prev.find((c) => c.productId === item.productId);
       if (ex) {
-        if (ex.quantity >= avail) {
-          addNotification(L.cap.replace('%n', avail), 'error');
-          return prev;
-        }
-        return prev.map(c => c.productId === item.productId
-          ? { ...c, quantity: c.quantity + 1 } : c);
+        if (ex.quantity >= avail) { addNotification(L.cap.replace('%n', avail), 'error'); return prev; }
+        return prev.map((c) => (c.productId === item.productId ? { ...c, quantity: c.quantity + 1 } : c));
       }
       if (avail <= 0) { addNotification(`${item.productName} out of stock`, 'error'); return prev; }
       return [...prev, { productId: item.productId, name: item.productName, quantity: 1, max: avail }];
@@ -76,262 +81,174 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose, mode 
 
   const stepQty = (pid, delta) => {
     const avail = maxOf(pid);
-    setLoadList(prev => prev.map(c => {
+    setLoadList((prev) => prev.map((c) => {
       if (c.productId !== pid) return c;
       const next = Math.max(0, c.quantity + delta);
       if (next > avail) { addNotification(L.cap.replace('%n', avail), 'error'); return c; }
       return { ...c, quantity: next };
-    }).filter(c => c.quantity > 0));
+    }).filter((c) => c.quantity > 0));
   };
 
   const setQty = (pid, val) => {
     const qty = parseInt(val, 10);
     if (isNaN(qty) || qty < 0) return;
     const avail = maxOf(pid);
-    if (qty === 0) { setLoadList(prev => prev.filter(c => c.productId !== pid)); return; }
+    if (qty === 0) { setLoadList((prev) => prev.filter((c) => c.productId !== pid)); return; }
     if (qty > avail) {
       addNotification(L.cap.replace('%n', avail), 'error');
-      setLoadList(prev => prev.map(c => c.productId === pid ? { ...c, quantity: avail } : c));
+      setLoadList((prev) => prev.map((c) => (c.productId === pid ? { ...c, quantity: avail } : c)));
       return;
     }
-    setLoadList(prev => prev.map(c => c.productId === pid ? { ...c, quantity: qty } : c));
+    setLoadList((prev) => prev.map((c) => (c.productId === pid ? { ...c, quantity: qty } : c)));
   };
 
-  const removeItem = (pid) => setLoadList(prev => prev.filter(c => c.productId !== pid));
-
+  const removeItem = (pid) => setLoadList((prev) => prev.filter((c) => c.productId !== pid));
   const totalUnits = loadList.reduce((s, c) => s + c.quantity, 0);
 
-  const handleConfirm = async () => {
-    if (submitting || !loadList.length) return;
-    setSubmitError('');
+  /** Send lines through onSubmit and show the per-line results. */
+  const send = async (lines) => {
+    if (submitting || !lines.length) return;
+    setSubmitError(null);
     setSubmitting(true);
+    const before = { from: { ...fromNow }, to: { ...toNow } };
     try {
-      const result = await onSubmit({
-        items: loadList.map(c => ({ productId: c.productId, quantity: c.quantity })),
-      });
-      if (result?.success === false) {
-        setSubmitError(result.error?.message || result.error?.toString() || 'Load failed');
-        return;
-      }
-      setDone(true);
+      const result = await onSubmit({ items: lines.map((c) => ({ productId: c.productId, quantity: c.quantity })) });
+      setDone({ outcome: transferOutcome(lines, result), before });
     } catch (err) {
-      setSubmitError(err?.message || 'Unexpected error');
+      // Thrown before any line could be reported: nothing to show per line.
+      setSubmitError(err);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const vanName  = vehicle?.name || 'Vehicle';
-  const vanPlate = vehicle?.plate || vehicle?.plateNumber || '';
-
-  /* ── Success screen — single-page, premium ──────────────────────────── */
+  /* ── Results (vehicles-12, 13) ─────────────────────────────────────── */
   if (done) {
+    const o = done.outcome;
+    const all = o.lines.length;
+    const full = o.movedCount === all;
+    const retry = unload ? [] : retryItems(o.failed, fromNow);
+    const retryLabel = retry.length === 1
+      ? (retry[0].quantity < retry[0].asked ? `Load ${retry[0].quantity} ${retry[0].name} instead` : `Try ${retry[0].name} again`)
+      : 'Load the rest again';
     return (
-      <div className="fixed inset-0 z-50 bg-canvas flex flex-col">
-        {/* Hero band */}
-        <div className="bg-emerald-500 text-white shrink-0">
-          <div className="max-w-5xl mx-auto w-full px-6 py-6 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
-              <CheckCircle2 size={26} className="text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[10px] font-black uppercase tracking-widest opacity-70">{L.done}</div>
-              <div className="text-2xl font-black tabular-nums leading-tight">{totalUnits} units</div>
-              <div className="text-[11px] opacity-70">{vanName} · {loadList.length} products</div>
-            </div>
-            <button onClick={onClose}
-              className="shrink-0 px-6 h-11 rounded-pill bg-white text-emerald-700 font-black text-sm hover:bg-white/90 transition-all">
-              Done
-            </button>
+      <div className="mx-auto max-w-[880px] pb-16">
+        <div className={cn('m-rise mb-4 flex flex-wrap items-center gap-4 rounded-2xl px-[22px] py-5', full ? 'bg-good-soft' : 'bg-amber-soft')}>
+          <span className={cn('grid h-[46px] w-[46px] shrink-0 place-items-center rounded-full', full ? 'bg-good' : 'bg-amber')}>
+            {full ? <Check size={22} strokeWidth={2.6} className="text-white" /> : <span className="font-tight text-[20px] font-bold text-white">!</span>}
+          </span>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-tight text-[20px] font-semibold tracking-[-0.02em]">
+              {full
+                ? `${vanName} ${unload ? 'unloaded' : 'loaded'} · ${plural(o.movedUnits, 'unit')}`
+                : `${o.movedCount} of ${plural(all, 'product')} ${unload ? 'unloaded' : 'loaded'} · ${plural(o.movedUnits, 'unit')}`}
+            </h3>
+            <p className={cn('mt-0.5 text-[13px]', full ? 'text-good-text' : 'text-amber-text')}>
+              {full
+                ? `${plural(all, 'product')} moved ${unload ? `from ${vanPlate || vanName} back to the warehouse` : `from the warehouse to ${vanPlate || vanName}`}`
+                : [o.failed.length > 0 && `${o.failed.map((l) => l.name).join(', ')} did not move.`,
+                  o.unconfirmed.length > 0 && `${o.unconfirmed.map((l) => l.name).join(', ')} could not be confirmed: check the van stock before trying again.`].filter(Boolean).join(' ')}
+            </p>
           </div>
+          {full && <Button variant="dark" onClick={onClose}>Done</Button>}
         </div>
-
-        {/* Product grid — fits one page via multi-column layout */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-5xl mx-auto w-full px-6 py-6">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-              {loadList.map(c => (
-                <div key={c.productId}
-                  className="flex items-center justify-between gap-2 bg-white border border-black/5 rounded-xl px-3 py-2.5 shadow-sm">
-                  <span className="text-xs font-semibold text-ink-primary truncate">{c.name}</span>
-                  <span className="text-xs font-black tabular-nums text-emerald-600 shrink-0">×{c.quantity}</span>
+        <div className="m-rise overflow-hidden rounded-[14px] border border-line bg-surface" style={{ '--i': 1 }}>
+          {o.lines.map((l) => {
+            const f = done.before.from[l.productId]; const t = done.before.to[l.productId] ?? 0;
+            const moved = l.status === 'moved';
+            return (
+              <div key={l.productId} className={cn('grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 border-t border-sep px-4 py-[11px] text-[13px] first:border-t-0', l.status === 'failed' && 'bg-[#FFFBFB]')}>
+                <div className="min-w-0">
+                  <b className="block font-tight text-[13.5px] font-semibold">{l.name}</b>
+                  {moved
+                    ? <small className="text-[12px] text-mute tabular-nums">{f !== undefined && `${L.from} ${f} → ${f - l.quantity} · `}{L.to} {t} → {t + l.quantity}</small>
+                    : <small className={cn('block break-words text-[12px]', l.status === 'failed' ? 'text-bad-text' : 'text-amber-text')}>{l.reason || 'The server did not say why.'}</small>}
                 </div>
-              ))}
-            </div>
-          </div>
+                <span className="font-tight font-semibold tabular-nums">× {l.quantity}</span>
+                {moved ? <Pill tone="good">Moved</Pill> : l.status === 'failed' ? <Pill tone="bad">Not moved</Pill> : <Pill tone="warn">Not confirmed</Pill>}
+              </div>
+            );
+          })}
         </div>
+        {o.general.length > 0 && <p className="mt-2.5 text-[12.5px] text-bad-text break-words">{o.general.join(' · ')}</p>}
+        {!full && (
+          <div className="mt-3.5 flex flex-wrap items-center justify-end gap-2.5">
+            {o.unconfirmed.length > 0 && onRecheck && <Button variant="secondary" onClick={onRecheck}>Check stock again</Button>}
+            <Button variant="secondary" onClick={onClose}>Done</Button>
+            {retry.length > 0 && <Button disabled={submitting} onClick={() => send(retry)}>{submitting ? 'Working…' : retryLabel}</Button>}
+          </div>
+        )}
       </div>
     );
   }
 
-  /* ── Main UI ────────────────────────────────────────────────────────── */
+  /* ── Pick (vehicles-11, 14) ─────────────────────────────────────────── */
   return (
-    <div className="fixed inset-0 z-50 bg-canvas flex flex-col">
-      <div className="w-full flex-1 flex flex-col overflow-hidden">
-
-        {/* Header */}
-        <div className="flex items-center gap-4 px-6 py-4 bg-white border-b border-black/5 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center">
-              <Truck size={15} className="text-blue-600" />
-            </div>
-            <div>
-              <div className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">{L.title}</div>
-              <div className="text-sm font-black text-ink-primary leading-tight">
-                {vanName}
-                {vanPlate && <span className="ml-2 text-[10px] tabular-nums text-muted-foreground">{vanPlate}</span>}
-              </div>
-            </div>
-          </div>
-          <div className="flex-1" />
-          <button onClick={onClose}
-            className="w-8 h-8 rounded-xl border border-black/10 flex items-center justify-center text-muted-foreground hover:text-ink-primary hover:border-black/20 transition-all">
-            <X size={14} />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
-
-          {/* LEFT: warehouse products */}
-          <div className="flex-1 flex flex-col gap-4 overflow-hidden p-4">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-              <input
-                ref={searchRef}
-                type="text"
-                placeholder={L.search}
-                className="w-full bg-white rounded-2xl py-4 pl-12 pr-4 border border-black/5 outline-none focus:ring-2 focus:ring-accent-signature/20 shadow-sm font-medium"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-              />
-              {searchTerm && (
-                <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-ink-secondary">
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-px overflow-y-auto pr-1 pb-4">
-              {filtered.length === 0 && (
-                <div className="py-16 text-center text-sm text-muted-foreground">
-                  {L.empty}
-                </div>
-              )}
-              {filtered.map(item => {
-                const stock = item.available ?? 0;
-                const out   = stock <= 0;
-                const inList = loadList.find(c => c.productId === item.productId);
-                return (
-                  <div key={item.productId}
-                    onClick={() => !out && addItem(item)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all border group ${
-                      out
-                        ? 'opacity-40 cursor-not-allowed border-transparent'
-                        : inList
-                        ? 'border-accent-signature/30 bg-accent-signature/5 hover:bg-accent-signature/8'
-                        : 'border-transparent bg-white/60 hover:bg-white hover:border-accent-signature/20 hover:shadow-sm'
-                    }`}>
-                    <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 bg-white border border-border shadow-sm">
-                      <span className="text-[11px] font-black text-ink-primary/30 uppercase">
-                        {(item.productName || '?').slice(0, 2)}
-                      </span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-ink-primary truncate leading-tight">{item.productName}</div>
-                      {inList && <div className="text-[10px] text-accent-signature font-bold">{inList.quantity} {L.inWord}</div>}
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <div className={`text-xs font-semibold ${out ? 'text-red-400' : 'text-muted-foreground'}`}>
-                        {out ? 'OUT' : `${stock} ${L.stockTag}`}
-                      </div>
-                    </div>
-                    {inList && (
-                      <div className="w-5 h-5 rounded-full bg-accent-signature text-button-text text-[9px] font-black flex items-center justify-center shrink-0">
-                        {inList.quantity}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* RIGHT: load list */}
-          <div className="w-full lg:w-[480px] xl:w-[520px] glass-panel !p-0 flex flex-col overflow-hidden border-l border-black/5 shadow-2xl">
-            <div className="px-4 py-3 border-b border-black/5 flex justify-between items-center bg-canvas/30">
-              <div className="flex items-center gap-2">
-                <Warehouse size={18} className="text-accent-signature" />
-                <h2 className="font-semibold text-sm text-ink-primary">{L.list}</h2>
-              </div>
-              <div className="bg-accent-signature text-button-text text-[10px] font-black px-2 py-1 rounded-pill ring-4 ring-accent-signature/10">
-                {totalUnits} units
-              </div>
-            </div>
-
-            {loadList.length > 0 && (
-              <div className="grid grid-cols-[1fr_120px_20px] gap-2 px-4 py-2 bg-canvas/50 border-b border-black/5">
-                <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">Product</span>
-                <span className="text-xs font-black text-muted-foreground uppercase tracking-widest text-center">Qty</span>
-                <span />
-              </div>
-            )}
-
-            <div className="flex-1 overflow-y-auto">
-              {loadList.map(item => (
-                <div key={item.productId}
-                  className="grid grid-cols-[1fr_120px_20px] gap-2 items-center px-4 py-2.5 border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors">
-                  <div className="min-w-0">
-                    <div className="text-sm font-bold text-ink-primary truncate uppercase">{item.name}</div>
-                    <div className="text-[10px] text-muted-foreground font-medium">max {item.max}</div>
-                  </div>
-                  <div className="flex items-center justify-center gap-0.5 bg-white border border-black/8 rounded-lg p-0.5">
-                    <button onClick={() => stepQty(item.productId, -1)}
-                      className="w-5 h-5 rounded flex items-center justify-center hover:bg-canvas transition-all text-ink-primary shrink-0">
-                      <Minus size={9} strokeWidth={3} />
-                    </button>
-                    <input type="number" min="1" value={item.quantity}
-                      onChange={e => setQty(item.productId, e.target.value)}
-                      className="w-12 text-center text-sm font-black text-ink-primary bg-transparent outline-none tabular-nums" />
-                    <button onClick={() => stepQty(item.productId, 1)}
-                      className="w-5 h-5 rounded flex items-center justify-center hover:bg-canvas transition-all text-ink-primary shrink-0">
-                      <Plus size={9} strokeWidth={3} />
-                    </button>
-                  </div>
-                  <button onClick={() => removeItem(item.productId)}
-                    className="text-muted-foreground hover:text-red-400 transition-colors flex items-center justify-center">
-                    <X size={11} strokeWidth={2.5} />
-                  </button>
-                </div>
-              ))}
-              {loadList.length === 0 && (
-                <div className="h-full flex flex-col items-center justify-center opacity-30 pointer-events-none p-10 text-center">
-                  <Package size={48} className="mb-4" />
-                  <div className="text-xs font-bold uppercase tracking-widest">{L.tap}</div>
-                </div>
-              )}
-            </div>
-
-            <div className="p-6 border-t border-black/5 bg-canvas/10">
-              {submitError && (
-                <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 mb-3">
-                  <X size={13} className="shrink-0 mt-0.5" />
-                  <p className="text-xs font-bold leading-snug">{submitError}</p>
-                </div>
-              )}
-              <button
-                disabled={!loadList.length || submitting}
-                onClick={handleConfirm}
-                className="w-full h-14 rounded-pill bg-ink-primary text-white font-black text-sm flex items-center justify-center gap-2 hover:bg-ink-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xl shadow-ink-primary/20">
-                {submitting
-                  ? <><span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> Working…</>
-                  : <><ArrowRight size={16} /> {L.cta} ({totalUnits})</>
-                }
-              </button>
-            </div>
-          </div>
+    <div className="pb-16">
+      <BackLink onClick={onClose} />
+      <div className="m-rise mb-4 flex items-center gap-3" style={{ '--i': 0 }}>
+        <VehicleIcon type={vehicle?.type} />
+        <div>
+          <h3 className="font-tight text-[20px] font-semibold leading-tight tracking-[-0.02em]">{L.title}</h3>
+          <p className="mt-0.5 text-[13px] text-body">{[vanPlate, L.way].filter(Boolean).join(' · ')}</p>
         </div>
       </div>
+      {warehouseItems.length === 0 ? (
+        <Empty icon={Warehouse} title={unload ? 'Nothing on this vehicle' : 'No warehouse stock to load'} className="m-rise">
+          {unload ? 'There is nothing on the van to take off.' : 'Add stock in Inventory or record a purchase first.'}
+        </Empty>
+      ) : (
+        <div className="m-rise grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_400px]" style={{ '--i': 1 }}>
+          <div className="overflow-hidden rounded-[14px] border border-line bg-surface">
+            <div className="relative m-3">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-mute" size={16} />
+              <input ref={searchRef} type="text" aria-label={L.search} placeholder={L.search} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-10 w-full rounded-pill bg-well pl-10 pr-9 text-[13px] outline-none placeholder:text-mute focus:shadow-[inset_0_0_0_2px_var(--color-ink)]" />
+              {searchTerm && <button type="button" aria-label="Clear search" onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-mute hover:text-ink"><X size={14} /></button>}
+            </div>
+            <div className="px-4 pb-2 text-[12px] text-mute">{L.tap}</div>
+            {filtered.length === 0 && <p className="border-t border-sep px-4 py-10 text-center text-[13px] text-mute">No products match “{searchTerm}”</p>}
+            {filtered.map((item) => {
+              const stock = item.available ?? 0;
+              const out = stock <= 0;
+              const inList = loadList.find((c) => c.productId === item.productId);
+              return (
+                <button key={item.productId} type="button" disabled={out} onClick={() => addItem(item)}
+                  className={cn('grid w-full grid-cols-[34px_minmax(0,1fr)_auto_auto] items-center gap-3 border-t border-sep px-4 py-2.5 text-left text-[13px] hover:bg-tile disabled:opacity-45', inList && 'bg-[#FFFBF4]')}>
+                  <Initials name={item.productName} />
+                  <div className="min-w-0"><b className="block truncate font-tight text-[13.5px] font-semibold">{item.productName}</b><small className="text-[12px] text-mute">{out ? 'None left' : `${stock} ${L.stockTag}`}</small></div>
+                  {inList ? <span className="grid h-[22px] min-w-6 place-items-center rounded-pill bg-amber px-[7px] font-tight text-[12px] font-semibold text-white tabular-nums">{inList.quantity}</span> : <span />}
+                  <span className="grid h-7 w-7 place-items-center rounded-full bg-well text-ink-2" aria-hidden="true"><Plus size={14} /></span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="rounded-[14px] border border-line bg-surface lg:sticky lg:top-4">
+            <div className="flex items-center gap-2 px-[18px] pt-4 pb-2.5">
+              <h3 className="font-tight text-[16px] font-semibold">{L.list}</h3><span className="flex-1" />
+              <span className="text-[12px] text-mute">{plural(loadList.length, 'product')}</span>
+            </div>
+            {loadList.length === 0 && <p className="border-t border-sep px-[18px] py-8 text-center text-[13px] text-mute">{L.tap}</p>}
+            {loadList.map((item) => (
+              <div key={item.productId} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2.5 border-t border-sep px-[18px] py-2.5">
+                <div className="min-w-0"><b className="block truncate font-tight text-[13.5px] font-semibold">{item.name}</b><small className="text-[12px] text-mute">{L.cap.replace('%n', item.max)}</small></div>
+                <Stepper value={item.quantity} label={item.name} onMinus={() => stepQty(item.productId, -1)} onPlus={() => stepQty(item.productId, 1)} onType={(v) => setQty(item.productId, v)} />
+                <IconBtn label={`Remove ${item.name}`} onClick={() => removeItem(item.productId)} className="h-7 w-7"><X /></IconBtn>
+              </div>
+            ))}
+            <div className="border-t border-line px-[18px] pt-3.5 pb-[18px]">
+              <div className="flex items-baseline justify-between font-tight text-[15px] font-semibold">
+                <span>Total</span><span className="text-[24px] tracking-[-0.02em] tabular-nums">{plural(totalUnits, 'unit')}</span>
+              </div>
+              {submitError && <WriteFailure error={submitError} noun={unload ? 'unload' : 'load'} onReread={onRecheck} className="mt-3" />}
+              <Button size="lg" className="mt-3.5 w-full" disabled={!loadList.length || submitting} onClick={() => send(loadList)}>
+                {submitting ? 'Working…' : L.cta}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

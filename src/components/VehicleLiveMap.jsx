@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { supabase } from '../lib/supabase';
-import { Navigation, Wifi, WifiOff, Clock } from 'lucide-react';
+import { Navigation, Clock, Truck } from 'lucide-react';
 import { realtimeEnabled } from '../lib/realtime';
 
 // Fix default marker icons broken by Vite bundling
@@ -14,20 +14,20 @@ L.Icon.Default.mergeOptions({
   shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-// Custom truck icon
-const truckIcon = (color = '#111111') => L.divIcon({
+// Bubble marker (vehicles-21): name and speed / last seen above a dot.
+const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const bubbleIcon = (name, line, stale) => L.divIcon({
   className: '',
   html: `
-    <div style="
-      width:40px;height:40px;border-radius:50%;
-      background:${color};border:3px solid white;
-      box-shadow:0 2px 8px rgba(0,0,0,0.3);
-      display:flex;align-items:center;justify-content:center;
-      font-size:18px;
-    ">🚚</div>`,
-  iconSize:   [40, 40],
-  iconAnchor: [20, 20],
-  popupAnchor:[0, -22],
+    <div style="position:absolute;left:0;bottom:0;transform:translate(-50%,0);display:flex;flex-direction:column;align-items:center">
+      <div style="background:#fff;border-radius:10px;padding:6px 10px;font:600 12px 'Inter Tight',sans-serif;color:#111418;box-shadow:0 6px 18px -8px rgba(17,20,24,.4);white-space:nowrap">
+        ${esc(name)}<small style="display:block;font:500 11px Inter,sans-serif;color:${stale ? '#B45309' : '#8A9099'}">${esc(line)}</small>
+      </div>
+      <i style="width:14px;height:14px;border-radius:50%;background:${stale ? '#B7BCC2' : '#111418'};border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3);margin-top:4px;display:block"></i>
+    </div>`,
+  iconSize: [0, 0],
+  iconAnchor: [0, 0],
+  popupAnchor: [0, -60],
 });
 
 // Auto-fit bounds when locations change
@@ -98,101 +98,76 @@ export default function VehicleLiveMap({ vehicles, tenantId }) {
     vehicles?.find(v => v.id === vehicleId);
 
   const defaultCenter = [20.5937, 78.9629]; // India centre fallback
+  const isStale = (loc) => (Date.now() - new Date(loc.updated_at)) > 5 * 60 * 1000; // >5min
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Status bar */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {connected
-            ? <><Wifi size={14} className="text-green-500" /><span className="text-[11px] font-bold text-green-600">Live</span></>
-            : <><WifiOff size={14} className="text-muted-foreground" /><span className="text-[11px] font-bold text-muted-foreground">Connecting…</span></>
-          }
+    <div>
+      <div className="m-rise mb-4 flex flex-wrap items-center gap-3" style={{ '--i': 1 }}>
+        <div>
+          <span className="font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-mute">Live vehicle map</span>
+          <div className="mt-0.5 text-[13px] text-body">Tracked from the driver's phone while a trip is on</div>
         </div>
-        <span className="text-[11px] text-muted-foreground">{locations.length} vehicle{locations.length !== 1 ? 's' : ''} tracked</span>
+        <span className="flex-1" />
+        {connected
+          ? <span className="inline-flex items-center gap-1.5 font-tight text-[12.5px] font-semibold text-good-text"><i className="h-[7px] w-[7px] rounded-full bg-good shadow-[0_0_0_3px_var(--color-good-soft)]" />Live</span>
+          : <span className="font-tight text-[12.5px] font-semibold text-mute">Connecting…</span>}
+        <span className="text-[12px] text-mute">{locations.length} vehicle{locations.length !== 1 ? 's' : ''} tracked</span>
       </div>
 
-      {/* Map */}
-      <div className="rounded-3xl overflow-hidden border border-black/5 shadow-sm" style={{ height: 480 }}>
-        <MapContainer
-          center={defaultCenter}
-          zoom={5}
-          style={{ height: '100%', width: '100%' }}
-          zoomControl={true}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-
-          {locations.map(loc => {
-            const v = getVehicle(loc.vehicle_id);
-            const stale = (Date.now() - new Date(loc.updated_at)) > 5 * 60 * 1000; // >5min
-            return (
-              <Marker
-                key={loc.vehicle_id}
-                position={[loc.lat, loc.lng]}
-                icon={truckIcon(stale ? '#9ca3af' : '#111111')}
-              >
-                <Popup>
-                  <div className="text-sm font-bold">{v?.name || 'Vehicle'}</div>
-                  <div className="text-xs text-muted-foreground">{v?.plate}</div>
-                  {loc.speed != null && (
-                    <div className="text-xs mt-1">
-                      <Navigation size={10} className="inline mr-1" />
-                      {Math.round(loc.speed)} km/h
-                    </div>
-                  )}
-                  <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                    <Clock size={10} />
-                    {timeAgo(loc.updated_at)}
+      {locations.length === 0 ? (
+        <div className="m-rise rounded-[14px] border border-dashed border-[#E2E1DE] bg-surface px-5 py-[52px] text-center" style={{ '--i': 2 }}>
+          <span className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-[14px] bg-tile text-ink-2"><Navigation size={22} strokeWidth={1.8} /></span>
+          <h4 className="font-tight text-[15px] font-semibold">No vehicles sharing their location</h4>
+          <p className="mx-auto mt-1 max-w-[48ch] text-[13px] text-body">A vehicle shows up once its driver starts a trip on the phone app.</p>
+        </div>
+      ) : (
+        <div className="m-rise grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]" style={{ '--i': 2 }}>
+          <div className="relative h-[520px] overflow-hidden rounded-[14px] border border-line bg-[#EEF0EC]">
+            <MapContainer center={defaultCenter} zoom={5} style={{ height: '100%', width: '100%' }} zoomControl={true}>
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              {locations.map(loc => {
+                const v = getVehicle(loc.vehicle_id);
+                const stale = isStale(loc);
+                const line = stale ? `Signal lost · ${timeAgo(loc.updated_at)}`
+                  : [loc.speed != null ? `${Math.round(loc.speed)} km/h` : null, timeAgo(loc.updated_at)].filter(Boolean).join(' · ');
+                return (
+                  <Marker key={loc.vehicle_id} position={[loc.lat, loc.lng]} icon={bubbleIcon(v?.name || 'Vehicle', line, stale)}>
+                    <Popup>
+                      <div className="text-sm font-semibold">{v?.name || 'Vehicle'}</div>
+                      <div className="text-xs text-mute">{v?.plate}</div>
+                      <div className="mt-1 flex items-center gap-1 text-xs text-mute"><Clock size={10} />{timeAgo(loc.updated_at)}</div>
+                    </Popup>
+                  </Marker>
+                );
+              })}
+              <FitBounds locations={locations} />
+            </MapContainer>
+          </div>
+          <div className="self-start overflow-hidden rounded-[14px] border border-line bg-surface">
+            {locations.map(loc => {
+              const v = getVehicle(loc.vehicle_id);
+              const stale = isStale(loc);
+              return (
+                <div key={loc.vehicle_id} className="grid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3 border-t border-sep px-4 py-3 first:border-t-0">
+                  <span className={`grid h-10 w-10 place-items-center rounded-xl ${stale ? 'bg-tile text-ink-2' : 'bg-amber-soft text-amber-text'}`}><Truck size={20} strokeWidth={1.6} /></span>
+                  <div className="min-w-0">
+                    <b className="block truncate font-tight text-[13.5px] font-semibold">{v?.name || loc.vehicle_id}</b>
+                    <small className="text-[12px] text-mute">{[v?.plate, timeAgo(loc.updated_at)].filter(Boolean).join(' · ')}</small>
+                    {stale && <small className="block text-[12px] font-semibold text-amber-text">Signal lost</small>}
                   </div>
-                  {stale && (
-                    <div className="text-xs text-accent-signature font-semibold mt-1">⚠ Signal lost</div>
-                  )}
-                </Popup>
-              </Marker>
-            );
-          })}
-
-          {locations.length > 0 && <FitBounds locations={locations} />}
-        </MapContainer>
-      </div>
-
-      {/* Vehicle list */}
-      {locations.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {locations.map(loc => {
-            const v = getVehicle(loc.vehicle_id);
-            const stale = (Date.now() - new Date(loc.updated_at)) > 5 * 60 * 1000;
-            return (
-              <div key={loc.vehicle_id} className="glass-panel p-4 flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl ${stale ? 'bg-muted' : 'bg-accent-signature/20'}`}>
-                  🚚
+                  <div className="text-right font-tight text-[14px] font-semibold tabular-nums">
+                    {loc.speed != null ? Math.round(loc.speed) : 0}<small className="block font-sans text-[11px] font-medium text-mute">km/h</small>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-ink-primary truncate">{v?.name || loc.vehicle_id}</p>
-                  <p className="text-[10px] text-muted-foreground">{v?.plate} · {timeAgo(loc.updated_at)}</p>
-                </div>
-                <div className="text-right">
-                  {loc.speed != null && (
-                    <p className="text-sm font-black text-ink-primary">{Math.round(loc.speed)}<span className="text-[10px] font-normal ml-0.5">km/h</span></p>
-                  )}
-                  <div className={`w-2 h-2 rounded-full ml-auto mt-1 ${stale ? 'bg-gray-300' : 'bg-green-500 animate-pulse'}`} />
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
-
-      {locations.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">
-          <div className="text-4xl mb-3">🗺️</div>
-          <p className="text-sm font-bold">No vehicles broadcasting location</p>
-          <p className="text-xs mt-1">Share the Driver Link with drivers to start tracking</p>
-        </div>
-      )}
+      <p className="mt-2.5 text-[12px] text-mute">A vehicle is shown as signal lost when nothing has come in for 5 minutes.</p>
     </div>
   );
 }

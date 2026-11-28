@@ -1,14 +1,16 @@
 /**
  * VanSalePage — full-page van sale (POS-style route).
  * Navigated to from Vehicles.jsx with router state:
- *   { route, vehicle, vanItems, clients, vehicleLocId }
+ *   { route, vehicle, vanItems, clients, vehicleLocId, driverName }
  */
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTenant } from '../context/TenantContext';
 import { useOperations } from '../hooks/useOperations';
 import VanSaleBuilder from '../components/VanSaleBuilder';
-import GlobalLoading from '../components/GlobalLoading';
+import { Truck } from 'lucide-react';
+import { Button } from '../components/ui/button';
+import { Empty } from '../components/vehicles/parts';
 
 const VanSalePage = () => {
   const location  = useLocation();
@@ -19,22 +21,19 @@ const VanSalePage = () => {
 
   const state = location.state;
 
-  // No state = direct URL access, redirect back
+  // No state = opened without a trip (direct URL, reload): send back to Vehicles.
   if (!state?.route) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-        <p className="text-muted-foreground text-sm font-medium">No van sale context. Go back to Vehicles.</p>
-        <button
-          onClick={() => navigate(-1)}
-          className="px-4 py-2 bg-ink-primary text-white rounded-pill text-sm font-bold"
-        >
-          Back
-        </button>
+      <div className="m-rise mx-auto mt-6 max-w-[520px]">
+        <Empty icon={Truck} title="Start a van sale from a trip"
+          action={<Button onClick={() => navigate('/vehicles')}>Back to Vehicles</Button>}>
+          Open Vehicles, then Van sale on a trip that is on the road.
+        </Empty>
       </div>
     );
   }
 
-  const { route, vehicle, vanItems = [], clients = [], vehicleLocId } = state;
+  const { route, vehicle, vanItems = [], clients = [], vehicleLocId, driverName } = state;
 
   const handleSubmit = async ({ cart, clientId, clientName, paymentMethod, total }) => {
     const locId = vehicleLocId;
@@ -61,6 +60,7 @@ const VanSalePage = () => {
       vanItems={vanItems}
       route={route}
       vehicle={vehicle}
+      driverName={driverName}
       clients={clients}
       onSubmit={handleSubmit}
       onClose={() => navigate(-1)}
