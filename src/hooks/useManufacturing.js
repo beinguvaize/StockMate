@@ -11,7 +11,8 @@ export function useManufacturing(tenantId) {
   const [orders, setOrders]               = useState([]);
   const [orderMaterials, setOrderMaterials] = useState([]);
   const [orderCosts, setOrderCosts]       = useState([]);
-  const [loading, setLoading]             = useState(false);
+  const [loading, setLoading]             = useState(!!tenantId);
+  const [error, setError]                 = useState(null);
 
   const fetchAll = useCallback(async () => {
     if (!tenantId) { return; }
@@ -34,8 +35,12 @@ export function useManufacturing(tenantId) {
         String(y.created_at || '').localeCompare(String(x.created_at || ''))));
       setOrderMaterials(live(om.data));
       setOrderCosts(live(oc.data));
+      setError(null);
     } catch (e) {
+      // A failed read used to leave the lists empty, which reads as "no
+      // orders yet". Keep the reason so the page can say it did not load.
       console.error('useManufacturing fetch error:', e);
+      setError(e);
     } finally {
       setLoading(false);
     }
@@ -68,9 +73,17 @@ export function useManufacturing(tenantId) {
     }
   };
 
+  // Deletes used to drop the server's answer; they now hand it back so the
+  // confirm box can say why. The write itself is unchanged.
   const deleteBom = async (id) => {
-    await supabase.from('bom').update({ deleted_at: new Date().toISOString() }).eq('id', id);
-    await fetchAll();
+    try {
+      const { error } = await supabase.from('bom').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+      if (error) return { success: false, error };
+      await fetchAll();
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e };
+    }
   };
 
   // ── Production orders ───────────────────────────────────────────────
@@ -124,20 +137,30 @@ export function useManufacturing(tenantId) {
   };
 
   const deleteOrder = async (id) => {
-    await supabase.from('production_orders').update({ deleted_at: new Date().toISOString() }).eq('id', id);
-    await fetchAll();
+    try {
+      const { error } = await supabase.from('production_orders').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+      if (error) return { success: false, error };
+      await fetchAll();
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e };
+    }
   };
 
   // Wastage/yield: set the actual produced qty before completing.
   const setProducedQty = async (id, qty) => {
-    const { error } = await supabase.from('production_orders')
-      .update({ qty_produced: Number(qty) }).eq('id', id).eq('tenant_id', tenantId);
-    if (!error) await fetchAll();
-    return { error };
+    try {
+      const { error } = await supabase.from('production_orders')
+        .update({ qty_produced: Number(qty) }).eq('id', id).eq('tenant_id', tenantId);
+      if (!error) await fetchAll();
+      return { error };
+    } catch (e) {
+      return { error: e };
+    }
   };
 
   return {
-    boms, bomComponents, orders, orderMaterials, orderCosts, loading,
+    boms, bomComponents, orders, orderMaterials, orderCosts, loading, error,
     refetch: fetchAll,
     createBom, deleteBom,
     createProductionOrder, completeOrder, deleteOrder, setProducedQty,
