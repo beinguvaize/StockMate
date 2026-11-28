@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { todayISOInAppTZ } from '../lib/utils';
 
 /**
  * The Dashboard's figures from the get_dashboard_kpis RPC, shared.
@@ -11,7 +12,7 @@ import { supabase } from '../lib/supabase';
  * every subscriber is told when it lands.
  *
  * Behaviour the Dashboard relied on is kept exactly: the same RPC, the same
- * arguments (p_date is today's date as the Dashboard computed it), and a
+ * arguments (p_date is today's business date in the shop's timezone), and a
  * failed read keeps the last good answer rather than blanking it. The error
  * is now also kept, so a caller can tell "unknown" from "nothing".
  */
@@ -34,7 +35,9 @@ export function fetchDashboardKpis(tenantId) {
   if (s.inflight) return s.inflight;
   s.loading = true;
   notify(s);
-  const todayStr = new Date().toISOString().split('T')[0];
+  // The shop's own today. toISOString() is UTC, so before 05:30 in India it
+  // asked for YESTERDAY's figures under the "today" label.
+  const todayStr = todayISOInAppTZ();
   s.inflight = Promise.resolve(supabase.rpc('get_dashboard_kpis', { p_tenant_id: tenantId, p_date: todayStr }))
     .then(({ data, error }) => {
       if (error) {
