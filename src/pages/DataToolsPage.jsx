@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, ChevronLeft } from 'lucide-react';
-import { Tabs } from '../components/ui/Tabs';
+import { Download, ChevronLeft, Database } from 'lucide-react';
+import { Tabs, FilterPills } from '../components/ui/Tabs';
 import { Button } from '../components/ui/button';
-import OptionCard, { OptionGroup } from '../components/ui/OptionCard';
+import { IconTile, Eyebrow } from '../components/tools/parts';
 import { Seg } from '../components/documents/DocParts';
 import { useInventory } from '../hooks/useInventory';
 import { usePeople } from '../hooks/usePeople';
@@ -53,9 +53,11 @@ export default function DataToolsPage() {
   // creditor ledgers and its purchase vouchers are built from one source.
   const { purchases = [], suppliers = [] } = usePurchases(currentTenantId) || {};
 
+  const box = 'm-rise rounded-[14px] border border-line bg-surface px-[22px] py-5';
+
   const TABS = [
     { key: 'export', label: 'Export data' },
-    ...(isOwner ? [{ key: 'excel', label: 'Bulk import · Upload Excel' }] : []),
+    ...(isOwner ? [{ key: 'excel', label: 'Bulk import (Excel)' }] : []),
     ...(isOwner ? [{ key: 'tally', label: 'Export to Tally' }] : []),
   ];
 
@@ -108,30 +110,37 @@ export default function DataToolsPage() {
   const currentModuleData = getModuleData(selectedModule);
   const currentMod = MODULES.find(m => m.key === selectedModule);
 
+  // Web redesign (approved mockups import-01..09): one box per tab, the same
+  // exports, the same importer and the same Tally file.
   return (
-    <div className="flex flex-col pb-16">
-      <div className="mb-4 flex flex-wrap items-center gap-3.5">
+    <div className="flex max-w-[1000px] flex-col pb-16">
+      <div className="m-rise mb-4" style={{ '--i': 0 }}>
         <button type="button" onClick={() => navigate('/settings?tab=data')}
-          className="m-press inline-flex h-8 items-center gap-1 rounded-pill bg-well pl-2 pr-3 font-tight text-[13px] font-semibold text-ink-2 hover:bg-[#E8E8E7]">
+          className="m-press inline-flex items-center gap-1 font-tight text-[13px] font-semibold text-body hover:text-ink">
           <ChevronLeft size={16} aria-hidden="true" />Settings
         </button>
-        <h3 className="font-tight text-[20px] font-semibold tracking-[-0.02em] text-ink">Data tools</h3>
-        <span className="text-[13px] text-mute">Import and export your business data</span>
+      </div>
+      <div className="m-rise mb-4 flex items-center gap-3" style={{ '--i': 0 }}>
+        <IconTile icon={Database} />
+        <div>
+          <h3 className="font-tight text-[20px] font-semibold leading-[1.2] tracking-[-0.02em] text-ink">Data tools</h3>
+          <p className="mt-0.5 text-[13px] text-body">Bring your data in, or take it out</p>
+        </div>
       </div>
 
-      <Tabs ariaLabel="Data tools" className="mb-5" value={activeTab} onChange={setActiveTab}
+      <Tabs ariaLabel="Data tools" className="m-rise mb-5" value={activeTab} onChange={setActiveTab}
         items={TABS.map(t => ({ key: t.key, label: t.label }))} />
 
       {/* Excel Bulk Import tab: the same importer as Inventory's bulk import. */}
       {activeTab === 'excel' && (
-        <div className="max-w-[880px] rounded-[14px] border border-line bg-surface p-6">
+        <div className={box}>
           <ImportData modal />
         </div>
       )}
 
       {/* Tally XML export */}
       {activeTab === 'tally' && (
-        <div className="max-w-[720px]">
+        <div className={box}>
           <TallyExportPanel
             sales={orders}
             purchases={purchases}
@@ -143,36 +152,34 @@ export default function DataToolsPage() {
       )}
 
       {activeTab === 'export' && (
-        <div className="grid max-w-[880px] gap-4">
-          <section className="overflow-hidden rounded-[14px] border border-line bg-surface">
-            <div className="border-b border-sep px-5 pb-3.5 pt-4">
-              <h4 className="font-tight text-[15px] font-semibold text-ink">Choose a list</h4>
-              <p className="mt-0.5 text-[13px] text-body">Exports what this device has loaded for that list.</p>
-            </div>
-            <div className="px-5 py-4">
-              <OptionGroup cols={1} aria-label="List to export" className="grid-cols-2 sm:grid-cols-5">
-                {MODULES.map(mod => (
-                  <OptionCard key={mod.key} title={mod.label}
-                    hint={`${getModuleData(mod.key).length.toLocaleString('en-IN')} records`}
-                    selected={selectedModule === mod.key} onClick={() => setSelectedModule(mod.key)} />
-                ))}
-              </OptionGroup>
-              <div className="mb-1.5 mt-[18px] font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-mute">Format</div>
+        <>
+          <div className={box}>
+            <Eyebrow>What to export</Eyebrow>
+            <FilterPills ariaLabel="List to export" value={selectedModule} onChange={setSelectedModule}
+              items={MODULES.map(mod => ({ key: mod.key, label: mod.label, count: getModuleData(mod.key).length.toLocaleString('en-IN') }))} />
+            <div className="mt-4 flex flex-wrap items-center gap-4 rounded-[14px] bg-tile px-[18px] py-4">
+              <div>
+                <small className="text-[12.5px] text-body">Records ready</small>
+                <b className="block font-tight text-[30px] font-semibold tabular-nums text-ink">{currentModuleData.length.toLocaleString('en-IN')}</b>
+              </div>
+              <span className="flex-1 text-[12.5px] text-mute">Exports what this device has loaded for that list.</span>
               <Seg ariaLabel="Format" value={exportFormat} onChange={setExportFormat} options={[['csv', 'CSV'], ['json', 'JSON']]} />
-              {exportFormat === 'csv' && (
-                <div className="mt-4 rounded-xl bg-tile px-3.5 py-[11px] text-[13px] text-body shadow-[inset_0_0_0_1px_var(--color-line)]">
-                  Columns: {currentMod?.fields.join(', ')}.
-                </div>
-              )}
             </div>
-            <div className="flex justify-end border-t border-sep bg-tile px-5 py-3">
+            <div className="mt-4 flex flex-wrap items-center gap-2.5">
+              {exportFormat === 'csv' && (
+                <span className="min-w-0 flex-1 text-[12px] text-mute">Columns: {currentMod?.fields.join(', ')}</span>
+              )}
+              <span className="flex-1" />
               <Button onClick={handleExport} disabled={!currentModuleData.length}>
                 <Download aria-hidden="true" />
                 Export {currentModuleData.length.toLocaleString('en-IN')} {currentMod?.label.toLowerCase()}
               </Button>
             </div>
-          </section>
-        </div>
+          </div>
+          {!isOwner && (
+            <p className="mt-2.5 text-[12px] text-mute">Bulk import and Export to Tally show for the shop owner only.</p>
+          )}
+        </>
       )}
     </div>
   );
