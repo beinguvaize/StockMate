@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildPayRun, payRunItem, markCounts, dayRateWage, leaveUse, netOf,
-  isDayRate, payRunTotals, planAdvanceRecovery,
+  isDayRate, payRunTotals, planAdvanceRecovery, planAdvanceSplit,
 } from './payRun';
 
 // The staff and figures on the approved phone mockup (Run Payroll boards),
@@ -237,6 +237,43 @@ describe('planAdvanceRecovery (preview of what process_payroll_run takes)', () =
   });
 });
 
+describe('planAdvanceSplit (which advances the recovery comes from)', () => {
+  const rows = [
+    { advance_id: 'b', given_on: '2026-10-10', created_at: '2026-10-10T08:00:00Z', outstanding: 2000, recovery_per_run: 1500 },
+    { advance_id: 'z', given_on: '2026-10-01', created_at: '2026-10-01T08:00:00Z', outstanding: 3000, recovery_per_run: 1000 },
+    { advance_id: 'a', given_on: '2026-10-15', created_at: '2026-10-15T08:00:00Z', outstanding: 1000, recovery_per_run: 0 },
+    { advance_id: 'done', given_on: '2026-09-01', created_at: '2026-09-01T08:00:00Z', outstanding: 0, recovery_per_run: 500 },
+  ];
+  it('oldest first by date (not id), each its per-run amount, capped at net', () => {
+    expect(planAdvanceSplit({ netPay: 20000, rows })).toEqual([{ advanceId: 'z', amount: 1000 }, { advanceId: 'b', amount: 1500 }]);
+    expect(planAdvanceSplit({ netPay: 2000, rows })).toEqual([{ advanceId: 'z', amount: 1000 }, { advanceId: 'b', amount: 1000 }]);
+  });
+  it('per-run 0 takes nothing unless recover all; recover all takes everything, oldest first, capped at net', () => {
+    expect(planAdvanceSplit({ netPay: 20000, rows }).some(s => s.advanceId === 'a')).toBe(false);
+    expect(planAdvanceSplit({ netPay: 20000, rows, recoverAll: true }))
+      .toEqual([{ advanceId: 'z', amount: 3000 }, { advanceId: 'b', amount: 2000 }, { advanceId: 'a', amount: 1000 }]);
+    expect(planAdvanceSplit({ netPay: 2500, rows, recoverAll: true }))
+      .toEqual([{ advanceId: 'z', amount: 2500 }]);
+  });
+  it('skip, no rows or no pay: nothing', () => {
+    expect(planAdvanceSplit({ netPay: 20000, rows, skip: true })).toEqual([]);
+    expect(planAdvanceSplit({ netPay: 20000 })).toEqual([]);
+    expect(planAdvanceSplit({ netPay: 0, rows })).toEqual([]);
+  });
+  it('adds up to planAdvanceRecovery for the same rows', () => {
+    const balance = {
+      outstanding: rows.reduce((t, r) => t + r.outstanding, 0),
+      due_per_run: rows.reduce((t, r) => t + Math.min(r.recovery_per_run, r.outstanding), 0),
+    };
+    for (const netPay of [0, 700, 1000, 2400, 2500, 9000]) {
+      for (const recoverAll of [false, true]) {
+        const total = planAdvanceSplit({ netPay, rows, recoverAll }).reduce((t, s) => t + s.amount, 0);
+        expect(total).toBe(planAdvanceRecovery({ netPay, balance, recoverAll }).planned);
+      }
+    }
+  });
+});
+
 describe('buildPayRun with advances', () => {
   const employees = [
     { id: 'a', name: 'A', status: 'ACTIVE', pay_type: 'MONTHLY', salary: 30000 },
@@ -249,9 +286,22 @@ describe('buildPayRun with advances', () => {
     expect(run.items[0]).toMatchObject({ advanceOutstanding: 5000, advancePlanned: 2000, netPay: plain.items[0].netPay });
     expect(run.items[1]).toMatchObject({ advanceOutstanding: 0, advancePlanned: 0 });
     expect(run.totalNet).toBe(plain.totalNet);
+    expect(run.items[0].netAfterAdvance).toBe(plain.items[0].netPay - 2000);
+    expect(run.items[0].advanceSplit).toEqual([]);
+    expect(run.items[1].netAfterAdvance).toBe(plain.items[1].netPay);
+  });
+  it('splits per advance when the balance carries its open advance rows', () => {
+    const run = buildPayRun({ employees, from, to, recoverAll: ['a'], advances: { a: { outstanding: 5000, due_per_run: 2000, advances: [
+      { advance_id: 'x2', given_on: '2026-11-02', outstanding: 1000, recovery_per_run: 1000 },
+      { advance_id: 'x1', given_on: '2026-10-02', outstanding: 4000, recovery_per_run: 1000 },
+    ] } } });
+    expect(run.items[0].advancePlanned).toBe(5000);
+    expect(run.items[0].advanceSplit).toEqual([{ advanceId: 'x1', amount: 4000 }, { advanceId: 'x2', amount: 1000 }]);
   });
   it('adds nothing when no advances are passed (the web page today)', () => {
     const run = buildPayRun({ employees, from, to });
     expect('advancePlanned' in run.items[0]).toBe(false);
+    expect('netAfterAdvance' in run.items[0]).toBe(false);
+    expect('advanceSplit' in run.items[0]).toBe(false);
   });
 });

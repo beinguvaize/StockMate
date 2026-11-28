@@ -233,6 +233,43 @@ export function planAdvanceRecovery({ netPay, balance, skip = false, recoverAll 
   return { outstanding, planned: Math.round(planned * 100) / 100 };
 }
 
+const round2 = (v) => Math.round(num(v) * 100) / 100;
+
+/**
+ * Which advances the planned recovery comes from, the way process_payroll_run
+ * takes it: oldest advance first (given_on, then created_at, then id), each
+ * advance its own per-run amount (all of it with `recoverAll`), never more than
+ * is left on it, and the total never more than `netPay`. A PREVIEW, like
+ * planAdvanceRecovery; its total equals that function's `planned` when both
+ * read the same rows.
+ *
+ * `rows` are that person's staff_advance_status rows (advance_id, given_on,
+ * created_at, outstanding, recovery_per_run). Returns [{ advanceId, amount }]
+ * with only the advances something is taken from.
+ */
+export function planAdvanceSplit({ netPay, rows = [], skip = false, recoverAll = false } = {}) {
+  if (skip) return [];
+  const key = (r) => [String(r?.given_on || ''), String(r?.created_at || ''), String(r?.advance_id || '')];
+  const sorted = [...(rows || [])]
+    .filter((r) => num(r?.outstanding) > 0)
+    .sort((a, b) => {
+      const ka = key(a), kb = key(b);
+      for (let i = 0; i < 3; i += 1) if (ka[i] !== kb[i]) return ka[i] < kb[i] ? -1 : 1;
+      return 0;
+    });
+  let left = Math.max(0, num(netPay));
+  const out = [];
+  for (const r of sorted) {
+    if (left <= 0) break;
+    const owed = num(r.outstanding);
+    const take = round2(Math.min(left, owed, recoverAll ? owed : Math.max(0, num(r.recovery_per_run))));
+    if (take <= 0) continue;
+    out.push({ advanceId: r.advance_id, amount: take });
+    left = round2(left - take);
+  }
+  return out;
+}
+
 /**
  * The whole run for a window.
  *
@@ -245,7 +282,10 @@ export function planAdvanceRecovery({ netPay, balance, skip = false, recoverAll 
  * `adjustments` is { employeeId: { bonus, deductions, overtime, commission } }.
  *
  * `advances` (optional) is { employeeId: staff_advance_balances row }. When it
- * is given, every line also carries advanceOutstanding and advancePlanned.
+ * is given, every line also carries advanceOutstanding, advancePlanned,
+ * netAfterAdvance (netPay - advancePlanned, for showing) and advanceSplit
+ * ([{ advanceId, amount }], from the row's optional `advances` array of that
+ * person's staff_advance_status rows; [] without it).
  * netPay is NOT reduced by the advance: it stays what the person earned, which
  * is what process_payroll_run expects to be sent and takes the recovery from.
  */
@@ -269,6 +309,15 @@ export function buildPayRun({
       });
       item.advanceOutstanding = plan.outstanding;
       item.advancePlanned = plan.planned;
+      // What is handed over after the advance, so no screen subtracts. Only
+      // for showing: send netPay back unchanged when saving.
+      item.netAfterAdvance = round2(item.netPay - plan.planned);
+      // Per advance, when the caller passed the person's open advance rows
+      // (balance.advances); [] otherwise.
+      item.advanceSplit = planAdvanceSplit({
+        netPay: item.netPay, rows: advances[emp.id]?.advances || [],
+        skip: skip.has(emp.id), recoverAll: all.has(emp.id),
+      });
     }
     return item;
   };

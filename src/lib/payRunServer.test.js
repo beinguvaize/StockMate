@@ -15,6 +15,7 @@ const fakeDb = (tables, seen = []) => () => ({
       eq: (c, v) => { q.filters.push(['eq', c, v]); return chain; },
       gte: (c, v) => { q.filters.push(['gte', c, v]); return chain; },
       lte: (c, v) => { q.filters.push(['lte', c, v]); return chain; },
+      gt: (c, v) => { q.filters.push(['gt', c, v]); return chain; },
       range: async (a, b) => {
         seen.push({ ...q, a, b });
         const t = tables[table];
@@ -237,8 +238,8 @@ describe('payroll-run server function', () => {
       // every field the released phone reads is exactly as before
       for (const line of out.run.items) {
         const before = plain.run.items.find(i => i.employeeId === line.employeeId);
-        const { advanceOutstanding: _o, advancePlanned: _p, ...rest } = line;
-        const { advanceOutstanding: _a, advancePlanned: _b, ...restBefore } = before;
+        const { advanceOutstanding: _o, advancePlanned: _p, netAfterAdvance: _n, advanceSplit: _s, ...rest } = line;
+        const { advanceOutstanding: _a, advancePlanned: _b, netAfterAdvance: _m, advanceSplit: _t, ...restBefore } = before;
         expect(rest).toEqual(restBefore);
       }
       expect(out.run.totalNet).toBe(plain.run.totalNet);
@@ -252,6 +253,39 @@ describe('payroll-run server function', () => {
       expect(out.run.items.find(i => i.employeeId === 'aj').advancePlanned).toBe(0);
       expect(out.run.items.find(i => i.employeeId === 'aj').advanceOutstanding).toBe(5000);
       expect(out.run.items.find(i => i.employeeId === 'ks').advancePlanned).toBe(300);
+    });
+
+    it('gives the amount after the advance and the split per advance, oldest first', async () => {
+      const status = [
+        { advance_id: 'adv-new', employee_id: 'aj', given_on: '2026-11-10', created_at: '2026-11-10T09:00:00Z', outstanding: 3000, recovery_per_run: 1500 },
+        { advance_id: 'adv-old', employee_id: 'aj', given_on: '2026-10-01', created_at: '2026-10-01T09:00:00Z', outstanding: 2000, recovery_per_run: 500 },
+        { advance_id: 'adv-ks', employee_id: 'ks', given_on: '2026-11-01', created_at: '2026-11-01T09:00:00Z', outstanding: 300, recovery_per_run: 300 },
+      ];
+      const seen = [];
+      const res = await call(body, { employees: staff, attendance: marks, payroll: [],
+        staff_advance_balances: balances, staff_advance_status: status }, { seen });
+      const out = await res.json();
+      const aj = out.run.items.find(i => i.employeeId === 'aj');
+      expect(aj.advancePlanned).toBe(2000);
+      expect(aj.advanceSplit).toEqual([{ advanceId: 'adv-old', amount: 500 }, { advanceId: 'adv-new', amount: 1500 }]);
+      expect(aj.netAfterAdvance).toBe(aj.netPay - 2000);
+      const ks = out.run.items.find(i => i.employeeId === 'ks');
+      expect(ks.advanceSplit).toEqual([{ advanceId: 'adv-ks', amount: 300 }]);
+      expect(ks.netAfterAdvance).toBe(ks.netPay - 300);
+      expect(out.advance_split_read).toBe(true);
+      const q = seen.find(s => s.table === 'staff_advance_status');
+      expect(q.filters).toEqual(expect.arrayContaining([['eq', 'tenant_id', TENANT], ['gt', 'outstanding', 0]]));
+    });
+
+    it('keeps the totals when only the per-advance rows fail, and says so', async () => {
+      const out = await (await call(body, { employees: staff, attendance: marks, payroll: [],
+        staff_advance_balances: balances, staff_advance_status: new Error('boom') })).json();
+      expect(out.advances_read).toBe(true);
+      expect(out.advance_split_read).toBe(false);
+      expect(out.advance_split_error).toContain('boom');
+      const aj = out.run.items.find(i => i.employeeId === 'aj');
+      expect(aj.advancePlanned).toBe(2000);
+      expect(aj.advanceSplit).toEqual([]);
     });
 
     it('still costs the run when advances cannot be read, and says why', async () => {

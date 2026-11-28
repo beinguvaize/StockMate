@@ -438,6 +438,27 @@ function planAdvanceRecovery({ netPay, balance, skip = false, recoverAll = false
   const planned = Math.max(0, Math.min(due, num3(netPay)));
   return { outstanding, planned: Math.round(planned * 100) / 100 };
 }
+var round2 = (v) => Math.round(num3(v) * 100) / 100;
+function planAdvanceSplit({ netPay, rows = [], skip = false, recoverAll = false } = {}) {
+  if (skip) return [];
+  const key = (r) => [String(r?.given_on || ""), String(r?.created_at || ""), String(r?.advance_id || "")];
+  const sorted = [...rows || []].filter((r) => num3(r?.outstanding) > 0).sort((a, b) => {
+    const ka = key(a), kb = key(b);
+    for (let i = 0; i < 3; i += 1) if (ka[i] !== kb[i]) return ka[i] < kb[i] ? -1 : 1;
+    return 0;
+  });
+  let left = Math.max(0, num3(netPay));
+  const out = [];
+  for (const r of sorted) {
+    if (left <= 0) break;
+    const owed = num3(r.outstanding);
+    const take = round2(Math.min(left, owed, recoverAll ? owed : Math.max(0, num3(r.recovery_per_run))));
+    if (take <= 0) continue;
+    out.push({ advanceId: r.advance_id, amount: take });
+    left = round2(left - take);
+  }
+  return out;
+}
 function buildPayRun({
   employees = [],
   attendance = {},
@@ -471,6 +492,13 @@ function buildPayRun({
       });
       item.advanceOutstanding = plan.outstanding;
       item.advancePlanned = plan.planned;
+      item.netAfterAdvance = round2(item.netPay - plan.planned);
+      item.advanceSplit = planAdvanceSplit({
+        netPay: item.netPay,
+        rows: advances[emp.id]?.advances || [],
+        skip: skip.has(emp.id),
+        recoverAll: all.has(emp.id)
+      });
     }
     return item;
   };
@@ -491,5 +519,6 @@ export {
   overlapConfirmations,
   paidForWindow,
   parsePeriod,
-  planAdvanceRecovery
+  planAdvanceRecovery,
+  planAdvanceSplit
 };

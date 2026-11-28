@@ -90,11 +90,29 @@ export async function handle(req, deps) {
     // costs the run; the reason is handed back rather than hidden.
     let advances = {};
     let advanceError = null;
+    let splitError = null;
     try {
       const rows = await readAll(() => db.from("staff_advance_balances")
         .select("employee_id, outstanding, due_per_run, open_advances")
         .eq("tenant_id", tenantId).order("employee_id"));
-      for (const a of rows) advances[a.employee_id] = a;
+      for (const a of rows) advances[a.employee_id] = { ...a };
+      // Each open advance, so a line can show which ones the recovery comes
+      // from ("₹500 + ₹1,000") before the run is saved.
+      // Read on its own: if it fails, the totals above still stand and only
+      // the split is missing (advance_split_read: false says so).
+      try {
+        const open = await readAll(() => db.from("staff_advance_status")
+          .select("advance_id, employee_id, given_on, created_at, outstanding, recovery_per_run")
+          .eq("tenant_id", tenantId).gt("outstanding", 0)
+          .order("employee_id").order("given_on").order("created_at").order("advance_id"));
+        for (const r of open) {
+          if (!advances[r.employee_id]) continue;
+          (advances[r.employee_id].advances ||= []).push(r);
+        }
+      } catch (e) {
+        splitError = String(e?.message || e);
+        console.error("payroll-run: per-advance rows not read:", e);
+      }
     } catch (e) {
       advances = {};
       advanceError = String(e?.message || e);
@@ -140,10 +158,14 @@ export async function handle(req, deps) {
       // and alreadyPaidRunIds.
       confirm_employee_ids: confirmIds,
       // New fields; nothing above changed. Each line also carries
-      // advanceOutstanding and advancePlanned. netPay stays what was earned:
+      // advanceOutstanding, advancePlanned, netAfterAdvance (to show) and
+      // advanceSplit [{ advanceId, amount }]. netPay stays what was earned:
       // send it back unchanged with p_options.advance_aware = true.
       advances_read: advanceError === null,
       ...(advanceError === null ? {} : { advances_error: advanceError }),
+      // New: whether advanceSplit could be worked out.
+      advance_split_read: advanceError === null && splitError === null,
+      ...(splitError === null ? {} : { advance_split_error: splitError }),
     });
   } catch (e) {
     console.error("payroll-run read failed:", e);
