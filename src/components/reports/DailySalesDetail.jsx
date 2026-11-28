@@ -86,7 +86,7 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
                 {/* Column labels */}
                 <div className="grid grid-cols-[1fr_180px_56px_72px_72px_110px_84px_120px] gap-3 px-8 py-2 border-b border-line items-center">
                   {[['Client','justify-self-start'],['Products','justify-self-start'],['Items','justify-self-center'],['Source','justify-self-center'],['App','justify-self-center'],['By','justify-self-start'],['Method','justify-self-center'],['Amount','justify-self-end']].map(([h,a]) => (
-                    <span key={h} className={`text-[12px] font-semibold text-body uppercase tracking-[0.07em] ${a}`}>{h}</span>
+                    <span key={h} className={`font-tight text-[12px] font-semibold text-mute ${a}`}>{h}</span>
                   ))}
                 </div>
 

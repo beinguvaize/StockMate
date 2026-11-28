@@ -493,7 +493,7 @@ const BusinessReport = () => {
               {/* Table header */}
               <div className="grid grid-cols-[36px_1fr_90px_70px_110px_110px_110px_92px] gap-4 px-4 py-2 bg-tile border-b border-line">
                 {['#','Product','Qty','Bills','Revenue','COGS','Gross profit','Margin'].map(h => (
-                  <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
+                  <span key={h} className="font-tight text-[12px] font-semibold text-mute">{h}</span>
                 ))}
               </div>
               {prodRows.map((p, i) => (
@@ -672,7 +672,7 @@ const BusinessReport = () => {
             <div>
               <div className="grid grid-cols-[36px_1fr_80px_140px_120px] gap-4 px-4 py-2 bg-tile border-b border-line">
                 {['#','Supplier','Orders','Share','Amount'].map(h => (
-                  <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
+                  <span key={h} className="font-tight text-[12px] font-semibold text-mute">{h}</span>
                 ))}
               </div>
               {purchMetrics.topSuppliers.map((s, i) => (

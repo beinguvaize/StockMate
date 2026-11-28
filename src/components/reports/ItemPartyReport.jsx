@@ -223,7 +223,7 @@ const ItemPartyReport = () => {
 
       {/* KPIs (only when entity is selected) */}
       {entitySelected && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {isCustomerView ? (
             <>
               <KPI label="Unique Items"   loading={sLoading} value={tableKpis.uniqueItems}             icon={Package}    color="#8b5cf6" />
@@ -267,7 +267,7 @@ const ItemPartyReport = () => {
             <div>
               <div className="grid grid-cols-[36px_1fr_100px_140px] gap-4 px-4 py-2 bg-tile border-b border-line">
                 {['#', isCustomerView ? 'Item' : 'Customer', 'Qty', 'Revenue'].map(h => (
-                  <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
+                  <span key={h} className="font-tight text-[12px] font-semibold text-mute">{h}</span>
                 ))}
               </div>
               {tableRows.map((row, i) => (

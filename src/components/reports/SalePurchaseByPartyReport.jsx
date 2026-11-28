@@ -42,7 +42,7 @@ const PartyTable = ({ title, icon: Icon, rows, totalAmount, totalLabel, colorAcc
       <div>
         <div className="grid grid-cols-[36px_1fr_80px_130px] gap-3 px-4 py-2 bg-tile border-b border-line">
           {['#','Name','Orders','Amount'].map(h => (
-            <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
+            <span key={h} className="font-tight text-[12px] font-semibold text-mute">{h}</span>
           ))}
         </div>
         {rows.map((row, i) => (
@@ -159,7 +159,7 @@ const SalePurchaseByPartyReport = () => {
       />
 
       {/* Summary KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KPI label="Total Sales"          loading={loading} value={formatCurrency(totalSales)}      icon={TrendingUp}  color="var(--color-accent-signature)" />
         <KPI label="Customers"            loading={loading} value={salesByCustomer.length}          icon={Users}       color="#10b981" />
         <KPI label="Total Purchases"      loading={loading} value={formatCurrency(totalPurchases)}  icon={ShoppingBag} color="#f59e0b" />

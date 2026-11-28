@@ -226,7 +226,7 @@ const ClientStatementReport = () => {
       {/* KPIs — only after client selected */}
       {selectedClient && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <KPI label="Total Billed"    loading={loading} value={formatCurrency(kpis.billed)}      icon={TrendingUp}   color="var(--color-accent-signature)" />
             <KPI label="Total Paid"      loading={loading} value={formatCurrency(kpis.paid)}        icon={DollarSign}   color="#10b981" />
             <KPI label="Outstanding"     loading={loading} value={formatCurrency(kpis.outstanding)}  icon={Clock}        color="#ef4444" />
@@ -249,7 +249,7 @@ const ClientStatementReport = () => {
                 {/* Table header */}
                 <div className="grid grid-cols-[90px_80px_1fr_110px_110px_120px] gap-4 px-4 py-2 bg-tile border-b border-line">
                   {['Date','Type','Reference','Debit','Credit','Balance'].map(h => (
-                    <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
+                    <span key={h} className="font-tight text-[12px] font-semibold text-mute">{h}</span>
                   ))}
                 </div>
                 {ledgerRows.map((row, i) => {

@@ -176,10 +176,10 @@ const AllTransactionsReport = () => {
       />
 
       {/* KPI Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KPI label="Money In"    loading={loading} value={formatCurrency(kpis.totalIn)}  icon={ArrowDownLeft}  color="#10b981" />
         <KPI label="Money Out"   loading={loading} value={formatCurrency(kpis.totalOut)} icon={ArrowUpRight}   color="#ef4444" />
-        <KPI label="Net Flow"    loading={loading} value={formatCurrency(kpis.net)}      icon={kpis.net >= 0 ? TrendingUp : TrendingDown} color={kpis.net >= 0 ? 'var(--color-accent-signature)' : '#f59e0b'} />
+        <KPI label="Net Flow"    loading={loading} value={formatCurrency(kpis.net)} tone={kpis.net >= 0 ? 'pos' : 'neg'}      icon={kpis.net >= 0 ? TrendingUp : TrendingDown} color={kpis.net >= 0 ? 'var(--color-accent-signature)' : '#f59e0b'} />
         <KPI label="Transactions" loading={loading} value={kpis.count}                  icon={Hash}           color="#8b5cf6" />
       </div>
 
@@ -215,7 +215,7 @@ const AllTransactionsReport = () => {
           <div>
             <div className="grid grid-cols-[90px_90px_1fr_90px_130px] gap-4 px-4 py-2 bg-tile border-b border-line">
               {['Date', 'Type', 'Party / Description', 'Flow', 'Amount'].map(h => (
-                <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
+                <span key={h} className="font-tight text-[12px] font-semibold text-mute">{h}</span>
               ))}
             </div>
             {filteredRows.map((row, i) => {

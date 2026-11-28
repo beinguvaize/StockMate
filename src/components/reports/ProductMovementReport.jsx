@@ -16,6 +16,8 @@ import {
   TrendingUp, TrendingDown, Package, DollarSign, Download, Zap, Turtle,
 } from 'lucide-react';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
+import { ReportTitle, ErrorBlock, Seg, ReportButton, FigureTile } from './frame';
 import { formatCurrency, todayISOInAppTZ } from '../../lib/utils';
 
 const WINDOWS = [
@@ -28,19 +30,9 @@ const WINDOWS = [
 // AND still has stock on hand. Dead = zero units sold with stock on hand.
 const SLOW_UNITS_THRESHOLD = 5;
 
-const KPI = ({ label, value, sub, icon: Icon, color = 'var(--color-accent-signature)', loading }) => (
-  <div className="bg-surface rounded-[14px] border border-line p-5 flex flex-col gap-3">
-    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `color-mix(in srgb, ${color} 10%, transparent)` }}>
-      <Icon size={16} style={{ color }} />
-    </div>
-    {loading
-      ? <div className="h-7 w-24 bg-tile animate-pulse rounded-lg" />
-      : <div className="text-2xl font-semibold text-ink tabular-nums leading-none">{value}</div>
-    }
-    <div className="text-[12px] font-medium text-body">
-      {label}{sub && <span className="block normal-case tracking-normal font-semibold text-body mt-0.5">{sub}</span>}
-    </div>
-  </div>
+// Grey figure tile (web redesign). icon / color accepted and not painted.
+const KPI = ({ label, value, sub, loading }) => (
+  <FigureTile label={label} value={value} sub={sub} loading={loading} />
 );
 
 const downloadCSV = (rows, filename) => {
@@ -69,7 +61,7 @@ const ProductMovementReport = () => {
     return d.toISOString().slice(0, 10);
   }, [windowDays]);
 
-  const { data: salesRaw, loading: sLoading } = useReportData({
+  const { data: salesRaw, loading: sLoading, error: rdErr1, refetch: rdRe1 } = useReportData({
     table: 'sales',
     select: 'id, items, date, paymentStatus, voided_at, status',
     filters: { dateRange: { start: fromDate } },
@@ -77,11 +69,11 @@ const ProductMovementReport = () => {
   });
   // Voided and cancelled sales are not revenue and were being counted here.
   const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
-  const { data: products, loading: pLoading } = useReportData({
+  const { data: products, loading: pLoading, error: rdErr2, refetch: rdRe2 } = useReportData({
     table: 'products',
     select: 'id, name, sku, category, costPrice, sellingPrice, stock',
   });
-  const { data: balances, loading: bLoading } = useReportData({
+  const { data: balances, loading: bLoading, error: rdErr3, refetch: rdRe3 } = useReportData({
     table: 'inventory_balances',
     select: 'product_id, quantity',
   });
@@ -165,36 +157,22 @@ const ProductMovementReport = () => {
     stock_value: p.stockValue.toFixed(2),
   });
 
+  const failed = loadError(rdErr1, rdErr2, rdErr3);
   return (
     <div className="space-y-4 pb-16">
-      {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-base font-semibold text-ink tracking-tight">
-            Product Movement
-          </h1>
-          <p className="text-xs text-body mt-0.5">Fast &amp; slow moving analysis · last {windowDays} days</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {WINDOWS.map(w => (
-            <button key={w.key} onClick={() => setWindowDays(w.key)}
-              className={`px-3 py-1.5 rounded-pill text-xs font-semibold transition-colors ${
-                windowDays === w.key
-                  ? 'bg-accent-signature text-button-text'
-                  : 'bg-surface text-ink-2 hover:text-ink border border-line'
-              }`}>
-              {w.label}
-            </button>
-          ))}
-          <button onClick={exportCSV} disabled={loading || (!fast.length && !slow.length)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-xs font-semibold bg-surface border border-line text-ink-2 hover:text-ink hover:border-black/20 disabled:opacity-40 transition-colors">
-            <Download size={13} /> Export
-          </button>
-        </div>
-      </div>
-
+      <ReportTitle title="Product Movement" subtitle={`Fast & slow moving analysis · last ${windowDays} days`}
+        actions={<>
+          <Seg ariaLabel="Window" value={windowDays} onChange={setWindowDays}
+            items={WINDOWS.map((w) => ({ id: w.key, label: w.label }))} />
+          {!failed && (
+            <ReportButton tone="ghost" icon={Download} onClick={exportCSV} disabled={loading || (!fast.length && !slow.length)}>Export</ReportButton>
+          )}
+        </>} />
+      {failed ? (
+        <ErrorBlock title="Product Movement could not load" message={failed} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); }} />
+      ) : (<>
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <KPI label="Fast Movers"  loading={loading} value={kpis.fastCount} sub="products with sales" icon={Zap}          color="#10b981" />
         <KPI label="Fast-Mover Revenue" loading={loading} value={formatCurrency(kpis.fastRevenue)}   icon={TrendingUp}   color="var(--color-accent-signature)" />
         <KPI label="Slow Movers"  loading={loading} value={kpis.slowCount} sub={`≤${SLOW_UNITS_THRESHOLD} units sold, stock on shelf`} icon={Turtle} color="#f59e0b" />
@@ -222,6 +200,7 @@ const ProductMovementReport = () => {
         tone="slow"
         emptyText="Nothing is sitting idle — every stocked product is moving."
       />
+      </>)}
     </div>
   );
 };
@@ -254,7 +233,7 @@ const MovementTable = ({ title, sub, icon, rows, loading, tone, emptyText }) => 
       <div>
         <div className={`${GRID} py-2 bg-tile border-b border-line`}>
           {['Product', 'Category', 'Units Sold', 'Sales', 'Revenue', 'Stock', 'Days Cover', 'Stock Value'].map(h => (
-            <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
+            <span key={h} className="font-tight text-[12px] font-semibold text-mute">{h}</span>
           ))}
         </div>
         {rows.map((p, i) => {

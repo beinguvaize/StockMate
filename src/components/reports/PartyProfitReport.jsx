@@ -155,7 +155,7 @@ const PartyProfitReport = () => {
       />
 
       {/* KPI Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KPI label="Total Revenue"   loading={loading} value={formatCurrency(kpis.totalRevenue)}   icon={TrendingUp}  color="var(--color-accent-signature)" />
         <KPI label="Total Profit"    loading={loading} value={formatCurrency(kpis.totalProfit)}    icon={DollarSign}  color="#10b981" />
         <KPI label="Blended Margin"  loading={loading} value={`${kpis.blendedMargin.toFixed(1)}%`} icon={BarChart3}   color="#f59e0b" />
@@ -183,7 +183,7 @@ const PartyProfitReport = () => {
           <div>
             <div className="grid grid-cols-[36px_1fr_120px_120px_120px_90px_100px] gap-4 px-4 py-2 bg-tile border-b border-line">
               {['#', 'Customer', 'Revenue', 'Cost', 'Profit', 'Margin', 'Orders'].map(h => (
-                <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
+                <span key={h} className="font-tight text-[12px] font-semibold text-mute">{h}</span>
               ))}
             </div>
             {rows.map((row, i) => (

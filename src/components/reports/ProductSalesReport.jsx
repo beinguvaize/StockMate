@@ -263,7 +263,7 @@ const ProductSalesReport = () => {
               <div>
                 <div className="grid grid-cols-[100px_180px_1fr_90px_110px_120px] gap-4 px-4 py-2 bg-tile border-b border-line">
                   {['Date','Sale Ref','Client','Qty','Rate','Total'].map(h => (
-                    <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
+                    <span key={h} className="font-tight text-[12px] font-semibold text-mute">{h}</span>
                   ))}
                 </div>
                 {lines.map((r, i) => (

@@ -9,17 +9,19 @@ import {
   Package, AlertTriangle, DollarSign, ShoppingBag,
 } from 'lucide-react';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
+import { ReportTitle, ErrorBlock } from './frame';
 import { KPI, SectionHead } from './ReportBits';
 import { formatCurrency } from '../../lib/utils';
 
 
 const LowStockReport = () => {
-  const { data: products, loading: pLoading } = useReportData({
+  const { data: products, loading: pLoading, error: rdErr1, refetch: rdRe1 } = useReportData({
     table: 'products',
     select: 'id, name, sku, costPrice, sellingPrice, lowStockThreshold, stock, category, product_type',
   });
 
-  const { data: balances, loading: bLoading } = useReportData({
+  const { data: balances, loading: bLoading, error: rdErr2, refetch: rdRe2 } = useReportData({
     table: 'inventory_balances',
     select: 'product_id, quantity',
   });
@@ -61,18 +63,16 @@ const LowStockReport = () => {
     return { lowItems, kpis: { itemsLow, itemsOut, reorderValue } };
   }, [products, stockByProduct]);
 
+  const failed = loadError(rdErr1, rdErr2);
   return (
     <div className="space-y-4 pb-16">
-      {/* Header */}
-      <div>
-        <h1 className="text-base font-semibold text-ink tracking-tight">
-          Low Stock Alert
-        </h1>
-        <p className="text-xs text-body mt-0.5">Current inventory snapshot</p>
-      </div>
+      <ReportTitle title="Low Stock Alert" subtitle="Current inventory snapshot" />
+      {failed ? (
+        <ErrorBlock title="Low Stock could not load" message={failed} onRetry={() => { rdRe1(); rdRe2(); }} />
+      ) : (<>
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <KPI label="Items Low / Below Threshold" loading={loading} value={kpis.itemsLow}                           icon={AlertTriangle} color="#f59e0b" />
         <KPI label="Items Out of Stock"          loading={loading} value={kpis.itemsOut}                           icon={Package}       color="#ef4444" />
         <KPI label="Total Reorder Value"         loading={loading} value={formatCurrency(kpis.reorderValue)}       icon={DollarSign}    color="var(--color-accent-signature)" />
@@ -102,7 +102,7 @@ const LowStockReport = () => {
           <div>
             <div className="grid grid-cols-[1fr_100px_120px_80px_80px_80px_120px] gap-3 px-4 py-2 bg-tile border-b border-line">
               {['Product','SKU','Category','Stock','Threshold','Shortfall','Stock Value'].map(h => (
-                <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
+                <span key={h} className="font-tight text-[12px] font-semibold text-mute">{h}</span>
               ))}
             </div>
             {lowItems.map((p, i) => {
@@ -130,6 +130,7 @@ const LowStockReport = () => {
           </div>
         )}
       </div>
+      </>)}
     </div>
   );
 };

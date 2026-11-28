@@ -5,6 +5,9 @@ import { loadError } from '../../lib/reportsView';
 import { useTenant } from '../../context/TenantContext';
 import useDateWindow from './useDateWindow';
 import PremiumReportView from './PremiumReportView';
+import { ReportButton } from './frame';
+import { Eyebrow } from '../ui/FigureStrip';
+import { Badge } from '../ui/badge';
 import {
   TrendingUp, Calendar, Copy, Sparkles, Wallet,
   CheckCircle2, AlertTriangle, Edit3, Cloud,
@@ -446,74 +449,40 @@ const BudgetVsActualReport = () => {
     ],
   };
 
+  const stat = (label, value, cls = 'text-ink') => (
+    <span className="ml-2.5 text-right">
+      <small className="block font-tight text-[10.5px] font-semibold uppercase tracking-[0.06em] text-mute">{label}</small>
+      <b className={`font-tight text-[14px] font-semibold tabular-nums ${cls}`}>{value}</b>
+    </span>
+  );
   return (
-    <div className="flex flex-col gap-4">
-      {/* Period + Quick Actions */}
-      <div className="no-print flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-surface/60 backdrop-blur-md border border-line">
-        <div className="flex items-center gap-2">
-          <Calendar size={14} className="text-amber-text" />
-          <span className="text-[12px] font-semibold uppercase tracking-[0.07em] text-body">Period</span>
-        </div>
+    <div>
+      {/* Period + quick actions (reports-18) */}
+      <div className="no-print mb-4 flex flex-wrap items-center gap-2.5 rounded-[14px] border border-line bg-tile px-3.5 py-2.5">
+        <Eyebrow>Period</Eyebrow>
         <select
           value={period}
           onChange={(e) => setPeriod(e.target.value)}
-          className="px-3 py-1.5 text-[12px] font-semibold uppercase tracking-[0.07em] text-ink bg-surface border border-black/10 rounded-md focus:outline-none focus:border-accent-signature"
+          aria-label="Budget period"
+          className="h-[34px] cursor-pointer rounded-pill bg-surface pl-3.5 pr-2 font-tight text-[13px] font-semibold text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)] outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--color-amber)]"
         >
           {periods.map((p) => (
             <option key={p} value={p}>{periodLabel(p)}</option>
           ))}
         </select>
-
-        <div className="h-6 w-px bg-black/10 mx-1" />
-
-        <button
-          onClick={handleCopyLastMonth}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11.5px] font-semibold uppercase tracking-[0.07em] text-ink-2 hover:text-ink bg-surface border border-black/10 hover:border-accent-signature rounded-pill transition-all"
-        >
-          <Copy size={12} /> Copy Last Month
-        </button>
-        <button
-          onClick={handleSuggestAvg}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11.5px] font-semibold uppercase tracking-[0.07em] text-amber-text hover:text-white hover:bg-accent-signature bg-accent-signature/10 border border-accent-signature/25 rounded-pill transition-all"
-        >
-          <Sparkles size={12} /> Suggest from 3-mo Avg
-        </button>
-
+        <ReportButton tone="ghost" icon={Copy} onClick={handleCopyLastMonth}>Copy Last Month</ReportButton>
+        <ReportButton tone="ghost" icon={Sparkles} onClick={handleSuggestAvg}>Suggest from 3-mo Avg</ReportButton>
         <div className="flex-1" />
-
-        {/* Cloud indicator */}
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-good-soft border border-good-soft">
-          <Cloud size={10} className="text-good-text" />
-          <span className="text-[12px] font-semibold uppercase tracking-[0.07em] text-good-text">Cloud-synced</span>
-        </div>
-
-        {/* Summary strip */}
-        <div className="flex items-center gap-5">
-          <div className="text-right">
-            <div className="text-[12px] font-semibold uppercase tracking-[0.07em] text-body">Planned Profit</div>
-            <div className="text-sm font-semibold text-amber-text">{formatINR(totals.plannedProfit)}</div>
-          </div>
-          <div className="text-right">
-            <div className="text-[12px] font-semibold uppercase tracking-[0.07em] text-body">Actual Profit</div>
-            <div className={`text-sm font-semibold ${totals.actualProfit >= 0 ? 'text-good-text' : 'text-bad-text'}`}>
-              {formatINR(totals.actualProfit)}
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-[12px] font-semibold uppercase tracking-[0.07em] text-body">On-Track</div>
-            <div className="text-sm font-semibold text-ink">
-              {totals.onTrack}/{totals.totalLines || 0}
-            </div>
-          </div>
-        </div>
+        <Badge tone="good"><Cloud size={11} aria-hidden="true" /> Cloud-synced</Badge>
+        {stat('Planned Profit', formatINR(totals.plannedProfit))}
+        {stat('Actual Profit', formatINR(totals.actualProfit), totals.actualProfit >= 0 ? 'text-good-text' : 'text-bad-text')}
+        {stat('On-Track', `${totals.onTrack}/${totals.totalLines || 0}`)}
       </div>
 
-      <div className="no-print flex items-center gap-2 px-3 py-2 rounded-2xl bg-accent-signature/5 border border-line">
-        <Edit3 size={12} className="text-amber-text" />
-        <span className="text-[11.5px] font-semibold uppercase tracking-[0.07em] text-amber-text">
-          Tip: Click any Budget cell to edit. Changes sync across all devices in real-time.
-        </span>
-      </div>
+      <p className="no-print -mt-2 mb-3.5 flex items-center gap-1.5 text-[12.5px] text-body">
+        <Edit3 size={12} className="text-amber-text" aria-hidden="true" />
+        Tip: Click any Budget cell to edit. Changes sync across all devices in real-time.
+      </p>
 
       <PremiumReportView error={loadError(rdErr1, rdErr2, rdErr3, rdErr4)} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); refetchBudgets(); }} dateWindow={win} title="Budget vs Actual" tabs={[expenseTab, revenueTab]} />
     </div>
