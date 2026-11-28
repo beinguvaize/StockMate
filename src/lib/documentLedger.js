@@ -43,3 +43,27 @@ export const CREDIT_INVOICE_PAID_MSG =
 /** A Credit invoice that says money was received: refused before saving. */
 export const creditInvoiceTakesMoney = ({ payMethod, paidNow }) =>
   String(payMethod || '').toUpperCase() === 'CREDIT' && Number(paidNow) > 0;
+
+/**
+ * Why a payment in must NOT be sent to settle_client_payment, or null.
+ *
+ * settle_client_payment files the receipt under p_client_id, and the
+ * allocators that later spread client_payments over credit sales match a
+ * sale by "shopId" (the column process_sale, the phone and van sales write
+ * the client into). The builder finds the open sale with a looser test
+ * (shopId ?? shop_id ?? clientId), under which a party with no id matches a
+ * walk-in sale (undefined === undefined). So the RPC is only called when the
+ * party has a real id and the sale's own shopId is that same id.
+ */
+export const CLIENT_SETTLEMENT_NO_CLIENT_MSG =
+  'Choose a saved client to record a payment against a credit bill. This party has no client record.';
+export const CLIENT_SETTLEMENT_MISMATCH_MSG =
+  'This credit bill is not filed under this client, so the payment cannot be matched to it. Record it from the client\'s account page instead.';
+
+export const clientSettlementBlocker = (party, sale) => {
+  const pid = party?.id == null ? '' : String(party.id).trim();
+  if (!pid || party?.manual) return CLIENT_SETTLEMENT_NO_CLIENT_MSG;
+  const sid = sale?.shopId ?? sale?.shop_id;
+  if (sid == null || String(sid).trim() !== pid) return CLIENT_SETTLEMENT_MISMATCH_MSG;
+  return null;
+};
