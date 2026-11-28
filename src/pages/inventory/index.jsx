@@ -1,43 +1,59 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { isRaw, isStocked } from '../../lib/productTypes';
-import { useDialogClose } from '../../hooks/useDialogClose';
 import { useNavigate } from 'react-router-dom';
+import { Plus, Search, X, ArrowLeftRight, Upload, Pencil, ChevronDown, ArrowUpRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useInventory } from '../../hooks/useInventory';
 import { useOrders } from '../../hooks/useOrders';
-import { Plus, History, PackagePlus, Tag as TagIcon, Search, X, ArrowLeftRight, ChevronDown } from 'lucide-react';
-import SegmentedTabs from '../../components/motion/SegmentedTabs';
+import { Tabs, FilterPills } from '../../components/ui/Tabs';
+import { Eyebrow } from '../../components/ui/FigureStrip';
+import { Button } from '../../components/ui/button';
+import { PageSkeleton } from '../../components/ui/States';
+import { cn } from '../../lib/utils';
+import {
+  filterProducts, inventoryKpis, stockBarParts, priceListCounts, bulkEditPatch, applyEach,
+} from '../../lib/inventoryView';
 import StockTable from './components/StockTable';
 import AddItemModal from './components/AddItemModal';
 import BatchesModal from './components/BatchesModal';
-import PriceListsModal from './components/PriceListsModal';
+import PriceListsTab from './components/PriceListsTab';
 import StockAdjustModal from './components/StockAdjustModal';
-import StockHistoryModal from './components/StockHistoryModal';
+import StockHistoryTab from './components/StockHistoryTab';
 import TransferStockModal from './components/TransferStockModal';
 import ItemDetailView from './components/ItemDetailView';
-import { PageSkeleton } from '../../components/ui/States';
+import { BulkEditDialog, DeleteProductsDialog } from './components/BulkDialogs';
 
+/**
+ * Inventory (web redesign, approved inventory-01…16).
+ *
+ * Products, Stock history and Price lists are tabs of one page; Add and Edit
+ * product take the page over; everything else is a dialog or the side panel.
+ * What each screen writes is unchanged: products through useInventory's
+ * add / update / delete, stock through adjust_inventory_atomic and
+ * transfer_inventory_atomic, prices through useOrders. Stock, cost and batch
+ * figures are only ever read here.
+ */
 const Inventory = () => {
   const { currentUser, isOwner } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
-  const { 
-    products, 
-    productCategories: categories, 
+  const {
+    products,
+    productCategories: categories,
     inventoryBalances: balances,
     inventoryLocations,
     loading,
+    refetch,
     addProduct,
     updateProduct,
     deleteProduct,
     adjustStock,
-    transferStock
+    transferStock,
   } = useInventory(currentTenantId);
 
   const { priceLists, upsertPrice, deletePrice } = useOrders(currentTenantId);
   const navigate = useNavigate();
-  const [viewingProduct, setViewingProduct] = useState(null);
+  const [viewing, setViewing] = useState(null); // { product, items }
 
   // Last purchase rate per product = the newest batch's unit_cost. Distinct
   // from products.costPrice (the weighted average of open batches): this is
@@ -62,27 +78,22 @@ const Inventory = () => {
     return () => { cancelled = true; };
   }, [currentTenantId, products.length]);
 
-  const [showAddModal,    setShowAddModal]    = useState(false);
-  const [editingProduct,  setEditingProduct]  = useState(null);
-  const [batchesFor,      setBatchesFor]      = useState(null);
-  const [showPriceLists,  setShowPriceLists]  = useState(false);
+  const [tab, setTab] = useState('products');            // products | history | prices
+  const [form, setForm] = useState(null);                // null | { product: null | {...} }
+  const [batchesFor, setBatchesFor] = useState(null);
   const [adjustingProduct, setAdjustingProduct] = useState(null);
-  const [bulkEdit, setBulkEdit] = useState(null); // { products, clear }
-  const [adjustSaving,     setAdjustSaving]     = useState(false);
-  const [showHistory,      setShowHistory]      = useState(false);
-  const [showTransfer,     setShowTransfer]     = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
-  const moreRef = useRef(null);
+  const [adjustSaving, setAdjustSaving] = useState(false);
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [selected, setSelected] = useState(() => new Set());
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [deleting, setDeleting] = useState(null);        // products to delete, or null
   const searchRef = useRef(null);
 
-  useEffect(() => {
-    if (!moreOpen) return undefined;
-    const onDown = (e) => { if (moreRef.current && !moreRef.current.contains(e.target)) setMoreOpen(false); };
-    const onKey = (e) => { if (e.key === 'Escape') setMoreOpen(false); };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
-  }, [moreOpen]);
+  // Filter + search state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('ALL');   // ALL | STANDARD | SERVICE | RAW | FINISHED
+  const [stockFilter, setStockFilter] = useState('ALL'); // ALL | IN | LOW | OUT
+  const [categoryFilter, setCategoryFilter] = useState('');
 
   // "/" jumps to search unless the user is already typing in a field.
   useEffect(() => {
@@ -91,18 +102,13 @@ const Inventory = () => {
       const t = e.target;
       const tag = t?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t?.isContentEditable) return;
+      if (!searchRef.current) return;
       e.preventDefault();
-      searchRef.current?.focus();
+      searchRef.current.focus();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, []);
-
-  // Filter + search state
-  const [searchTerm,   setSearchTerm]   = useState('');
-  const [typeFilter,   setTypeFilter]   = useState('ALL');   // ALL | STANDARD | RAW | FINISHED
-  const [stockFilter,  setStockFilter]  = useState('ALL');   // ALL | IN | LOW | OUT
-  const [categoryFilter, setCategoryFilter] = useState('');
 
   // Every barcode already in use, so "Assign" in the item form cannot mint one
   // a product already carries. A duplicate barcode rings up the wrong item at
@@ -116,27 +122,12 @@ const Inventory = () => {
     return Array.from(set).sort();
   }, [products]);
 
-  const filteredProducts = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase();
-    return products.filter(p => {
-      if (q) {
-        const hay = `${p.name || ''} ${p.sku || ''} ${p.category || ''} ${p.barcode || ''}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      if (typeFilter !== 'ALL') {
-        if ((p.product_type || 'STANDARD').toUpperCase() !== typeFilter) return false;
-      }
-      if (categoryFilter && (p.category || '') !== categoryFilter) return false;
-      // The stock chips ask a question a service cannot answer, so it is not
-      // in any of the three answers rather than always being "Out".
-      if (stockFilter !== 'ALL' && !isStocked(p)) return false;
-      const stk = Number(p.stock || 0);
-      if (stockFilter === 'IN'  && stk <= 0) return false;
-      if (stockFilter === 'LOW' && !(stk > 0 && stk <= 5)) return false;
-      if (stockFilter === 'OUT' && stk !== 0) return false;
-      return true;
-    });
-  }, [products, searchTerm, typeFilter, stockFilter, categoryFilter]);
+  const filteredProducts = useMemo(
+    () => filterProducts(products, { query: searchTerm, type: typeFilter, stock: stockFilter, category: categoryFilter }),
+    [products, searchTerm, typeFilter, stockFilter, categoryFilter]);
+
+  // A product deleted or filtered away elsewhere drops out of the selection.
+  const selectedProducts = useMemo(() => products.filter(p => selected.has(p.id)), [products, selected]);
 
   const activeFilterCount =
     (searchTerm ? 1 : 0) + (typeFilter !== 'ALL' ? 1 : 0) +
@@ -145,52 +136,8 @@ const Inventory = () => {
     setSearchTerm(''); setTypeFilter('ALL'); setStockFilter('ALL'); setCategoryFilter('');
   };
 
-  const kpis = useMemo(() => {
-    // Raw materials are held to be manufactured with, not sold, so they
-    // legitimately carry no selling price. Summing retail across everything
-    // therefore counted their cost against zero revenue: three RAW items
-    // (210ml side wall, AP BOTTOM, 150ML CUP WALL — 740 units, ₹83,994) dragged
-    // the headline margin to 0.6% on a business trading at roughly 23%.
-    //
-    // Retail is now measured over sellable stock only, and the raw material is
-    // shown as its own figure rather than hidden — it is real money, just not
-    // money that has a retail price.
-    // isRaw/isStocked come from lib/productTypes.js; this file used to
-    // re-derive isRaw inline and had no notion of a service at all.
-    const sellable = products.filter(p => !isRaw(p));
-    const raw      = products.filter(isRaw);
-    // Only things that can actually run out belong in a stock count.
-    const stocked  = products.filter(isStocked);
-
-    const val = (list, field) => list.reduce((s, p) => s + (p[field] || 0) * (p.stock || 0), 0);
-
-    const stockValue    = val(products, 'costPrice');      // everything on hand, at cost
-    const sellableCost  = val(sellable, 'costPrice');
-    const retailValue   = val(sellable, 'sellingPrice');   // only what can actually be sold
-    const rawValue      = val(raw, 'costPrice');
-    const marginValue   = retailValue - sellableCost;
-
-    const lowStock     = stocked.filter(p => (p.stock || 0) > 0 && (p.stock || 0) <= 5).length;
-    // Every service reads 0, so this counted the whole service catalogue as
-    // out of stock.
-    const outOfStock   = stocked.filter(p => (p.stock || 0) === 0).length;
-    const totalUnits   = stocked.reduce((s, p) => s + (p.stock || 0), 0);
-    const uniqueCats   = new Set(products.map(p => p.category).filter(Boolean)).size;
-    return {
-      stockValue, retailValue, rawValue, marginValue, sellableCost,
-      rawCount: raw.length, lowStock, outOfStock, totalUnits, uniqueCats,
-    };
-  }, [products]);
-
-  const openAddModal = () => {
-    setEditingProduct(null);
-    setShowAddModal(true);
-  };
-
-  const openEditModal = (p) => {
-    setEditingProduct(p);
-    setShowAddModal(true);
-  };
+  const kpis = useMemo(() => inventoryKpis(products), [products]);
+  const plCounts = useMemo(() => priceListCounts(priceLists || []), [priceLists]);
 
   const getStock = (product) => {
     const fromBalances = balances
@@ -201,19 +148,40 @@ const Inventory = () => {
 
   const handleAdjust = async (productId, delta, reason, locationId, unitCost) => {
     setAdjustSaving(true);
-    const result = await adjustStock(productId, delta, reason, locationId ?? null, unitCost);
-    setAdjustSaving(false);
-    return result;
+    try {
+      return await adjustStock(productId, delta, reason, locationId ?? null, unitCost);
+    } finally {
+      setAdjustSaving(false);
+    }
   };
 
   const handleSaveProduct = async (data) => {
-    if (editingProduct) {
-      const { error } = await updateProduct(editingProduct.id, data);
-      return { error };
-    } else {
-      const { error } = await addProduct(data);
+    if (form?.product) {
+      const { error } = await updateProduct(form.product.id, data);
       return { error };
     }
+    const { error } = await addProduct(data);
+    return { error };
+  };
+
+  // Bulk edit and delete: the same writes as before, one product at a time,
+  // but every refusal is kept and shown rather than dropped.
+  const runBulkEdit = async (patch) => {
+    const res = await applyEach(selectedProducts, (p) => {
+      const updates = bulkEditPatch(p, patch);
+      return Object.keys(updates).length ? updateProduct(p.id, updates) : { error: null };
+    });
+    if (!res.failed.length) { setSelected(new Set()); setBulkEditOpen(false); }
+    else setSelected(new Set(res.failed.map(f => f.item.id)));
+    return res;
+  };
+  const runDelete = async (list) => {
+    const res = await applyEach(list, (p) => deleteProduct(p.id));
+    const gone = new Set(res.done.map(p => p.id));
+    setSelected(prev => new Set([...prev].filter(id => !gone.has(id))));
+    if (viewing && gone.has(viewing.product.id)) setViewing(null);
+    if (!res.failed.length) setDeleting(null);
+    return res;
   };
 
   if (loading) return <PageSkeleton cards={4} rows={10} />;
@@ -222,214 +190,227 @@ const Inventory = () => {
   const inr = (n) => Math.round(n).toLocaleString('en-IN');
   const hasNonStandard = products.some(p => (p.product_type || 'STANDARD').toUpperCase() !== 'STANDARD');
   const toggleStock = (k) => setStockFilter(f => (f === k ? 'ALL' : k));
-  const tiles = [
-    { key: 'cost', label: 'Stock value at cost', value: `${cur}${inr(kpis.stockValue)}`,
-      sub: `${kpis.totalUnits.toLocaleString('en-IN')} units${kpis.rawValue > 0 ? ` · incl. ${cur}${inr(kpis.rawValue)} raw material` : ''}` },
-    { key: 'retail', label: 'Retail value', value: `${cur}${inr(kpis.retailValue)}`,
-      sub: kpis.marginValue !== 0 ? `${kpis.marginValue >= 0 ? '+' : '−'}${cur}${inr(Math.abs(kpis.marginValue))} margin` : 'sellable stock',
-      subCls: kpis.marginValue > 0 ? 'text-emerald-600' : kpis.marginValue < 0 ? 'text-red-600' : '' },
-    { key: 'LOW', label: 'Low stock', value: kpis.lowStock, sub: 'products', n: kpis.lowStock, cls: 'text-accent-signature-hover' },
-    { key: 'OUT', label: 'Out of stock', value: kpis.outOfStock, sub: 'products', n: kpis.outOfStock, cls: 'text-[color:var(--color-neg)]' },
-  ];
+  const openAdd = () => { setViewing(null); setForm({ product: null }); };
+  const openEdit = (p) => { setViewing(null); setForm({ product: p }); };
+  const bar = stockBarParts(kpis);
 
-  return (
-    <div className="animate-fade-in flex flex-col gap-6">
-      <div className="flex justify-between items-center gap-3 py-2 border-b border-border/60">
-        <div className="min-w-0">
-          <h1 className="text-base font-semibold text-foreground tracking-tight">Inventory</h1>
-          <p className="text-xs text-muted-foreground tabular-nums">{products.length} {products.length === 1 ? 'product' : 'products'} · {kpis.uniqueCats} {kpis.uniqueCats === 1 ? 'category' : 'categories'}</p>
-        </div>
-        <div className="flex gap-2 items-center">
-          <div className="relative" ref={moreRef}>
-            <button onClick={() => setMoreOpen(o => !o)} aria-haspopup="menu" aria-expanded={moreOpen}
-              className="inline-flex items-center gap-1.5 h-10 px-4 rounded-pill bg-card border border-border/60 text-foreground text-xs font-semibold hover:bg-black/[0.03] transition-colors active:scale-[0.97]">
-              More <ChevronDown size={14} className="text-muted-foreground" />
-            </button>
-            {moreOpen && (
-              <div role="menu" style={{ transformOrigin: 'top right' }}
-                className="menu-pop absolute right-0 top-full mt-1.5 z-30 min-w-[180px] rounded-xl bg-card border border-border shadow-lg p-1">
-                {[
-                  { label: 'Price lists', icon: TagIcon, run: () => setShowPriceLists(true) },
-                  ...(inventoryLocations.length > 1 ? [{ label: 'Transfer stock', icon: ArrowLeftRight, run: () => setShowTransfer(true) }] : []),
-                  { label: 'Stock history', icon: History, run: () => setShowHistory(true) },
-                  { label: 'Bulk import', icon: PackagePlus, run: () => { window.location.href = '/bulk-add?type=products'; } },
-                ].map(({ label, icon: Icon, run }) => (
-                  <button key={label} role="menuitem" onClick={() => { setMoreOpen(false); run(); }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-pill text-xs font-medium text-foreground hover:bg-black/[0.04] text-left">
-                    <Icon size={14} className="text-muted-foreground" /> {label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <button onClick={openAddModal}
-            className="inline-flex items-center gap-2 h-10 px-5 rounded-pill bg-accent-signature text-white text-xs font-semibold hover:bg-accent-signature-hover transition-colors active:scale-[0.97]">
-            <Plus size={16} strokeWidth={2.5} /> Add product
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        {tiles.map(t => {
-          const clickable = t.n > 0;
-          const active = clickable && stockFilter === t.key;
-          const body = (
-            <>
-              <div className="text-xs text-muted-foreground">{t.label}</div>
-              <div className={`text-[22px] font-semibold tabular-nums tracking-tight mt-1 ${clickable ? t.cls : 'text-foreground'}`}>{t.value}</div>
-              <div className={`text-[11px] mt-0.5 tabular-nums text-muted-foreground ${t.subCls || ''}`}>{t.sub}</div>
-            </>
-          );
-          const base = `text-left rounded-2xl border bg-card px-4 py-3 ${active ? 'border-accent-signature' : 'border-border/60'}`;
-          return clickable ? (
-            <button key={t.key} onClick={() => toggleStock(t.key)} aria-pressed={active}
-              className={`${base} hover:border-black/20 transition-[border-color,transform] duration-(--dur-press) active:scale-[0.98]`}>{body}</button>
-          ) : (
-            <div key={t.key} className={base}>{body}</div>
-          );
-        })}
-      </div>
-
-      <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center">
-        <div className="relative flex-1 min-w-0">
-          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-          <input ref={searchRef} type="text" value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Escape' && searchTerm) { e.stopPropagation(); setSearchTerm(''); } }}
-            placeholder="Search name, SKU or barcode"
-            className="w-full pl-10 pr-9 h-10 bg-card border border-border rounded-xl text-sm font-medium text-foreground placeholder:text-muted-foreground placeholder:font-normal outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-[border-color,box-shadow]" />
-          {searchTerm && (
-            <button onClick={() => setSearchTerm('')} aria-label="Clear search"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-              <X size={14} />
-            </button>
-          )}
-        </div>
-
-        <SegmentedTabs
-          items={[{ key: 'ALL', label: 'All' }, { key: 'LOW', label: 'Low' }, { key: 'OUT', label: 'Out' }]}
-          value={['ALL', 'LOW', 'OUT'].includes(stockFilter) ? stockFilter : 'ALL'}
-          onChange={setStockFilter} />
-
-        {hasNonStandard && (
-          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} aria-label="Product type"
-            className="bg-card border border-border rounded-xl px-3 h-10 text-xs font-medium text-foreground outline-none focus:border-accent-signature">
-            <option value="ALL">All types</option>
-            <option value="STANDARD">Standard</option>
-            <option value="SERVICE">Services</option>
-            <option value="RAW">Raw material</option>
-            <option value="FINISHED">Finished</option>
-          </select>
-        )}
-
-        <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} aria-label="Category"
-          className="bg-card border border-border rounded-xl px-3 h-10 text-xs font-medium text-foreground outline-none focus:border-accent-signature min-w-[140px]">
-          <option value="">All categories</option>
-          {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
-
-        {activeFilterCount > 0 && (
-          <button onClick={clearAllFilters}
-            className="text-xs font-medium text-muted-foreground hover:text-foreground underline underline-offset-2 whitespace-nowrap px-1">
-            Clear filters
-          </button>
-        )}
-      </div>
-
-      <StockTable
-        products={filteredProducts}
-        totalProducts={products.length}
-        onClearFilters={clearAllFilters}
-        onAddProduct={openAddModal}
-        inventoryBalances={balances}
-        lastBuy={lastBuy}
-        currencySymbol={cur}
-        onView={setViewingProduct}
-        onEdit={openEditModal}
-        onDelete={(id) => { if (window.confirm('Delete this product?')) deleteProduct(id); }}
-        onAdjust={isOwner ? (product) => setAdjustingProduct(product) : null}
-        onBatches={setBatchesFor}
-        onBulkEdit={isOwner ? (prods, clear) => setBulkEdit({ products: prods, clear }) : null}
-        onBulkDelete={isOwner ? async (prods, clear) => {
-          if (!window.confirm(`Delete ${prods.length} selected product${prods.length === 1 ? '' : 's'}?`)) return;
-          for (const p of prods) await deleteProduct(p.id);
-          clear();
-        } : null}
-      />
-      {products.length > 0 && filteredProducts.length > 0 && (
-        <p className="text-xs text-muted-foreground tabular-nums -mt-3">
-          Showing {filteredProducts.length} of {products.length} products
-        </p>
-      )}
-
-      {bulkEdit && (
-        <BulkEditModal
-          count={bulkEdit.products.length}
-          categories={categoryOptions}
-          onClose={() => setBulkEdit(null)}
-          onApply={async (patch) => {
-            for (const p of bulkEdit.products) {
-              const updates = {};
-              if (patch.category) updates.category = patch.category;
-              if (patch.reorder !== '') updates.lowStockThreshold = Number(patch.reorder);
-              if (patch.pricePct !== '') {
-                const pct = Number(patch.pricePct) / 100;
-                updates.sellingPrice = Math.round(Number(p.sellingPrice || 0) * (1 + pct) * 100) / 100;
-              }
-              if (patch.sellPrice !== '') updates.sellingPrice = Number(patch.sellPrice);
-              if (patch.gstRate !== '') updates.taxRate = Number(patch.gstRate);
-              if (Object.keys(updates).length) await updateProduct(p.id, updates);
-            }
-            bulkEdit.clear();
-            setBulkEdit(null);
-          }}
-        />
-      )}
-
-      {viewingProduct && (
-        <ItemDetailView
-          product={viewingProduct}
-          items={filteredProducts}
-          onSelect={setViewingProduct}
-          locations={inventoryLocations || []}
-          balances={balances || []}
-          tenantId={currentTenantId}
-          currencySymbol={businessProfile?.currencySymbol || '₹'}
-          onClose={() => setViewingProduct(null)}
-          onEdit={(p) => { setViewingProduct(null); openEditModal(p); }}
-          onAdjust={isOwner ? (p) => { setViewingProduct(null); setAdjustingProduct(p); } : null}
-          onPrintBarcode={() => navigate('/labels')}
-          onReorder={(p) => navigate(`/purchases?reorder=${encodeURIComponent(p.id)}`)}
-          onDelete={(p) => { if (window.confirm('Delete this product?')) { deleteProduct(p.id); setViewingProduct(null); } }}
-        />
-      )}
-
+  // Add / Edit product takes the page over (approved inventory-10, -11).
+  if (form) {
+    return (
       <AddItemModal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
+        isOpen
+        onClose={() => setForm(null)}
         onSave={handleSaveProduct}
-        editingProduct={editingProduct}
+        editingProduct={form.product}
         productCategories={categories}
         tenantId={currentTenantId}
         /* So "Assign" cannot mint a code another product already has. */
         existingBarcodes={existingBarcodes}
+        onReread={refetch}
       />
+    );
+  }
+
+  const tabItems = [
+    { key: 'products', label: 'Products', count: products.length.toLocaleString('en-IN') },
+    { key: 'history', label: 'Stock history' },
+    { key: 'prices', label: 'Price lists', count: plCounts.total ? plCounts.total.toLocaleString('en-IN') : undefined },
+  ];
+
+  return (
+    <div className="flex flex-col pb-16">
+      <div className="m-rise mb-[18px] -mt-1 flex flex-wrap items-end gap-x-4 border-b border-line">
+        <Tabs ariaLabel="Inventory" items={tabItems} value={tab} onChange={setTab}
+          className="border-b-0 overflow-x-auto no-scrollbar" />
+        {tab === 'products' && (
+          <div className="ml-auto flex items-center gap-2 pb-1.5">
+            {inventoryLocations.length > 1 && (
+              <Button variant="secondary" size="xs" className="h-8 px-3.5" onClick={() => setShowTransfer(true)}><ArrowLeftRight /> Transfer stock</Button>
+            )}
+            <Button variant="secondary" size="xs" className="h-8 px-3.5" onClick={() => navigate('/bulk-add?type=products')}><Upload /> Bulk import</Button>
+            <Button size="xs" className="h-8 px-3.5" onClick={openAdd}><Plus /> Add product</Button>
+          </div>
+        )}
+      </div>
+
+      {tab === 'history' && <StockHistoryTab tenantId={currentTenantId} products={products} />}
+
+      {tab === 'prices' && (
+        <PriceListsTab
+          products={products}
+          priceLists={priceLists}
+          onUpsert={upsertPrice}
+          onDelete={deletePrice}
+          currencySymbol={cur}
+        />
+      )}
+
+      {tab === 'products' && (<>
+        {/* Strip */}
+        <div className="m-rise mb-5 grid grid-cols-2 gap-y-3 md:grid-cols-4" style={{ '--i': 1 }}>
+          <StripFigure label="Stock value at cost" value={`${cur}${inr(kpis.stockValue)}`}>
+            {bar && (
+              <div className="mt-[9px] mb-1.5 flex h-1.5 max-w-[190px] gap-0.5 overflow-hidden rounded-pill" title="Products in stock, low, out">
+                {bar.in > 0 && <i className="block h-full bg-good" style={{ width: `${bar.in}%` }} />}
+                {bar.low > 0 && <i className="block h-full bg-amber" style={{ width: `${bar.low}%` }} />}
+                {bar.out > 0 && <i className="block h-full bg-bad" style={{ width: `${bar.out}%` }} />}
+              </div>
+            )}
+            <small className="block text-[12.5px] text-body whitespace-nowrap tabular-nums">
+              {kpis.totalUnits.toLocaleString('en-IN')} units · {kpis.inCount} in, {kpis.lowStock} low, {kpis.outOfStock} out
+            </small>
+            {kpis.rawValue > 0 && (
+              <small className="mt-0.5 block text-[11.5px] text-mute whitespace-nowrap tabular-nums">incl. {cur}{inr(kpis.rawValue)} raw material</small>
+            )}
+          </StripFigure>
+          <StripFigure label="Retail value" value={`${cur}${inr(kpis.retailValue)}`}>
+            <small className="block text-[12.5px] text-body whitespace-nowrap tabular-nums">
+              {kpis.marginValue !== 0 ? (
+                <span className={cn('font-semibold', kpis.marginValue > 0 ? 'text-good-text' : 'text-bad-text')}>
+                  {kpis.marginValue >= 0 ? '+' : '−'}{cur}{inr(Math.abs(kpis.marginValue))} margin
+                </span>
+              ) : null}
+              {kpis.marginValue !== 0 ? ' · ' : ''}sellable stock
+            </small>
+          </StripFigure>
+          <StripFigure label="Low stock" value={kpis.lowStock} valueCls={kpis.lowStock > 0 ? 'text-amber-text' : ''}
+            onClick={kpis.lowStock > 0 ? () => toggleStock('LOW') : null} active={stockFilter === 'LOW'}>
+            <small className="block text-[12.5px] text-body whitespace-nowrap">products{kpis.lowStock > 0 ? ' · click to filter' : ''}</small>
+          </StripFigure>
+          <StripFigure label="Out of stock" value={kpis.outOfStock} valueCls={kpis.outOfStock > 0 ? 'text-bad-text' : ''}
+            onClick={kpis.outOfStock > 0 ? () => toggleStock('OUT') : null} active={stockFilter === 'OUT'}>
+            <small className="block text-[12.5px] text-body whitespace-nowrap">products{kpis.outOfStock > 0 ? ' · click to filter' : ''}</small>
+          </StripFigure>
+        </div>
+
+        {/* Tools, or the bulk bar while products are ticked */}
+        {selectedProducts.length > 0 && isOwner ? (
+          <div className="m-rise mb-3 flex items-center gap-3 rounded-[14px] bg-ink py-2.5 pr-3 pl-[18px] text-white shadow-[0_16px_34px_-18px_rgba(17,20,24,0.6)]">
+            <b className="font-tight text-[13.5px] font-semibold tabular-nums">{selectedProducts.length} selected</b>
+            <button type="button" onClick={() => setSelected(new Set())}
+              className="text-[12.5px] text-white/70 underline underline-offset-2 hover:text-white">Clear</button>
+            <span className="flex-1" />
+            <Button size="xs" className="h-8 bg-white/10 px-3.5 text-white hover:bg-white/20" onClick={() => setBulkEditOpen(true)}><Pencil /> Bulk edit</Button>
+            <Button size="xs" className="h-8 bg-transparent px-3.5 text-[#FCA5A5] shadow-[inset_0_0_0_1px_rgba(252,165,165,0.45)] hover:bg-white/5" onClick={() => setDeleting(selectedProducts)}>Delete</Button>
+          </div>
+        ) : (
+          <div className="m-rise mb-3 flex flex-wrap items-center gap-2.5" style={{ '--i': 2 }}>
+            <FilterPills ariaLabel="Stock"
+              value={['ALL', 'LOW', 'OUT'].includes(stockFilter) ? stockFilter : 'ALL'}
+              onChange={setStockFilter}
+              items={[
+                { key: 'ALL', label: 'All', count: products.length.toLocaleString('en-IN') },
+                { key: 'LOW', label: 'Low', count: kpis.lowStock },
+                { key: 'OUT', label: 'Out', count: kpis.outOfStock },
+              ]} />
+            <div className="relative w-full sm:w-[280px]">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-mute" size={16} />
+              <input ref={searchRef} type="text" value={searchTerm}
+                aria-label="Search name, SKU or barcode"
+                onChange={e => setSearchTerm(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Escape' && searchTerm) { e.stopPropagation(); setSearchTerm(''); } }}
+                placeholder="Search name, SKU or barcode"
+                className="h-9 w-full rounded-pill bg-well pl-10 pr-10 text-[13px] text-ink outline-none placeholder:text-mute transition-shadow duration-(--dur-press) focus:shadow-[inset_0_0_0_2px_var(--color-ink)]" />
+              {searchTerm ? (
+                <button type="button" onClick={() => setSearchTerm('')} aria-label="Clear search"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-mute hover:text-ink"><X size={14} /></button>
+              ) : (
+                <span aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-[5px] bg-surface px-1.5 py-px font-tight text-[11px] font-semibold text-mute shadow-[0_0_0_1px_rgba(17,20,24,0.08)]">/</span>
+              )}
+            </div>
+            <PillSelect label="Category" value={categoryFilter} onChange={setCategoryFilter}
+              options={[{ value: '', label: 'All' }, ...categoryOptions.map(c => ({ value: c, label: c }))]} />
+            {hasNonStandard && (
+              <PillSelect label="Type" value={typeFilter} onChange={setTypeFilter}
+                options={[
+                  { value: 'ALL', label: 'All' }, { value: 'STANDARD', label: 'Standard' }, { value: 'SERVICE', label: 'Services' },
+                  { value: 'RAW', label: 'Raw material' }, { value: 'FINISHED', label: 'Finished' },
+                ]} />
+            )}
+            {activeFilterCount > 0 && (
+              <button type="button" onClick={clearAllFilters}
+                className="whitespace-nowrap text-[12.5px] text-body underline underline-offset-2 hover:text-ink">Clear filters</button>
+            )}
+          </div>
+        )}
+
+        <StockTable
+          products={filteredProducts}
+          totalProducts={products.length}
+          onClearFilters={clearAllFilters}
+          onAddProduct={openAdd}
+          inventoryBalances={balances}
+          lastBuy={lastBuy}
+          currencySymbol={cur}
+          onView={(product, items) => setViewing({ product, items })}
+          onEdit={openEdit}
+          onDelete={(p) => setDeleting([p])}
+          onAdjust={isOwner ? (product) => setAdjustingProduct(product) : null}
+          onBatches={setBatchesFor}
+          onPrintBarcode={() => navigate('/labels')}
+          selectable={!!isOwner}
+          selected={selected}
+          onSelectedChange={setSelected}
+        />
+        {products.length > 0 && (
+          <div className="m-rise flex flex-wrap items-center justify-between gap-3 px-1 pt-3.5 text-[13px] text-body" style={{ '--i': 5 }}>
+            <span className="tabular-nums">
+              Showing {filteredProducts.length.toLocaleString('en-IN')} of {products.length.toLocaleString('en-IN')} products
+              {kpis.uniqueCats > 0 && ` · ${kpis.uniqueCats} ${kpis.uniqueCats === 1 ? 'category' : 'categories'}`}
+            </span>
+            <span className="hidden text-[12px] text-mute sm:inline">Click a row for its details · press / to search</span>
+          </div>
+        )}
+      </>)}
+
+      {bulkEditOpen && selectedProducts.length > 0 && (
+        <BulkEditDialog
+          count={selectedProducts.length}
+          categories={categoryOptions}
+          onClose={() => setBulkEditOpen(false)}
+          onApply={runBulkEdit}
+          onReread={refetch}
+        />
+      )}
+
+      {deleting && deleting.length > 0 && (
+        <DeleteProductsDialog
+          products={deleting}
+          onClose={() => setDeleting(null)}
+          onDelete={runDelete}
+          onReread={refetch}
+        />
+      )}
+
+      {viewing && (
+        <ItemDetailView
+          product={products.find(p => p.id === viewing.product.id) || viewing.product}
+          items={viewing.items}
+          onSelect={(p) => setViewing(v => ({ ...v, product: p }))}
+          locations={inventoryLocations || []}
+          balances={balances || []}
+          tenantId={currentTenantId}
+          currencySymbol={cur}
+          onClose={() => setViewing(null)}
+          onEdit={openEdit}
+          onAdjust={isOwner ? (p) => { setViewing(null); setAdjustingProduct(p); } : null}
+          onPrintBarcode={() => navigate('/labels')}
+          onReorder={(p) => navigate(`/purchases?reorder=${encodeURIComponent(p.id)}`)}
+          onBatches={(p) => setBatchesFor(p)}
+          onDelete={async (p) => {
+            const res = await runDelete([p]);
+            return res.failed[0] ? { error: res.failed[0].error } : { error: null };
+          }}
+          onReread={refetch}
+        />
+      )}
 
       <BatchesModal
         isOpen={!!batchesFor}
         onClose={() => setBatchesFor(null)}
         product={batchesFor}
-        currencySymbol={businessProfile?.currencySymbol || '₹'}
-      />
-
-      <PriceListsModal
-        isOpen={showPriceLists}
-        onClose={() => setShowPriceLists(false)}
-        products={products}
-        priceLists={priceLists}
-        onUpsert={upsertPrice}
-        onDelete={deletePrice}
-        currencySymbol={businessProfile?.currencySymbol || '₹'}
+        tenantId={currentTenantId}
+        currencySymbol={cur}
       />
 
       {adjustingProduct && (
@@ -438,6 +419,7 @@ const Inventory = () => {
           currentStock={getStock(adjustingProduct)}
           onConfirm={handleAdjust}
           onClose={() => setAdjustingProduct(null)}
+          onReread={refetch}
           saving={adjustSaving}
         />
       )}
@@ -452,82 +434,46 @@ const Inventory = () => {
           userId={currentUser?.id || currentUser?.email || null}
         />
       )}
-
-      {showHistory && (
-        <StockHistoryModal
-          tenantId={currentTenantId}
-          products={products}
-          onClose={() => setShowHistory(false)}
-        />
-      )}
     </div>
   );
 };
 
-// Bulk edit — blank fields are left unchanged on every selected product.
-const BulkEditModal = ({ count, categories, onClose, onApply }) => {
-  useDialogClose(onClose);
-  const [f, setF] = useState({ category: '', pricePct: '', sellPrice: '', reorder: '', gstRate: '' });
-  const [saving, setSaving] = useState(false);
-  const dirty = f.category || f.pricePct !== '' || f.sellPrice !== '' || f.reorder !== '' || f.gstRate !== '';
-  const inp = 'w-full text-[13px] border border-border rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40 bg-card';
-  const lbl = 'text-xs font-medium text-muted-foreground mb-1 block';
+/** One figure of the strip; tappable when it filters the list. */
+function StripFigure({ label, value, valueCls, onClick, active = false, children }) {
+  const body = (
+    <>
+      <Eyebrow>{label}</Eyebrow>
+      <b className={cn('mt-1.5 mb-1 block font-tight text-[24px] font-semibold leading-[1.15] tracking-[-0.02em] tabular-nums whitespace-nowrap text-ink', valueCls)}>{value}</b>
+      {children}
+    </>
+  );
+  // Hairline dividers between figures; on two columns the third starts a row.
+  const base = 'relative min-w-0 px-[22px] py-0.5 text-left border-l border-sep first:border-l-0 first:pl-0 [&:nth-child(3)]:border-l-0 [&:nth-child(3)]:pl-0 md:[&:nth-child(3)]:border-l md:[&:nth-child(3)]:pl-[22px]';
+  if (!onClick) return <div className={base}>{body}</div>;
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
-      <div role="dialog" aria-modal="true" aria-label="Bulk edit" className="dialog-pop bg-card rounded-2xl w-full max-w-sm p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center mb-1">
-          <div className="font-semibold text-[15px] text-foreground">Bulk edit</div>
-          <button onClick={onClose} className="ml-auto text-muted-foreground hover:text-foreground"><X size={18} /></button>
-        </div>
-        <p className="text-[11px] text-muted-foreground mb-4">{count} products selected · blank fields stay unchanged</p>
-
-        <label className={lbl}>Category</label>
-        <select className={inp} value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })}>
-          <option value="">— keep current —</option>
-          {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
-
-        <div className="grid grid-cols-2 gap-2 mt-3">
-          <div>
-            <label className={lbl}>Price change %</label>
-            <input type="number" step="0.1" placeholder="e.g. 5 or -10" className={inp}
-              value={f.pricePct} onChange={(e) => setF({ ...f, pricePct: e.target.value, sellPrice: '' })} />
-          </div>
-          <div>
-            <label className={lbl}>Or set sell price</label>
-            <input type="number" step="0.01" placeholder="fixed price" className={inp}
-              value={f.sellPrice} onChange={(e) => setF({ ...f, sellPrice: e.target.value, pricePct: '' })} />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 mt-3">
-          <div>
-            <label className={lbl}>Reorder level</label>
-            <input type="number" placeholder="low-stock threshold" className={inp}
-              value={f.reorder} onChange={(e) => setF({ ...f, reorder: e.target.value })} />
-          </div>
-          <div>
-            <label className={lbl}>GST rate</label>
-            <select className={inp} value={f.gstRate} onChange={(e) => setF({ ...f, gstRate: e.target.value })}>
-              <option value="">— keep current —</option>
-              <option value="0">0% (exempt / unregistered)</option>
-              <option value="5">5%</option>
-              <option value="12">12%</option>
-              <option value="18">18%</option>
-              <option value="28">28%</option>
-            </select>
-          </div>
-        </div>
-
-        <button
-          disabled={!dirty || saving}
-          onClick={async () => { setSaving(true); try { await onApply(f); } finally { setSaving(false); } }}
-          className="w-full mt-5 py-2.5 rounded-pill text-[13px] font-semibold bg-accent-signature text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
-          {saving ? 'Applying…' : `Apply to ${count} products`}
-        </button>
-      </div>
-    </div>
+    <button type="button" onClick={onClick} aria-pressed={active}
+      className={cn(base, 'group/fig m-press rounded-xl hover:bg-tile', active && 'bg-amber-soft hover:bg-amber-soft')}>
+      {body}
+      <ArrowUpRight size={14} aria-hidden="true"
+        className="absolute right-2.5 top-1 text-faint opacity-0 transition-opacity duration-(--dur-press) group-hover/fig:opacity-100" />
+    </button>
   );
-};
+}
+
+/** "Category  All ⌄": a native select drawn as an outlined pill. */
+function PillSelect({ label, value, onChange, options }) {
+  const current = options.find(o => o.value === value)?.label ?? 'All';
+  return (
+    <label className="m-press relative inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-pill py-[7px] pr-3 pl-3.5 font-tight text-[13px] font-semibold text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile focus-within:shadow-[inset_0_0_0_2px_var(--color-ink)]">
+      <em className="not-italic font-medium text-mute">{label}</em>
+      <span className="max-w-[160px] truncate">{current}</span>
+      <ChevronDown size={14} className="text-mute" aria-hidden="true" />
+      <select aria-label={label} value={value} onChange={e => onChange(e.target.value)}
+        className="absolute inset-0 cursor-pointer opacity-0">
+        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </label>
+  );
+}
 
 export default Inventory;

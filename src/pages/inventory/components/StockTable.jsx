@@ -1,14 +1,19 @@
 import React, { useMemo, useState } from 'react';
 import { isService } from '../../../lib/productTypes';
-import { PackagePlus, Trash2, Pencil, ArrowUp, ArrowDown, ChevronsUpDown, Plus } from 'lucide-react';
+import { PackagePlus, ArrowUp, ArrowDown, ChevronsUpDown, Plus, Eye, Pencil, SlidersHorizontal, Layers, ScanLine, Trash2 } from 'lucide-react';
 import { useTenant } from '../../../context/TenantContext';
+import { Button } from '../../../components/ui/button';
+import { RowMenu, MenuItem, MenuRule } from '../../../components/ui/RowMenu';
+import { reorderOf, statusOf } from '../../../lib/inventoryView';
+import { cn } from '../../../lib/utils';
+import { ProductAvatar, CheckBox } from './parts';
 
 // Veg/non-veg/egg square (restaurant menu). null = nothing.
 const FoodMark = ({ type }) => {
   if (!type) return null;
   const c = type === 'VEG' ? 'border-green-600 text-green-600'
     : type === 'NONVEG' ? 'border-red-600 text-red-600'
-    : 'border-accent-signature text-accent-signature';
+    : 'border-amber text-amber';
   return (
     <span className={`shrink-0 w-3.5 h-3.5 border rounded-sm flex items-center justify-center ${c}`} title={type}>
       <span className="w-1.5 h-1.5 rounded-full bg-current" />
@@ -19,24 +24,9 @@ const FoodMark = ({ type }) => {
 // Postgres numeric arrives as string — coerce before math.
 const toNum = (v) => Number(v ?? 0);
 
-// Reorder level: try the various column names the product may carry.
-const reorderOf = (p) => toNum(
-  p.reorderLevel ?? p.reorder_level ?? p.lowStockThreshold ??
-  p.low_stock_threshold ?? p.minStock ?? p.min_stock ?? 0
-);
+const barCls = (s) => s === 'crit' ? 'bg-bad' : s === 'low' ? 'bg-amber' : 'bg-good';
+const qtyCls = (s) => s === 'crit' ? 'text-bad-text' : s === 'low' ? 'text-amber-text' : 'text-ink';
 
-// Stock status from qty vs reorder point (fallback threshold 5 when unset).
-const statusOf = (qty, reorder) => {
-  if (qty <= 0) return 'crit';
-  const thr = reorder > 0 ? reorder : 5;
-  return qty <= thr ? 'low' : 'ok';
-};
-const dotCls = (s) => s === 'crit' ? 'bg-red-500' : s === 'low' ? 'bg-accent-signature' : 'bg-emerald-500';
-const qtyCls = (s) => s === 'crit' ? 'text-red-600' : s === 'low' ? 'text-accent-signature' : 'text-foreground';
-
-// Current margin on the LATEST prices — sell vs weighted-average cost
-// (products.costPrice, kept fresh from open batches). Null when no sell price,
-// so a serviceless/priceless row shows "—" rather than a bogus 0%.
 // Base units in one packet (e.g. 0.25 KG). 0 when the product is not sold by
 // an alternate unit. Margin % is identical either way — it is a ratio — so only
 // the rupee figures need converting.
@@ -45,40 +35,58 @@ const packConv = (p) => {
   return (p?.secondary_unit && c > 0) ? c : 0;
 };
 
+// Current margin on the LATEST prices — sell vs weighted-average cost
+// (products.costPrice, kept fresh from open batches). Null when no sell price,
+// so a serviceless/priceless row shows "—" rather than a bogus 0%.
+// Margin here is on the selling price; the item form shows markup on cost.
+// The two are left as they are (known, owner to decide).
 const marginPct = (p) => {
   const sell = toNum(p.sellingPrice);
   const cost = toNum(p.costPrice);
   if (sell <= 0) return null;
   return ((sell - cost) / sell) * 100;
 };
-// Loss red, thin amber (<10%), healthy emerald. Tiers let the eye catch the
+// Loss red, thin amber (<15%), healthy ink. Tiers let the eye catch the
 // items bleeding margin without reading every number.
 const marginCls = (m) =>
-  m == null ? 'text-muted-foreground'
-  : m < 5    ? 'text-red-600'
-  : m < 15   ? 'text-amber-600'
-  :            'text-foreground';
+  m == null ? 'text-mute'
+  : m < 5    ? 'text-bad-text'
+  : m < 15   ? 'text-amber-text'
+  :            'text-ink';
 
 // Last-buy tint vs the weighted-average cost: costlier to restock = red,
 // cheaper = green, same/unknown = muted. Small threshold so rounding noise
 // doesn't paint every row.
 const lastBuyCls = (last, cost) => {
   const l = toNum(last), c = toNum(cost);
-  if (!last || !c) return 'text-muted-foreground';
-  if (l > c * 1.005) return 'text-red-600';
-  if (l < c * 0.995) return 'text-emerald-600';
-  return 'text-muted-foreground';
+  if (!last || !c) return 'text-mute';
+  if (l > c * 1.005) return 'text-bad-text';
+  if (l < c * 0.995) return 'text-good-text';
+  return 'text-mute';
 };
 
-const StockTable = ({ products, totalProducts = 0, onClearFilters, onAddProduct, inventoryBalances, lastBuy = {}, onView, onEdit, onDelete, onAdjust, onBatches, onBulkEdit, onBulkDelete, currencySymbol = '₹' }) => {
+const money2 = (cur, n) => `${cur}${toNum(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const money0 = (cur, n) => `${cur}${Math.round(n).toLocaleString('en-IN')}`;
+
+/**
+ * The products table (approved inventory-01, -02, -03, -06).
+ *
+ * Grouped by category with each group's retail value, sortable heads, a tick
+ * box per row when the user may bulk edit or delete, and a "···" menu per
+ * row. Selection is held by the page so the bulk bar can sit above the table.
+ */
+const StockTable = ({
+  products, totalProducts = 0, onClearFilters, onAddProduct, inventoryBalances, lastBuy = {},
+  onView, onEdit, onDelete, onAdjust, onBatches, onPrintBarcode,
+  selectable = false, selected = new Set(), onSelectedChange, currencySymbol = '₹',
+}) => {
   const { businessType } = useTenant();
   const isResto = businessType === 'RESTAURANT';
   // Tenant-level: decides the COLUMN HEADINGS only. Whether a given ROW is a
   // service is a property of that row — a retail shop billing repair labour
   // has both kinds in one table, which is the case this used to get wrong.
   const isServiceTenant = businessType === 'SERVICES';
-  const [sort, setSort] = useState({ key: null, dir: 'asc' });
-  const [selected, setSelected] = useState(() => new Set());
+  const [sort, setSort] = useState({ key: 'name', dir: 'asc' });
   const stockOf = (product) =>
     inventoryBalances.filter(b => b.product_id === product.id)
       .reduce((acc, b) => acc + toNum(b.quantity), 0) || toNum(product.stock);
@@ -117,210 +125,217 @@ const StockTable = ({ products, totalProducts = 0, onClearFilters, onAddProduct,
         items: sort.key ? [...items].sort(cmp) : items,
         subValue: items.reduce((t, p) => t + stockOf(p) * toNum(p.sellingPrice), 0),
       }));
-  }, [products, inventoryBalances, sort]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products, inventoryBalances, sort, lastBuy]);
+
+  // The order on screen, so the detail panel's up / down steps through the
+  // rows as they are drawn (grouped, then sorted).
+  const ordered = useMemo(() => groups.flatMap(g => g.items), [groups]);
+  const view = onView ? (p) => onView(p, ordered) : null;
 
   const toggleSort = (key) => setSort(prev =>
     prev.key === key ? (prev.dir === 'asc' ? { key, dir: 'desc' } : { key: null, dir: 'asc' }) : { key, dir: 'asc' });
 
   const allIds = useMemo(() => products.map(p => p.id), [products]);
-  const allSelected = selected.size > 0 && allIds.every(id => selected.has(id));
-  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(allIds));
-  const toggleOne = (id) => setSelected(prev => {
-    const next = new Set(prev);
-    next.has(id) ? next.delete(id) : next.add(id);
-    return next;
-  });
-  const clearSelection = () => setSelected(new Set());
+  const someSelected = allIds.some(id => selected.has(id));
+  const allSelected = someSelected && allIds.every(id => selected.has(id));
+  const setSel = (next) => onSelectedChange?.(next);
+  const toggleAll = () => setSel(allSelected ? new Set() : new Set(allIds));
+  const toggleOne = (id) => {
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSel(next);
+  };
 
   if (!products.length) {
     const none = totalProducts === 0;
     return (
-      <div className="rounded-2xl bg-card border border-border/60 p-14 text-center">
-        <PackagePlus size={40} strokeWidth={1.25} className="mx-auto text-muted-foreground/40 mb-4" />
-        <p className="text-sm font-semibold text-foreground">{none ? 'Add your first product' : 'No products match'}</p>
-        <p className="text-xs text-muted-foreground mt-1">
+      <div className="m-rise rounded-[14px] px-5 py-[54px] text-center shadow-[inset_0_0_0_1px_var(--color-line)]" style={{ '--i': 4 }}>
+        <span className="mx-auto mb-3.5 grid h-[46px] w-[46px] place-items-center rounded-[14px] bg-tile text-mute">
+          <PackagePlus size={22} strokeWidth={1.7} />
+        </span>
+        <b className="block font-tight text-[15px] font-semibold text-ink">{none ? 'Add your first product' : 'No products match'}</b>
+        <p className="mt-1 mb-4 text-[13px] text-body">
           {none ? 'Products you add show up here with live stock, cost and margin.' : 'Nothing fits the current search and filters.'}
         </p>
         {none ? (
-          onAddProduct && (
-            <button onClick={onAddProduct}
-              className="mt-5 inline-flex items-center gap-2 h-10 px-5 rounded-pill bg-accent-signature text-white text-xs font-semibold hover:bg-accent-signature-hover transition-colors active:scale-[0.97]">
-              <Plus size={16} strokeWidth={2.5} /> Add product
-            </button>
-          )
+          onAddProduct && <Button onClick={onAddProduct}><Plus /> Add product</Button>
         ) : (
-          onClearFilters && (
-            <button onClick={onClearFilters}
-              className="mt-5 inline-flex items-center h-10 px-5 rounded-pill bg-card border border-border text-xs font-semibold text-foreground hover:bg-black/[0.03] transition-colors active:scale-[0.97]">
-              Clear filters
-            </button>
-          )
+          onClearFilters && <Button variant="secondary" onClick={onClearFilters}>Clear filters</Button>
         )}
       </div>
     );
   }
 
-  const TH = ({ children, align = 'left', extra = '', sortKey = null }) => (
-    <th className={`px-3 py-2.5 text-xs font-medium text-muted-foreground ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : ''} ${extra}`}>
-      {sortKey ? (
-        <button onClick={() => toggleSort(sortKey)} className="inline-flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer">
-          {children}
-          {sort.key === sortKey
-            ? (sort.dir === 'asc' ? <ArrowUp size={12} className="text-accent-signature" /> : <ArrowDown size={12} className="text-accent-signature" />)
-            : <ChevronsUpDown size={12} className="opacity-50" />}
-        </button>
-      ) : children}
-    </th>
-  );
+  const TH = ({ children, align = 'left', className = '', sortKey = null }) => {
+    const on = sort.key === sortKey && sortKey;
+    return (
+      <th aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}
+        className={cn('px-3.5 py-2.5 align-middle font-tight text-[12px] font-semibold text-mute border-b border-line whitespace-nowrap', align === 'right' && 'text-right', className)}>
+        {sortKey ? (
+          <button type="button" onClick={() => toggleSort(sortKey)} className="inline-flex items-center gap-1 hover:text-ink transition-colors duration-(--dur-press)">
+            {children}
+            {on
+              ? (sort.dir === 'asc' ? <ArrowUp size={12} className="text-amber" /> : <ArrowDown size={12} className="text-amber" />)
+              : <ChevronsUpDown size={12} className="opacity-40" />}
+          </button>
+        ) : children}
+      </th>
+    );
+  };
+  const labelCols = (selectable ? 1 : 0) + 5;
 
   return (
-    <div className="rounded-2xl bg-card border border-border/60 overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b border-border">
-              {(onBulkEdit || onBulkDelete) && (
-                <th className="pl-5 pr-1 py-2.5 w-px">
-                  <input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="Select all"
-                    className="w-3.5 h-3.5 rounded border-border accent-accent-signature cursor-pointer" />
-                </th>
-              )}
-              <TH extra="pl-5 w-full" sortKey="name">{isServiceTenant ? 'Service' : 'Product'}</TH>
-              <TH align="right" sortKey={isServiceTenant ? null : 'stock'}>{isServiceTenant ? 'Duration' : 'Stock'}</TH>
-              <TH align="right" sortKey={isServiceTenant ? null : 'cost'}>{isServiceTenant ? '' : 'Cost'}</TH>
-              <TH align="right" sortKey="sell">{isServiceTenant ? 'Price' : 'Sell'}</TH>
-              <TH align="right" sortKey={isServiceTenant ? null : 'margin'}>{isServiceTenant ? '' : 'Margin'}</TH>
-              <TH align="right" extra="pr-5" sortKey={isServiceTenant ? null : 'value'}>{isServiceTenant ? '' : 'Value'}</TH>
-            </tr>
-          </thead>
-          <tbody>
-            {groups.map(({ cat, items, subValue }) => (
-              <React.Fragment key={cat}>
-                <tr className="bg-black/[0.025]">
-                  <td colSpan={(onBulkEdit || onBulkDelete) ? 6 : 5} className="px-5 py-2 text-xs font-semibold text-foreground">
-                    {cat} <span className="text-muted-foreground font-normal ml-1 tabular-nums">{items.length}</span>
-                  </td>
-                  <td className="px-5 py-2 text-right tabular-nums text-xs font-medium text-muted-foreground whitespace-nowrap">
-                    {currencySymbol}{Math.round(subValue).toLocaleString('en-IN')}
-                  </td>
-                </tr>
-                {items.map(product => {
-                  const qty = stockOf(product);
-                  const reorder = reorderOf(product);
-                  const st = statusOf(qty, reorder);
-                  const sell = toNum(product.sellingPrice);
-                  const cost = toNum(product.costPrice);
-                  const margin = marginPct(product);
-                  const svc = isServiceTenant || isService(product);
-                  const last = lastBuy[product.id];
-                  const lastDiff = last == null ? 0 : toNum(last) - cost;
-                  const showLast = !svc && last != null && Math.abs(lastDiff) > 0.5;
-                  const pct = reorder > 0 ? Math.min(100, Math.max(0, (qty / (reorder * 2)) * 100)) : null;
-                  return (
-                    <tr key={product.id}
-                      onClick={onView ? () => onView(product) : undefined}
-                      className={`group border-t border-black/[0.04] hover:bg-black/[0.025] ${onView ? 'cursor-pointer' : ''} ${selected.has(product.id) ? 'bg-accent-signature/[0.06]' : ''}`}>
-                      {(onBulkEdit || onBulkDelete) && (
-                        <td className="pl-5 pr-1 py-2.5 w-px" onClick={(e) => e.stopPropagation()}>
-                          <input type="checkbox" checked={selected.has(product.id)} onChange={() => toggleOne(product.id)}
-                            aria-label={`Select ${product.name}`}
-                            className="w-3.5 h-3.5 rounded border-border accent-accent-signature cursor-pointer" />
-                        </td>
-                      )}
-                      <td className="px-5 py-2.5 pl-9 max-w-0 w-full">
-                        <div className="flex items-center gap-2 min-w-0">
-                          {isResto && <FoodMark type={product.food_type} />}
-                          {onView ? (
-                            <button onClick={(e) => { e.stopPropagation(); onView(product); }}
-                              className="text-[13px] font-semibold text-foreground truncate hover:text-accent-signature text-left">
-                              {product.name}
-                            </button>
-                          ) : (
-                            <span className="text-[13px] font-semibold text-foreground truncate">{product.name}</span>
-                          )}
-                          {isResto && product.is_available === false && (
-                            <span className="shrink-0 text-[10px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded px-1.5 py-0.5">86</span>
-                          )}
-                          {isResto && product.station && (
-                            <span className="shrink-0 text-[10px] font-medium text-muted-foreground">{product.station}</span>
-                          )}
+    <div className="m-rise relative w-full overflow-x-auto" style={{ '--i': 4 }}>
+      <table className="w-full border-collapse text-[13.5px] text-ink">
+        <thead>
+          <tr>
+            {selectable && (
+              <th className="w-[34px] pl-3.5 pr-0 py-2.5 border-b border-line">
+                <CheckBox checked={allSelected} partial={someSelected && !allSelected} onChange={toggleAll} label="Select all" />
+              </th>
+            )}
+            <TH className="w-full" sortKey="name">{isServiceTenant ? 'Service' : 'Product'}</TH>
+            <TH align="right" sortKey={isServiceTenant ? null : 'stock'}>{isServiceTenant ? 'Duration' : 'Stock'}</TH>
+            <TH align="right" sortKey={isServiceTenant ? null : 'cost'}>{isServiceTenant ? '' : 'Cost'}</TH>
+            <TH align="right" sortKey="sell">{isServiceTenant ? 'Price' : 'Sell'}</TH>
+            <TH align="right" sortKey={isServiceTenant ? null : 'margin'}>{isServiceTenant ? '' : 'Margin'}</TH>
+            <TH align="right" sortKey={isServiceTenant ? null : 'value'}>{isServiceTenant ? '' : 'Value'}</TH>
+            <th className="w-11 border-b border-line"><span className="sr-only">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {groups.map(({ cat, items, subValue }) => (
+            <React.Fragment key={cat}>
+              <tr>
+                <td colSpan={labelCols} className="bg-tile px-3.5 py-[7px] font-tight text-[12px] font-semibold text-ink-2 border-b border-sep">
+                  {cat}<em className="ml-1.5 not-italic font-medium text-mute tabular-nums">{items.length}</em>
+                </td>
+                <td className="bg-tile px-3.5 py-[7px] text-right font-tight text-[12px] font-medium text-body tabular-nums whitespace-nowrap border-b border-sep">
+                  {money0(currencySymbol, subValue)}
+                </td>
+                <td className="bg-tile border-b border-sep" />
+              </tr>
+              {items.map(product => {
+                const qty = stockOf(product);
+                const reorder = reorderOf(product);
+                const st = statusOf(qty, reorder);
+                const sell = toNum(product.sellingPrice);
+                const cost = toNum(product.costPrice);
+                const margin = marginPct(product);
+                const svc = isServiceTenant || isService(product);
+                const last = lastBuy[product.id];
+                const lastDiff = last == null ? 0 : toNum(last) - cost;
+                const showLast = !svc && last != null && Math.abs(lastDiff) > 0.5;
+                const pct = reorder > 0 ? Math.min(100, Math.max(0, (qty / (reorder * 2)) * 100)) : null;
+                const isSel = selected.has(product.id);
+                const td = cn('px-3.5 py-2.5 align-middle tabular-nums border-b border-sep transition-colors duration-(--dur-press)', isSel ? 'bg-amber-soft' : 'group-hover/row:bg-tile');
+                return (
+                  <tr key={product.id}
+                    onClick={view ? () => view(product) : undefined}
+                    className={cn('group/row', view && 'cursor-pointer')}>
+                    {selectable && (
+                      <td className={cn(td, 'w-[34px] pr-0')} onClick={(e) => e.stopPropagation()}>
+                        <CheckBox checked={isSel} onChange={() => toggleOne(product.id)} label={`Select ${product.name}`} />
+                      </td>
+                    )}
+                    <td className={cn(td, 'max-w-0 w-full')}>
+                      <div className="flex min-w-0 items-center gap-[11px]">
+                        <ProductAvatar product={product} />
+                        <div className="min-w-0">
+                          <div className="flex min-w-0 items-center gap-2">
+                            {isResto && <FoodMark type={product.food_type} />}
+                            {view ? (
+                              <button type="button" onClick={(e) => { e.stopPropagation(); view(product); }}
+                                className="truncate text-left font-tight text-[13.5px] font-semibold text-ink hover:text-amber-text">
+                                {product.name}
+                              </button>
+                            ) : (
+                              <b className="truncate font-tight text-[13.5px] font-semibold">{product.name}</b>
+                            )}
+                            {isResto && product.is_available === false && (
+                              <span className="shrink-0 rounded-pill bg-bad-soft px-1.5 py-px font-tight text-[10.5px] font-semibold text-bad-text">86</span>
+                            )}
+                            {isResto && product.station && (
+                              <span className="shrink-0 text-[11px] font-medium text-mute">{product.station}</span>
+                            )}
+                          </div>
+                          {product.sku && <small className="block truncate font-tight text-[11.5px] font-medium text-mute tabular-nums">{product.sku}</small>}
                         </div>
-                        {product.sku && <div className="text-[11px] tabular-nums text-muted-foreground truncate mt-0.5">{product.sku}</div>}
-                      </td>
-                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                        {svc ? (
-                          <span className="tabular-nums text-xs font-semibold text-violet-500">{product.duration_min ? `${product.duration_min}m` : 'Service'}</span>
-                        ) : (<>
-                          <span className={`tabular-nums text-[13px] font-semibold ${qtyCls(st)}`}>{qty}</span>
-                          <span className="text-[11px] text-muted-foreground ml-1">{product.unit || 'pcs'}</span>
-                          {pct != null && (
-                            <div className="h-[3px] w-14 ml-auto mt-1.5 rounded-full bg-black/[0.07] overflow-hidden" aria-hidden="true">
-                              <div className={`h-full rounded-full ${dotCls(st)}`} style={{ width: `${pct}%` }} />
-                            </div>
-                          )}
-                        </>)}
-                      </td>
-                      {/* Cost is held per base unit (per KG). A product bought by
-                          weight and sold in packets is priced and judged per
-                          packet, so show that underneath rather than making the
-                          shopkeeper divide in their head. */}
-                      <td className="px-3 py-2.5 text-right tabular-nums text-xs text-foreground whitespace-nowrap">
-                        {svc ? '' : <>
-                          {currencySymbol}{cost.toFixed(2)}
-                          {packConv(product) > 0 && (
-                            <div className="text-[11px] text-muted-foreground">
-                              {currencySymbol}{(cost * packConv(product)).toFixed(2)}/{product.secondary_unit}
-                            </div>
-                          )}
-                          {/* Last buy vs average: red when restocking costs more,
-                              green when less. Shown only past a 50 paise gap. */}
-                          {showLast && (
-                            <div className={`text-[11px] ${lastBuyCls(last, cost)}`}>
-                              {lastDiff > 0 ? '▲' : '▼'} last {currencySymbol}{toNum(last).toFixed(2)}
-                            </div>
-                          )}
-                        </>}
-                      </td>
-                      <td className="px-3 py-2.5 text-right tabular-nums text-xs font-semibold text-foreground whitespace-nowrap">
-                        {currencySymbol}{sell.toFixed(2)}
-                        {packConv(product) > 0 && (
-                          <div className="text-[11px] font-normal text-muted-foreground">
-                            {currencySymbol}{(sell * packConv(product)).toFixed(2)}/{product.secondary_unit}
+                      </div>
+                    </td>
+                    <td className={cn(td, 'text-right whitespace-nowrap')}>
+                      {svc ? (
+                        <span className="font-tight text-[12.5px] font-semibold text-[#5E4A80] tabular-nums">{product.duration_min ? `${product.duration_min}m` : 'Service'}</span>
+                      ) : (<>
+                        <span className={cn('font-tight text-[13.5px] font-semibold tabular-nums', qtyCls(st))}>{qty}</span>
+                        <span className="ml-1 text-[11.5px] text-mute">{(product.unit || 'pcs').toUpperCase()}</span>
+                        {pct != null && (
+                          <div className="ml-auto mt-1.5 h-[3px] w-14 overflow-hidden rounded-pill bg-well" aria-hidden="true">
+                            <div className={cn('h-full rounded-pill', barCls(st))} style={{ width: `${Math.max(pct, 2)}%` }} />
                           </div>
                         )}
-                      </td>
-                      <td className={`px-3 py-2.5 text-right tabular-nums text-xs font-semibold whitespace-nowrap ${marginCls(margin)}`}>{svc ? '' : (margin == null ? '—' : `${margin.toFixed(1)}%`)}</td>
-                      <td className="px-5 py-2.5 text-right tabular-nums text-[13px] font-semibold whitespace-nowrap">{svc ? '' : <>{currencySymbol}{Math.round(qty * sell).toLocaleString('en-IN')}</>}</td>
-                    </tr>
-                  );
-                })}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {selected.size > 0 && (onBulkEdit || onBulkDelete) && (
-        <div className="sticky bottom-0 px-5 py-3 bg-foreground flex items-center gap-3 ">
-          <span className="text-[12px] font-semibold text-background">{selected.size} selected</span>
-          <button onClick={clearSelection} className="text-[11px] font-semibold text-background/70 hover:text-background transition-colors">Clear</button>
-          <div className="ml-auto flex items-center gap-2">
-            {onBulkEdit && (
-              <button
-                onClick={() => onBulkEdit(products.filter(p => selected.has(p.id)), clearSelection)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-pill text-[12px] font-semibold bg-accent-signature text-white hover:opacity-90 transition-opacity">
-                <Pencil size={13} /> Bulk edit
-              </button>
-            )}
-            {onBulkDelete && (
-              <button
-                onClick={() => onBulkDelete(products.filter(p => selected.has(p.id)), clearSelection)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-pill text-[12px] font-semibold bg-red-500/90 text-white hover:bg-red-500 transition-colors">
-                <Trash2 size={13} /> Delete
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+                      </>)}
+                    </td>
+                    {/* Cost is held per base unit (per KG). A product bought by
+                        weight and sold in packets is priced and judged per
+                        packet, so show that underneath rather than making the
+                        shopkeeper divide in their head. */}
+                    <td className={cn(td, 'text-right font-tight whitespace-nowrap')}>
+                      {svc ? '' : <>
+                        {money2(currencySymbol, cost)}
+                        {packConv(product) > 0 && (
+                          <span className="mt-px block text-[11.5px] font-medium text-mute">
+                            {money2(currencySymbol, cost * packConv(product))}/{product.secondary_unit}
+                          </span>
+                        )}
+                        {/* Last buy vs average: red when restocking costs more,
+                            green when less. Shown only past a 50 paise gap. */}
+                        {showLast && (
+                          <span className={cn('mt-px block text-[11.5px] font-medium', lastBuyCls(last, cost))}>
+                            {lastDiff > 0 ? '▲' : '▼'} last {money2(currencySymbol, last)}
+                          </span>
+                        )}
+                      </>}
+                    </td>
+                    <td className={cn(td, 'text-right font-tight font-semibold whitespace-nowrap')}>
+                      {money2(currencySymbol, sell)}
+                      {packConv(product) > 0 && (
+                        <span className="mt-px block text-[11.5px] font-medium text-mute">
+                          {money2(currencySymbol, sell * packConv(product))}/{product.secondary_unit}
+                        </span>
+                      )}
+                    </td>
+                    <td className={cn(td, 'text-right font-tight font-semibold whitespace-nowrap', marginCls(margin))}>
+                      {svc ? '' : (margin == null ? '—' : `${margin < 0 ? '−' : ''}${Math.abs(margin).toFixed(1)}%`)}
+                    </td>
+                    <td className={cn(td, 'text-right font-tight font-semibold whitespace-nowrap')}>
+                      {svc ? '' : money0(currencySymbol, qty * sell)}
+                    </td>
+                    <td className={cn(td, 'w-11 text-right')} onClick={(e) => e.stopPropagation()}>
+                      <RowMenu label={`Actions for ${product.name}`} width={208}>
+                        {(close) => (
+                          <>
+                            {view && <MenuItem icon={Eye} onClick={() => { close(); view(product); }}>Open details</MenuItem>}
+                            {onEdit && <MenuItem icon={Pencil} onClick={() => { close(); onEdit(product); }}>Edit</MenuItem>}
+                            {onAdjust && !svc && <MenuItem icon={SlidersHorizontal} onClick={() => { close(); onAdjust(product); }}>Adjust stock</MenuItem>}
+                            {onBatches && !svc && <MenuItem icon={Layers} onClick={() => { close(); onBatches(product); }}>Batches</MenuItem>}
+                            {onPrintBarcode && <MenuItem icon={ScanLine} onClick={() => { close(); onPrintBarcode(product); }}>Print barcode</MenuItem>}
+                            {onDelete && (<>
+                              <MenuRule />
+                              <MenuItem danger icon={Trash2} onClick={() => { close(); onDelete(product); }}>Delete</MenuItem>
+                            </>)}
+                          </>
+                        )}
+                      </RowMenu>
+                    </td>
+                  </tr>
+                );
+              })}
+            </React.Fragment>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };

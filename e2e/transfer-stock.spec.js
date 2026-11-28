@@ -41,9 +41,8 @@ const modal = (page) => page.getByTestId('transfer-modal');
 
 async function openTransfer(page) {
   await gotoInventory(page);
-  // Transfer stock now lives in the page's More menu.
-  await page.getByRole('button', { name: /^more/i }).click();
-  await page.getByRole('menuitem', { name: /transfer stock/i }).click();
+  // Transfer stock is a button beside the Products tab (web redesign).
+  await page.getByRole('button', { name: /^transfer stock$/i }).click();
   await expect(modal(page)).toBeVisible();
 }
 
@@ -96,7 +95,7 @@ test.describe('Transfer stock between locations', () => {
       }));
 
     await openTransferWithWidgetA(page);
-    await modal(page).getByRole('button', { name: /^Move Stock$/ }).click();
+    await modal(page).getByRole('button', { name: /^Move stock$/i }).click();
 
     const problem = modal(page).getByTestId('transfer-problem');
     // The heading tells the user what kind of problem it is...
@@ -124,7 +123,7 @@ test.describe('Transfer stock between locations', () => {
       }));
 
     await openTransferWithWidgetA(page);
-    await modal(page).getByRole('button', { name: /^Move Stock$/ }).click();
+    await modal(page).getByRole('button', { name: /^Move stock$/i }).click();
 
     // Not dressed up as a stock problem: that would send the user to count
     // shelves that are fine and hide the real fault.
@@ -136,7 +135,7 @@ test.describe('Transfer stock between locations', () => {
 
   test('a successful move reports where the stock went', async ({ page }) => {
     await openTransferWithWidgetA(page);
-    await modal(page).getByRole('button', { name: /^Move Stock$/ }).click();
+    await modal(page).getByRole('button', { name: /^Move stock$/i }).click();
 
     await expect(page.getByTestId('transfer-done')).toBeVisible();
     const summary = page.getByText(/moved from/);
@@ -153,6 +152,6 @@ test.describe('Transfer stock between locations', () => {
       .selectOption('00000000-0000-0000-0000-000000000001');
 
     await expect(modal(page).getByText(/stock cannot move to where it already is/)).toBeVisible();
-    await expect(modal(page).getByRole('button', { name: /^Move Stock$/ })).toBeDisabled();
+    await expect(modal(page).getByRole('button', { name: /^Move stock$/i })).toBeDisabled();
   });
 });

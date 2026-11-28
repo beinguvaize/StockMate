@@ -153,7 +153,7 @@ const PriceListsTab = ({ products, priceLists = [], onUpsert, onDelete, currency
                           )}
                         </span>
                         <button type="button" onClick={() => handleDelete(entry)} aria-label={`Remove the ${entry.min_qty}+ break`}
-                          className="m-press grid h-7 w-7 place-items-center rounded-full text-faint hover:bg-bad-soft hover:text-bad-text">
+                          className="m-press grid h-7 w-7 place-items-center rounded-xl text-faint hover:bg-bad-soft hover:text-bad-text">
                           <Trash2 size={15} strokeWidth={1.8} />
                         </button>
                       </div>
