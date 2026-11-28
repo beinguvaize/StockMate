@@ -1,37 +1,55 @@
 import React, { useEffect, useState } from 'react';
-import { Layers, Package, TrendingUp, AlertTriangle } from 'lucide-react';
-import Modal from '../../../shared/Modal';
+import { Layers } from 'lucide-react';
+import Dialog from '../../../components/ui/Dialog';
+import { Badge } from '../../../components/ui/badge';
 import { supabase } from '../../../lib/supabase';
-import { formatDate } from '../../../lib/utils';
+import { formatDate, cn } from '../../../lib/utils';
+import { Notice } from './parts';
 
 const toNum = (v) => Number(v ?? 0);
+const fix2 = (n) => toNum(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const BatchesModal = ({ isOpen, onClose, product, currencySymbol = '₹' }) => {
+/**
+ * A product's cost batches with the margin each one sells at (approved
+ * inventory-09). Read only: batches are made and used up by the database
+ * (purchases, adjustments, FIFO), never here.
+ *
+ * Unreachable before the redesign; it is now opened from a row's menu and
+ * from the product panel's Batches tab.
+ */
+const BatchesModal = ({ isOpen, onClose, product, tenantId, currencySymbol = '₹' }) => {
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
     if (!isOpen || !product?.id) return;
     let cancelled = false;
     setLoading(true);
+    setLoadError(null);
     (async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from('product_batches')
         .select('id, received_date, unit_cost, qty_received, qty_remaining, supplier_id, purchase_id, note, created_at')
-        .eq('product_id', product.id)
+        .eq('product_id', product.id);
+      // Every tenant-table read carries the tenant (CLAUDE.md): a global
+      // admin is entitled to every tenant's rows, and RLS is not the filter.
+      if (tenantId) q = q.eq('tenant_id', tenantId);
+      const { data, error } = await q
         .order('received_date', { ascending: false })
         .order('created_at', { ascending: false });
       if (cancelled) return;
       if (error) {
         console.error('[BatchesModal] fetch failed', error);
         setBatches([]);
+        setLoadError(error);
       } else {
         setBatches(data || []);
       }
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [isOpen, product?.id]);
+  }, [isOpen, product?.id, tenantId]);
 
   const sellPrice = toNum(product?.sellingPrice);
   const openBatches = batches.filter(b => toNum(b.qty_remaining) > 0);
@@ -39,111 +57,77 @@ const BatchesModal = ({ isOpen, onClose, product, currencySymbol = '₹' }) => {
   const totalOpenValue = openBatches.reduce((a, b) => a + toNum(b.qty_remaining) * toNum(b.unit_cost), 0);
   const wAvg = totalOpenQty > 0 ? totalOpenValue / totalOpenQty : 0;
   const lossRiskBatches = openBatches.filter(b => toNum(b.unit_cost) > sellPrice && sellPrice > 0);
+  const unit = (product?.unit || 'pcs').toUpperCase();
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={product ? `${product.name} — Batches` : 'Batches'}
-      subtitle="FIFO lots · oldest consumed first"
-      maxWidth="max-w-3xl"
-    >
-      {/* Summary strip */}
-      <div className="grid grid-cols-3 gap-3 mb-5">
-        <div className="p-4 rounded-xl bg-card border border-border shadow-sm">
-          <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground mb-1">
-            <Layers size={12} /> Open Batches
-          </div>
-          <div className="text-2xl font-semibold tabular-nums">{openBatches.length}</div>
-        </div>
-        <div className="p-4 rounded-xl bg-card border border-border shadow-sm">
-          <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground mb-1">
-            <Package size={12} /> Total Qty
-          </div>
-          <div className="text-2xl font-semibold tabular-nums">
-            {totalOpenQty.toFixed(2)}
-            <span className="text-[11px] font-semibold opacity-40 ml-1">{product?.unit || 'pcs'}</span>
-          </div>
-        </div>
-        <div className="p-4 rounded-xl bg-card border border-border shadow-sm">
-          <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground mb-1">
-            <TrendingUp size={12} /> Wtd Avg Cost
-          </div>
-          <div className="text-2xl font-semibold tabular-nums">
-            {currencySymbol}{wAvg.toFixed(2)}
-          </div>
-        </div>
+    <Dialog open={isOpen} onClose={onClose} width={720}
+      title={product ? `${product.name}, Batches` : 'Batches'}
+      subtitle="Oldest batch is sold first (FIFO)">
+      <div className="mb-4 grid grid-cols-3 gap-2">
+        <Stat label="Open batches" value={openBatches.length} />
+        <Stat label="Total quantity" value={`${fix2(totalOpenQty)} ${unit}`} />
+        <Stat label="Weighted average cost" value={`${currencySymbol}${fix2(wAvg)}`} />
       </div>
 
-      {/* Loss risk warning */}
       {lossRiskBatches.length > 0 && (
-        <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700">
-          <AlertTriangle size={16} className="shrink-0 mt-0.5" />
-          <div>
-            <p className="text-xs font-semibold">Selling below Cost — loss risk</p>
-            <p className="text-xs font-semibold mt-0.5 opacity-80">
-              {lossRiskBatches.length} batch{lossRiskBatches.length > 1 ? 'es' : ''} with unit cost above sell price ({currencySymbol}{sellPrice.toFixed(2)}).
-              On FIFO, these units are consumed first — every sale generates a loss.
-            </p>
-          </div>
-        </div>
+        <Notice tone="r" className="mb-3" title="Selling below cost, loss risk">
+          {lossRiskBatches.length} {lossRiskBatches.length > 1 ? 'batches cost' : 'batch costs'} more than the selling price ({currencySymbol}{fix2(sellPrice)}).
+          {' '}{lossRiskBatches.length > 1 ? 'They are' : 'It is'} sold first, so every sale of {lossRiskBatches.length > 1 ? 'them' : 'it'} makes a loss.
+        </Notice>
       )}
 
-      {loading ? (
-        <div className="py-12 text-center text-sm font-semibold opacity-50 animate-pulse">Loading batches...</div>
+      {loadError ? (
+        <div role="alert" className="rounded-xl bg-bad-soft px-3.5 py-3 text-[12.5px] text-bad-text">
+          <b className="block font-tight font-semibold">Batches did not load</b>
+          <span className="block break-words">{String(loadError.message || loadError)}</span>
+        </div>
+      ) : loading ? (
+        <div className="py-12 text-center text-[13px] text-mute">Loading batches…</div>
       ) : batches.length === 0 ? (
-        <div className="py-12 text-center text-sm text-muted-foreground">
-          <Layers size={32} className="mx-auto mb-2 opacity-30" />
-          <div className="font-semibold">No batches yet</div>
-          <div className="text-xs opacity-70 mt-1">Batches are created automatically on purchase. Pre-existing stock uses legacy cost until next purchase.</div>
+        <div className="py-12 text-center text-[13px] text-body">
+          <Layers size={28} className="mx-auto mb-2 text-faint" />
+          <b className="block font-tight font-semibold text-ink">No batches yet</b>
+          <span className="mt-1 block text-[12px] text-mute">Batches are made by purchases. Stock from before them is costed at the saved cost until the next purchase.</span>
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full border-collapse text-[13px]">
             <thead>
-              <tr className="text-[11px] text-muted-foreground font-semibold border-b border-border/60">
-                <th className="text-left py-2 px-2">Received</th>
-                <th className="text-right py-2 px-2">Unit Cost</th>
-                <th className="text-right py-2 px-2">Received Qty</th>
-                <th className="text-right py-2 px-2">Remaining</th>
-                <th className="text-right py-2 px-2">Value</th>
-                <th className="text-right py-2 px-2">Margin</th>
-                <th className="text-center py-2 px-2">Status</th>
+              <tr className="[&>th]:bg-tile [&>th]:px-3 [&>th]:py-2 [&>th]:text-left [&>th]:font-tight [&>th]:text-[11.5px] [&>th]:font-semibold [&>th]:text-mute">
+                <th className="rounded-l-lg">Received</th>
+                <th className="!text-right">Unit cost</th>
+                <th className="!text-right">Qty received</th>
+                <th className="!text-right">Left</th>
+                <th className="!text-right">Value</th>
+                <th className="!text-right">Margin</th>
+                <th className="rounded-r-lg">Status</th>
               </tr>
             </thead>
             <tbody>
               {batches.map((b) => {
                 const remaining = toNum(b.qty_remaining);
-                const received  = toNum(b.qty_received);
-                const cost      = toNum(b.unit_cost);
-                const depleted  = remaining === 0;
-                const pct       = received > 0 ? (remaining / received) * 100 : 0;
-                const margin    = sellPrice > 0 ? ((sellPrice - cost) / sellPrice) * 100 : null;
-                const isLoss    = margin !== null && margin < 0;
-                const marginColor = isLoss ? 'text-red-600' : (margin !== null && margin < 20) ? 'text-orange-500' : 'text-emerald-600';
+                const received = toNum(b.qty_received);
+                const cost = toNum(b.unit_cost);
+                const depleted = remaining === 0;
+                const pct = received > 0 ? (remaining / received) * 100 : 0;
+                const margin = sellPrice > 0 ? ((sellPrice - cost) / sellPrice) * 100 : null;
+                const isLoss = margin !== null && margin < 0;
+                const marginCls = isLoss ? 'text-bad-text' : (margin !== null && margin < 20) ? 'text-amber-text' : 'text-good-text';
                 return (
-                  <tr key={b.id} className={`border-b border-border/60 ${depleted ? 'opacity-40' : ''} ${isLoss && !depleted ? 'bg-red-50/40' : ''}`}>
-                    <td className="py-3 px-2 font-semibold text-foreground">{formatDate(b.received_date)}</td>
-                    <td className={`py-3 px-2 text-right tabular-nums font-semibold ${isLoss && !depleted ? 'text-red-600' : ''}`}>
-                      {currencySymbol}{cost.toFixed(2)}
-                      {isLoss && !depleted && <AlertTriangle size={10} className="inline ml-1 text-red-500" />}
+                  <tr key={b.id} className={cn('[&>td]:px-3 [&>td]:py-2.5 [&>td]:border-b [&>td]:border-sep tabular-nums',
+                    depleted && '[&>td]:text-faint', isLoss && !depleted && '[&>td]:bg-[#FFF7F7]')}>
+                    <td className="whitespace-nowrap">{formatDate(b.received_date)}</td>
+                    <td className={cn('text-right font-tight', isLoss && !depleted && '!text-bad-text')}>{currencySymbol}{fix2(cost)}</td>
+                    <td className="text-right font-tight">{fix2(received)}</td>
+                    <td className="text-right font-tight font-semibold">{fix2(remaining)}</td>
+                    <td className="text-right font-tight">{currencySymbol}{fix2(remaining * cost)}</td>
+                    <td className={cn('text-right font-tight font-semibold', !depleted && marginCls)}>
+                      {margin !== null ? `${margin < 0 ? '−' : ''}${Math.abs(margin).toFixed(1)}%` : '—'}
                     </td>
-                    <td className="py-3 px-2 text-right tabular-nums text-muted-foreground">{received.toFixed(2)}</td>
-                    <td className="py-3 px-2 text-right tabular-nums font-semibold">{remaining.toFixed(2)}</td>
-                    <td className="py-3 px-2 text-right tabular-nums text-emerald-600 font-semibold">
-                      {currencySymbol}{(remaining * cost).toFixed(2)}
-                    </td>
-                    <td className={`py-3 px-2 text-right tabular-nums font-semibold ${marginColor}`}>
-                      {margin !== null ? `${margin.toFixed(1)}%` : '—'}
-                    </td>
-                    <td className="py-3 px-2 text-center">
-                      {depleted ? (
-                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Depleted</span>
-                      ) : pct < 25 ? (
-                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-accent-signature/15 text-accent-signature-hover">Low</span>
-                      ) : (
-                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Open</span>
-                      )}
+                    <td>
+                      {depleted ? <Badge tone="neutral">Used up</Badge>
+                        : pct < 25 ? <Badge tone="warn">Low</Badge>
+                        : <Badge tone="good">Open</Badge>}
                     </td>
                   </tr>
                 );
@@ -152,8 +136,15 @@ const BatchesModal = ({ isOpen, onClose, product, currencySymbol = '₹' }) => {
           </table>
         </div>
       )}
-    </Modal>
+    </Dialog>
   );
 };
+
+const Stat = ({ label, value }) => (
+  <div className="rounded-[10px] bg-tile px-3 py-[9px]">
+    <span className="block font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-mute">{label}</span>
+    <b className="mt-px block font-tight text-[13.5px] font-semibold tabular-nums">{value}</b>
+  </div>
+);
 
 export default BatchesModal;
