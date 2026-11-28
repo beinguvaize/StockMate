@@ -1,9 +1,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { validateItemPricing, stockFieldsFor, isServiceForm, defaultProductType } from '../../../lib/itemForm';
-import { ImagePlus, CheckCircle2, Percent, Camera, Images, Upload, X, Loader2, Wand2 } from 'lucide-react';
-import { ean13CheckDigit, genInternalBarcode } from '../../../lib/labelPrint';
-import Modal from '../../../shared/Modal';
-import Button from '../../../shared/Button';
+import { CheckCircle2, Images, Upload, X, Loader2, Wand2, ChevronLeft } from 'lucide-react';
+import { genInternalBarcode } from '../../../lib/labelPrint';
+import { useDialogClose } from '../../../hooks/useDialogClose';
+import { Button } from '../../../components/ui/button';
+import { Input } from '../../../components/ui/input';
+import WriteFailure from '../../../components/invoices/WriteFailure';
+import { formSteps } from '../../../lib/inventoryView';
+import { cn } from '../../../lib/utils';
+import { ProductAvatar, Label, Hint, Select, CheckBox } from './parts';
 import { TAX_SLABS, TAX_SLABS_WITH_CESS, UNITS } from '../../../lib/constants';
 import { uploadProductImage, listTenantProductImages } from '../../../lib/supabase';
 import { shrinkImageFile } from '../../../lib/imageShrink';
@@ -17,7 +22,18 @@ const DEFAULT_CATEGORIES = [
   'Sports & Fitness', 'Automotive', 'Other'
 ];
 
-const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategories, tenantId, existingBarcodes }) => {
+/**
+ * Add / Edit product (approved inventory-10, -11). Takes the Inventory page
+ * over: four numbered sections, a sticky summary with Save, Ctrl Enter saves
+ * and Esc cancels.
+ *
+ * Only the look is new. The fields, their rules (lib/itemForm.js) and the
+ * row that is saved are exactly as before; the restaurant, service and
+ * catalog fields the approved drawing does not show still appear when they
+ * apply. A refused save shows the server's words; a save that timed out or
+ * lost its connection says it could not be confirmed, never "Not saved".
+ */
+const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategories, tenantId, existingBarcodes, onReread }) => {
   const { businessType, isModuleOn } = useTenant();
   const isResto = businessType === 'RESTAURANT';
 
@@ -81,7 +97,9 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
   const [imageFile, setImageFile]     = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading]     = useState(false);
-  const [saveError, setSaveError]     = useState(null);
+  const [saveError, setSaveError]     = useState(null);   // a check on the form, in words
+  const [writeError, setWriteError]   = useState(null);   // what the save itself hit
+  const formRef = useRef(null);
   const fileInputRef = useRef(null);
 
   // Photo library state
@@ -176,6 +194,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
     e.preventDefault();
     setUploading(true);
     setSaveError(null);
+    setWriteError(null);
 
     try {
       // Pricing rules live in src/lib/itemForm.js so they can be tested
@@ -254,12 +273,14 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
       ]);
       const result = await withTimeout(onSave(parsedData), 15000);
       if (result?.error) {
-        setSaveError(result.error.message || 'Failed to save product');
+        setWriteError(result.error);
         return;
       }
       onClose();
     } catch (err) {
-      setSaveError(err?.message || 'Unexpected error — please try again');
+      // A timeout lands here: the request may still have reached the server,
+      // so WriteFailure says it could not be confirmed and offers a re-read.
+      setWriteError(err || new Error('Unexpected error — please try again'));
     } finally {
       setUploading(false);
     }
@@ -275,316 +296,292 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
   const updateOption = (i, oi, patch) => updateGroup(i, { options: mgroups[i].options.map((o, idx) => idx === oi ? { ...o, ...patch } : o) });
   const removeOption = (i, oi) => updateGroup(i, { options: mgroups[i].options.filter((_, idx) => idx !== oi) });
 
+  // Esc cancels (this is a page, so the scroll is left alone); Ctrl or Cmd
+  // Enter saves through the form's own submit, so every check still runs.
+  useDialogClose(onClose, { enabled: !!isOpen, lockScroll: false });
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        formRef.current?.requestSubmit?.();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const c = parseFloat(formData.costPrice);
+  const s = parseFloat(formData.sellingPrice);
+  const showMargin = c > 0 && !isNaN(s);
+  // Markup on cost, as this form has always shown it (the products table
+  // shows margin on the selling price; known, left for the owner).
+  const margin = showMargin ? ((s - c) / c) * 100 : 0;
+  const marginColor = margin < 0 ? 'text-bad-text' : margin < 10 ? 'text-amber-text' : 'text-good-text';
+  const pricingError = validateItemPricing({ ...formData, businessType });
+  const steps = formSteps(formData, { pricingError, hasPhoto: !!imagePreview });
+  const cur = '₹';
+  const fx = (n) => Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const taxStatus = formData.tax_status || 'TAXABLE';
+  const slabIdx = TAX_SLABS_WITH_CESS.findIndex(
+    sl => sl.value === Number(formData.taxRate) && sl.cess === Number(formData.cess_rate || 0));
+  const set = (patch) => setFormData(f => ({ ...f, ...patch }));
+  const jump = (id) => document.getElementById(`item-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={editingProduct ? 'Edit Product' : 'Add Product'}
-      subtitle={editingProduct ? 'Update product details' : 'Add new product to inventory'}
-    >
-      {(() => {
-        const inputCls = "w-full bg-card border border-border rounded-xl px-3.5 py-3 text-xs font-semibold text-foreground placeholder:text-muted-foreground placeholder:font-medium outline-none transition-all hover:border-border focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 shadow-sm";
-        const labelCls = "block text-[11px] font-semibold text-ink-secondary mb-2";
-        const Section = ({ children }) => (
-          <div className="flex items-center gap-2 pt-1.5">
-            <span className="w-1 h-3.5 rounded-full bg-accent-signature" />
-            <span className="text-[11px] font-semibold text-foreground">{children}</span>
-          </div>
-        );
-        const c = parseFloat(formData.costPrice);
-        const s = parseFloat(formData.sellingPrice);
-        const showMargin = c > 0 && !isNaN(s);
-        const margin = showMargin ? ((s - c) / c) * 100 : 0;
-        const marginColor = margin < 0 ? 'text-red-600' : margin < 10 ? 'text-accent-signature' : 'text-emerald-600';
+    <div className="flex flex-col pb-16">
+      <div className="m-rise mb-[18px] flex flex-wrap items-center gap-3.5">
+        <button type="button" onClick={onClose}
+          className="m-press inline-flex items-center gap-1.5 font-tight text-[13px] font-semibold text-body hover:text-ink">
+          <ChevronLeft size={15} /> Inventory
+        </button>
+        <h2 className="font-tight text-[20px] font-semibold tracking-[-0.02em]">{editingProduct ? 'Edit Product' : 'Add Product'}</h2>
+        <span className="text-[13px] text-mute">{editingProduct ? 'Update product details' : 'Add a new product to inventory'}</span>
+      </div>
 
-        return (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <Section>Identity &amp; Classification</Section>
-            {/* Row 1: Name full width */}
-            <div>
-              <label className={labelCls}>Name</label>
-              <input required type="text" className={inputCls} placeholder="Product name"
-                value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value})} />
-            </div>
-
-            {/* Row 2: SKU | Category */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form ref={formRef} onSubmit={handleSubmit} className="grid items-start gap-5 lg:grid-cols-[1fr_300px]">
+        <div className="min-w-0">
+          {/* 1 · Details */}
+          <Sec id="f1" n={1} title="Details" hint="Name, codes and type">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <Label htmlFor="it-name">Name</Label>
+                <Input id="it-name" required type="text" placeholder="Product name"
+                  value={formData.name} onChange={e => set({ name: e.target.value })} />
+              </div>
               <div>
-                <label className={labelCls}>SKU</label>
-                <div className="flex gap-2">
-                  <input required type="text" className={`${inputCls} flex-1`} placeholder="SKU-0001"
-                    value={formData.sku} onChange={e => setFormData({ ...formData, sku: e.target.value})} />
-                  <button type="button"
-                    onClick={() => {
-                      // Derive a code from the product name (alphanumerics, up to 4 chars) + random suffix.
-                      const base = (formData.name || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 4).toUpperCase() || 'SKU';
-                      const sku = `${base}-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
-                      setFormData({ ...formData, sku });
-                    }}
-                    title="Auto-generate a SKU"
-                    className="shrink-0 flex items-center gap-1.5 px-3 rounded-pill border border-accent-signature/40 text-accent-signature text-[11px] font-semibold hover:bg-accent-signature/10">
-                    <Wand2 size={13} /> Assign
-                  </button>
+                <Label htmlFor="it-sku">SKU</Label>
+                <div className="flex gap-1.5">
+                  <Input id="it-sku" required type="text" placeholder="SKU-0001" className="flex-1"
+                    value={formData.sku} onChange={e => set({ sku: e.target.value })} />
+                  <AssignBtn title="Auto-generate a SKU" onClick={() => {
+                    // Derive a code from the product name (alphanumerics, up to 4 chars) + random suffix.
+                    const base = (formData.name || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 4).toUpperCase() || 'SKU';
+                    const sku = `${base}-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
+                    set({ sku });
+                  }} />
                 </div>
               </div>
               <div>
-                <label className={labelCls}>Category</label>
-                <input
-                  list="category-suggestions"
-                  className={inputCls}
-                  placeholder="Type or select category…"
-                  value={formData.category}
-                  onChange={e => setFormData({ ...formData, category: e.target.value })}
-                />
+                <Label htmlFor="it-cat">Category</Label>
+                <Input id="it-cat" list="category-suggestions" placeholder="Type or select category…"
+                  value={formData.category} onChange={e => set({ category: e.target.value })} />
                 <datalist id="category-suggestions">
-                  {(productCategories.length > 0 ? productCategories.map(c => c.name) : DEFAULT_CATEGORIES)
+                  {(productCategories.length > 0 ? productCategories.map(pc => pc.name) : DEFAULT_CATEGORIES)
                     .map(name => <option key={name} value={name} />)}
                 </datalist>
+                <Hint>Type a new one or pick from your categories</Hint>
               </div>
-            </div>
-
-            {/* Barcode | Product Type */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className={labelCls}>Barcode (EAN-13 / UPC / custom)</label>
-                <div className="flex gap-2">
-                  <input type="text" className={`${inputCls} tabular-nums flex-1`} placeholder="Scan or type barcode…"
-                    value={formData.barcode || ''}
-                    onChange={e => setFormData({ ...formData, barcode: e.target.value })} />
-                  <button type="button"
-                    onClick={() => {
-                      // genInternalBarcode, not a second copy of the same
-                      // arithmetic. This button rolled its own random body and
-                      // checked it against nothing, so it could hand a product
-                      // a code another product already carried -- and a
-                      // duplicate barcode at the counter rings up the wrong
-                      // item, which is the one failure a barcode exists to
-                      // prevent. The shared generator retries against the
-                      // codes already in use.
-                      setFormData({
-                        ...formData,
-                        barcode: genInternalBarcode(existingBarcodes || new Set()),
-                      });
-                    }}
-                    title="Auto-generate an EAN-13 barcode"
-                    className="shrink-0 flex items-center gap-1.5 px-3 rounded-pill border border-accent-signature/40 text-accent-signature text-[11px] font-semibold hover:bg-accent-signature/10">
-                    <Wand2 size={13} /> Assign
-                  </button>
+                <Label htmlFor="it-barcode">Barcode, EAN-13, UPC or your own</Label>
+                <div className="flex gap-1.5">
+                  <Input id="it-barcode" type="text" placeholder="Scan or type barcode…" className="flex-1"
+                    value={formData.barcode || ''} onChange={e => set({ barcode: e.target.value })} />
+                  {/* genInternalBarcode retries against the codes already in
+                      use: a duplicate barcode at the counter rings up the
+                      wrong item, which is the one failure a barcode exists to
+                      prevent. */}
+                  <AssignBtn title="Auto-generate an EAN-13 barcode"
+                    onClick={() => set({ barcode: genInternalBarcode(existingBarcodes || new Set()) })} />
                 </div>
+                <Hint>Scan or type. Assign never repeats a code already in use</Hint>
               </div>
               <div>
-                <label className={labelCls}>Product Type</label>
-                <select className={inputCls} value={formData.product_type || 'STANDARD'}
-                  onChange={e => setFormData({ ...formData, product_type: e.target.value })}>
-                  <option value="STANDARD">Standard — bought &amp; sold</option>
-                  <option value="SERVICE">Service — labor / repair (no stock)</option>
-                  <option value="RAW">Raw material — consume-only (not sold)</option>
-                  <option value="FINISHED">Finished — manufactured</option>
-                </select>
+                <Label htmlFor="it-type">Product type</Label>
+                <Select id="it-type" value={formData.product_type || 'STANDARD'} onChange={e => set({ product_type: e.target.value })}>
+                  <option value="STANDARD">Standard, bought and sold</option>
+                  <option value="SERVICE">Service, labour or repair (no stock)</option>
+                  <option value="RAW">Raw material, used up and not sold</option>
+                  <option value="FINISHED">Finished, manufactured</option>
+                </Select>
+                <Hint>Also Service, Raw material, Finished</Hint>
               </div>
             </div>
 
-            {/* Serialized stock — track each unit by IMEI / serial number.
-                Never offered for a service: InvoiceBuilder demands a serial per
-                unit at checkout, and a repair hour has no IMEI to give. */}
+            {/* Serialized stock. Never offered for a service: the till demands
+                a serial per unit at checkout, and a repair hour has none. */}
             {!isService && (
-            <label className="flex items-center gap-3 mt-1 cursor-pointer select-none">
-              <button
-                type="button"
-                role="switch"
-                aria-checked={!!formData.track_serial}
-                onClick={() => setFormData({ ...formData, track_serial: !formData.track_serial })}
-                className={`relative w-10 h-6 rounded-xl transition-colors ${formData.track_serial ? 'bg-accent-signature' : 'bg-gray-300'}`}
-              >
-                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-card shadow transition-transform ${formData.track_serial ? 'translate-x-4' : ''}`} />
-              </button>
-              <span className="flex flex-col">
-                <span className="text-[13px] font-semibold text-foreground">Track IMEI / serial per unit</span>
-                <span className="text-[11px] text-muted-foreground">Phones, electronics — capture the serial on purchase &amp; sale</span>
-              </span>
-            </label>
+              <Toggle on={formData.track_serial} onClick={() => set({ track_serial: !formData.track_serial })}
+                title="Track IMEI or serial per unit" hint="Phones and electronics: the serial is taken on purchase and sale" />
             )}
 
-            {/* Menu details — restaurant only */}
-            {isResto && (
-              <>
-                <Section>Menu Details</Section>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className={labelCls}>Food Type</label>
-                    <div className="flex gap-2">
-                      {[
-                        { v: 'VEG', label: 'Veg', dot: 'bg-green-600' },
-                        { v: 'NONVEG', label: 'Non-veg', dot: 'bg-red-600' },
-                        { v: 'EGG', label: 'Egg', dot: 'bg-accent-signature' },
-                      ].map(o => (
-                        <button
-                          key={o.v}
-                          type="button"
-                          onClick={() => setFormData({ ...formData, food_type: formData.food_type === o.v ? '' : o.v })}
-                          className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-pill border text-xs font-semibold transition-all ${
-                            formData.food_type === o.v
-                              ? 'border-accent-signature bg-accent-signature/10 text-foreground'
-                              : 'border-border text-muted-foreground hover:border-black/20'
-                          }`}
-                        >
-                          <span className={`w-2.5 h-2.5 rounded-sm ${o.dot}`} />{o.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className={labelCls}>Kitchen Station <span className="text-muted-foreground font-normal">— optional</span></label>
-                    <input type="text" className={inputCls} placeholder="Tandoor, Bar, Grill…"
-                      value={formData.station || ''} onChange={e => setFormData({ ...formData, station: e.target.value })} />
-                  </div>
-                </div>
-                <label className="flex items-center gap-3 cursor-pointer select-none">
-                  <input type="checkbox" className="w-4 h-4 rounded accent-accent-signature"
-                    checked={formData.is_available !== false}
-                    onChange={e => setFormData({ ...formData, is_available: e.target.checked })} />
-                  <span className="text-sm font-semibold text-foreground">Available on menu</span>
-                  <span className="text-[11px] text-muted-foreground">— uncheck to 86 (mark out of stock)</span>
-                </label>
-
-                {/* Modifier groups */}
+            {/* Service details */}
+            {isService && (<>
+              <Sub>Service details</Sub>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className={labelCls}>Modifiers <span className="text-muted-foreground font-normal normal-case">— add-ons / variations</span></label>
-                    <button type="button" onClick={addGroup}
-                      className="text-[11px] font-semibold text-accent-signature hover:underline">+ Add group</button>
-                  </div>
-                  <div className="space-y-3">
-                    {mgroups.map((g, i) => (
-                      <div key={g.id || i} className="rounded-xl border border-border p-3 bg-canvas/40">
-                        <div className="flex items-center gap-2 mb-2">
-                          <input value={g.name} onChange={e => updateGroup(i, { name: e.target.value })}
-                            placeholder="Group name (Size, Add-ons…)"
-                            className="flex-1 bg-card border border-border rounded-lg px-3 py-1.5 text-xs font-semibold outline-none focus:border-accent-signature" />
-                          <label className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
-                            <input type="checkbox" checked={!!g.multi} onChange={e => updateGroup(i, { multi: e.target.checked })} className="accent-accent-signature" />
-                            multi
-                          </label>
-                          <button type="button" onClick={() => removeGroup(i)} className="text-muted-foreground hover:text-red-500"><X size={14} /></button>
-                        </div>
-                        <div className="space-y-1.5">
-                          {(g.options || []).map((o, oi) => (
-                            <div key={oi} className="flex items-center gap-2">
-                              <input value={o.name} onChange={e => updateOption(i, oi, { name: e.target.value })}
-                                placeholder="Option (Large, Extra cheese…)"
-                                className="flex-1 bg-card border border-border rounded-lg px-3 py-1.5 text-xs outline-none focus:border-accent-signature" />
-                              <div className="flex items-center gap-1">
-                                <span className="text-[11px] text-muted-foreground">₹</span>
-                                <input type="number" step="1" value={o.price}
-                                  onChange={e => updateOption(i, oi, { price: parseFloat(e.target.value) || 0 })}
-                                  className="w-16 bg-card border border-border rounded-lg px-2 py-1.5 text-xs tabular-nums outline-none focus:border-accent-signature" />
-                              </div>
-                              <button type="button" onClick={() => removeOption(i, oi)} className="text-muted-foreground hover:text-red-500"><X size={13} /></button>
-                            </div>
-                          ))}
-                          <button type="button" onClick={() => addOption(i)}
-                            className="text-[11px] font-semibold text-muted-foreground hover:text-accent-signature">+ Option</button>
-                        </div>
-                      </div>
+                  <Label htmlFor="it-dur">Duration, minutes</Label>
+                  <Input id="it-dur" type="number" min="0" placeholder="30"
+                    value={formData.duration_min} onChange={e => set({ duration_min: e.target.value })} />
+                </div>
+              </div>
+            </>)}
+
+            {/* Menu details, restaurant only */}
+            {isResto && (<>
+              <Sub>Menu details</Sub>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div>
+                  <Label>Food type</Label>
+                  <div className="flex gap-1.5">
+                    {[
+                      { v: 'VEG', label: 'Veg', dot: 'bg-green-600' },
+                      { v: 'NONVEG', label: 'Non-veg', dot: 'bg-red-600' },
+                      { v: 'EGG', label: 'Egg', dot: 'bg-amber' },
+                    ].map(o => (
+                      <button key={o.v} type="button" aria-pressed={formData.food_type === o.v}
+                        onClick={() => set({ food_type: formData.food_type === o.v ? '' : o.v })}
+                        className={cn('m-press flex h-9 flex-1 items-center justify-center gap-1.5 rounded-pill font-tight text-[13px] font-semibold',
+                          formData.food_type === o.v ? 'bg-ink text-white' : 'text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile')}>
+                        <span className={`h-2.5 w-2.5 rounded-sm ${o.dot}`} />{o.label}
+                      </button>
                     ))}
-                    {mgroups.length === 0 && (
-                      <p className="text-[11px] text-muted-foreground">No modifiers. Add a group for sizes or add-ons.</p>
-                    )}
                   </div>
                 </div>
-              </>
-            )}
+                <div>
+                  <Label htmlFor="it-station">Kitchen station, optional</Label>
+                  <Input id="it-station" type="text" placeholder="Tandoor, Bar, Grill…"
+                    value={formData.station || ''} onChange={e => set({ station: e.target.value })} />
+                </div>
+              </div>
+              <label className="mt-3 flex cursor-pointer select-none items-center gap-2 text-[13px] text-ink-2">
+                <CheckBox checked={formData.is_available !== false} label="Available on menu"
+                  onChange={() => set({ is_available: formData.is_available === false })} />
+                <b className="font-tight font-semibold">Available on menu</b>
+                <span className="text-[12px] text-mute">untick to 86 it (mark out of stock)</span>
+              </label>
+
+              {/* Modifier groups */}
+              <div className="mt-3.5">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="font-tight text-[12.5px] font-semibold text-ink-2">Modifiers <span className="font-normal text-mute">add-ons and variations</span></span>
+                  <button type="button" onClick={addGroup} className="font-tight text-[12.5px] font-semibold text-amber-text hover:underline">+ Add group</button>
+                </div>
+                <div className="space-y-2.5">
+                  {mgroups.map((g, i) => (
+                    <div key={g.id || i} className="rounded-xl bg-tile p-3">
+                      <div className="mb-2 flex items-center gap-2">
+                        <Input value={g.name} onChange={e => updateGroup(i, { name: e.target.value })}
+                          placeholder="Group name (Size, Add-ons…)" className="h-8 flex-1" aria-label="Group name" />
+                        <label className="flex items-center gap-1 whitespace-nowrap text-[12px] font-semibold text-mute">
+                          <input type="checkbox" checked={!!g.multi} onChange={e => updateGroup(i, { multi: e.target.checked })} className="accent-amber" />
+                          multi
+                        </label>
+                        <button type="button" onClick={() => removeGroup(i)} aria-label="Remove group" className="text-mute hover:text-bad-text"><X size={14} /></button>
+                      </div>
+                      <div className="space-y-1.5">
+                        {(g.options || []).map((o, oi) => (
+                          <div key={oi} className="flex items-center gap-2">
+                            <Input value={o.name} onChange={e => updateOption(i, oi, { name: e.target.value })}
+                              placeholder="Option (Large, Extra cheese…)" className="h-8 flex-1" aria-label="Option" />
+                            <span className="text-[12px] text-mute">₹</span>
+                            <Input type="number" step="1" value={o.price} aria-label="Option price"
+                              onChange={e => updateOption(i, oi, { price: parseFloat(e.target.value) || 0 })} className="h-8 w-20" />
+                            <button type="button" onClick={() => removeOption(i, oi)} aria-label="Remove option" className="text-mute hover:text-bad-text"><X size={13} /></button>
+                          </div>
+                        ))}
+                        <button type="button" onClick={() => addOption(i)} className="text-[12px] font-semibold text-mute hover:text-amber-text">+ Option</button>
+                      </div>
+                    </div>
+                  ))}
+                  {mgroups.length === 0 && <p className="text-[12px] text-mute">No modifiers. Add a group for sizes or add-ons.</p>}
+                </div>
+              </div>
+            </>)}
 
             {/* Sector pack fields — rendered from src/lib/sectorFields.js, so a
                 new pack is an entry in that registry rather than more JSX
                 here. A service holds no parts catalog. */}
-            {packFields.length > 0 && !isService && (
-              <>
-                <Section>Catalog details</Section>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {packFields.map(f => (
-                    <div key={f.key}>
-                      <label className={labelCls}>{f.label}</label>
-                      <input
-                        type={f.type === 'number' ? 'number' : 'text'}
-                        {...(f.min != null ? { min: f.min } : {})}
-                        className={inputCls}
-                        placeholder={f.placeholder || ''}
-                        value={formData.attributes?.[f.key] ?? ''}
-                        onChange={e => setFormData(d => ({
-                          ...d,
-                          attributes: { ...(d.attributes || {}), [f.key]: e.target.value },
-                        }))}
-                      />
-                      {f.hint && <p className="text-[11px] text-ink-tertiary mt-1">{f.hint}</p>}
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Service details — services vertical */}
-            {isService && (
-              <>
-                <Section>Service Details</Section>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className={labelCls}>Duration (minutes)</label>
-                    <input type="number" min="0" className={inputCls} placeholder="30"
-                      value={formData.duration_min} onChange={e => setFormData({ ...formData, duration_min: e.target.value })} />
+            {packFields.length > 0 && !isService && (<>
+              <Sub>Catalog details</Sub>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {packFields.map(f => (
+                  <div key={f.key}>
+                    <Label htmlFor={`it-pk-${f.key}`}>{f.label}</Label>
+                    <Input id={`it-pk-${f.key}`}
+                      type={f.type === 'number' ? 'number' : 'text'}
+                      {...(f.min != null ? { min: f.min } : {})}
+                      placeholder={f.placeholder || ''}
+                      value={formData.attributes?.[f.key] ?? ''}
+                      onChange={e => setFormData(d => ({ ...d, attributes: { ...(d.attributes || {}), [f.key]: e.target.value } }))} />
+                    {f.hint && <Hint>{f.hint}</Hint>}
                   </div>
-                </div>
-              </>
-            )}
+                ))}
+              </div>
+            </>)}
+          </Sec>
 
-            <Section>{isService ? 'Pricing' : 'Pricing & Units'}</Section>
-            {/* Row 3: Cost | Selling | Unit (services price only) */}
-            <div className={`grid grid-cols-1 ${isService ? 'md:grid-cols-1' : 'md:grid-cols-3'} gap-4`}>
+          {/* 2 · Pricing and units */}
+          <Sec id="f2" n={2} title={isService ? 'Pricing' : 'Pricing and Units'} hint={isService ? null : 'Stored per base unit'}>
+            <div className={cn('grid grid-cols-1 gap-3', isService ? 'md:grid-cols-3' : 'md:grid-cols-3')}>
               {!isService && (
                 <div>
-                  <label className={labelCls}>Cost Price (₹)</label>
-                  <input required type="number" step="0.01" className={inputCls} placeholder="0.00"
-                    value={formData.costPrice} onChange={e => setFormData({ ...formData, costPrice: e.target.value})} />
+                  <Label htmlFor="it-cost">Cost price, ₹</Label>
+                  <Input id="it-cost" required type="number" step="0.01" placeholder="0.00"
+                    value={formData.costPrice} onChange={e => set({ costPrice: e.target.value })} />
                 </div>
               )}
               <div>
-                <label className={labelCls}>
-                  {isService ? 'Service Price (₹)' : 'Selling Price (₹)'}{formData.product_type === 'RAW' && <span className="text-muted-foreground font-normal"> — optional</span>}
-                </label>
-                <input required={formData.product_type !== 'RAW'} type="number" step="0.01" className={inputCls} placeholder="0.00"
-                  value={formData.sellingPrice} onChange={e => setFormData({ ...formData, sellingPrice: e.target.value})} />
+                <Label htmlFor="it-sell">
+                  {isService ? 'Service price, ₹' : 'Selling price, ₹'}{formData.product_type === 'RAW' && <span className="font-normal text-mute">, optional</span>}
+                </Label>
+                <Input id="it-sell" required={formData.product_type !== 'RAW'} type="number" step="0.01" placeholder="0.00"
+                  value={formData.sellingPrice} onChange={e => set({ sellingPrice: e.target.value })} />
               </div>
-              {!isService && (
+              {!isService && (<>
                 <div>
-                  <label className={labelCls}>Base Unit</label>
-                  <select className={inputCls} value={formData.unit}
-                    onChange={e => setFormData({ ...formData, unit: e.target.value})}>
+                  <Label htmlFor="it-unit">Base unit</Label>
+                  <Select id="it-unit" value={formData.unit} onChange={e => set({ unit: e.target.value })}>
                     {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                  </select>
+                  </Select>
                 </div>
-              )}
+                <div>
+                  <Label htmlFor="it-unit2">Second unit, optional</Label>
+                  <Select id="it-unit2" value={formData.secondary_unit || ''} onChange={e => set({ secondary_unit: e.target.value })}>
+                    <option value="">None</option>
+                    {UNITS.filter(u => u !== formData.unit).map(u => <option key={u} value={u}>{u}</option>)}
+                  </Select>
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="it-conv">Conversion{formData.secondary_unit ? `, 1 ${formData.secondary_unit} = ? ${formData.unit}` : ''}</Label>
+                  <Input id="it-conv" type="number" step="0.0001" min="0" placeholder="e.g. 24"
+                    disabled={!formData.secondary_unit}
+                    value={formData.conversion_factor} onChange={e => set({ conversion_factor: e.target.value })} />
+                  {/* Live two-way readout — confirms the factor the moment it's
+                      typed, and shows the reciprocal so a fraction like 0.25
+                      reads plainly ("4 PACK = 1 KG"). */}
+                  {(() => {
+                    const f = parseFloat(formData.conversion_factor);
+                    if (!formData.secondary_unit || !(f > 0)) return null;
+                    const tidy = (n) => Number(n.toFixed(4)).toLocaleString('en-IN');
+                    return (
+                      <Hint className="tabular-nums">
+                        1 {formData.secondary_unit} = <b className="font-semibold text-ink">{tidy(f)} {formData.unit}{subUnit ? ` (${tidy(f * 1000)} ${subUnit})` : ''}</b>
+                        {' · '}{tidy(1 / f)} {formData.secondary_unit} = 1 {formData.unit}
+                      </Hint>
+                    );
+                  })()}
+                </div>
+              </>)}
             </div>
 
-            {/* Per-packet pricing.
-                Cost and price are stored PER BASE UNIT, because stock, COGS and
-                the below-cost guard all work in the base unit. But a shop selling
-                250 g packets thinks "₹30 a packet", not "₹120 a kilo", and was
-                left dividing by hand. This is the same numbers seen from the
-                packet end, and the packet price is editable: type 30 and the
-                per-KG price becomes 120. Nothing extra is stored. */}
+            {/* Per-packet pricing. Cost and price are stored PER BASE UNIT,
+                because stock, COGS and the below-cost guard all work in the
+                base unit. This is the same numbers seen from the packet end,
+                and the packet price is editable: type 30 and the per-KG price
+                becomes 120. Nothing extra is stored. */}
             {!isService && packConv > 0 && (
-              <div className="mt-3 rounded-xl border border-accent-signature/25 bg-accent-signature/[0.04] p-3.5">
-                <div className="text-[11px] font-bold text-accent-signature-hover mb-2.5">
+              <div className="mt-3.5 rounded-xl bg-[#FFFAF2] px-4 py-3.5 shadow-[inset_0_0_0_1px_#F6E3C6]">
+                <span className="block font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-amber-text">
                   Per {formData.secondary_unit} · 1 {formData.secondary_unit} = {Number(packConv.toFixed(4))} {formData.unit}
-                </div>
-                <div className={`grid grid-cols-1 ${subUnit ? 'sm:grid-cols-4' : 'sm:grid-cols-3'} gap-3`}>
+                </span>
+                <div className={cn('mt-2.5 grid grid-cols-2 items-end gap-3', subUnit ? 'sm:grid-cols-4' : 'sm:grid-cols-3')}>
                   {subUnit && (
                     <div>
-                      <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
-                        Pack size ({subUnit})
-                      </label>
-                      <input type="number" step="1" min="0" placeholder="250"
-                        className="w-full h-9 px-2.5 rounded-lg border border-border bg-card text-[14px] font-bold tabular-nums outline-none focus:border-accent-signature/50"
+                      <Label htmlFor="it-pack">Pack size, {subUnit}</Label>
+                      <Input id="it-pack" type="number" step="1" min="0" placeholder="250"
                         value={packSize}
                         onChange={e => {
                           const v = e.target.value;
@@ -601,17 +598,12 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                     </div>
                   )}
                   <div>
-                    <div className="text-[11px] font-semibold text-muted-foreground mb-1">Costs you</div>
-                    <div className="text-[15px] font-bold tabular-nums text-foreground h-9 flex items-center">
-                      ₹{((parseFloat(formData.costPrice) || 0) * packConv).toFixed(2)}
-                    </div>
+                    <span className="mb-1.5 block font-tight text-[12.5px] font-semibold text-ink-2">Costs you</span>
+                    <Ro>₹{((parseFloat(formData.costPrice) || 0) * packConv).toFixed(2)}</Ro>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-muted-foreground mb-1">
-                      Sell at (₹ / {formData.secondary_unit})
-                    </label>
-                    <input type="number" step="0.01" placeholder="0.00"
-                      className="w-full h-9 px-2.5 rounded-lg border border-border bg-card text-[14px] font-bold tabular-nums outline-none focus:border-accent-signature/50"
+                    <Label htmlFor="it-packsell">Sell at, ₹ per {formData.secondary_unit}</Label>
+                    <Input id="it-packsell" type="number" step="0.01" placeholder="0.00"
                       value={packSell}
                       onChange={e => {
                         const v = e.target.value;
@@ -627,371 +619,307 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                       }} />
                   </div>
                   <div>
-                    <div className="text-[11px] font-semibold text-muted-foreground mb-1">Margin</div>
-                    <div className={`text-[15px] font-bold tabular-nums h-9 flex items-center ${marginColor}`}>
-                      {showMargin ? `${margin.toFixed(1)}%` : '—'}
-                    </div>
+                    <span className="mb-1.5 block font-tight text-[12.5px] font-semibold text-ink-2">Margin</span>
+                    <Ro cls={marginColor}>{showMargin ? `${margin.toFixed(1)}%` : '—'}</Ro>
                   </div>
                 </div>
-                <div className="text-[11px] text-muted-foreground mt-2">
-                  Margin is the same per {formData.unit} or per {formData.secondary_unit} — it is a ratio.
-                </div>
+                <Hint className="mt-1.5">Margin is the same per {formData.unit} or per {formData.secondary_unit}, it is a ratio.</Hint>
 
-                {/* Work the pack size out from the shelf price.
-                    A shop decides "I want to sell at Rs 30 and keep 25%" long
-                    before it decides on a weight — and given a cost per base
-                    unit, those two answers FIX the weight. Solving it here beats
-                    guessing a weight and checking the margin afterwards. */}
+                {/* Work the pack size out from the shelf price. Given a cost
+                    per base unit, a shelf price and a margin FIX the weight.
+                    Same margin as the rest of this screen: markup on cost.
+                      sell = cost × size × (1 + m/100)  ⇒  size = sell ÷ (cost × (1 + m/100)) */}
                 {(parseFloat(formData.costPrice) > 0) && (() => {
-                  const price  = parseFloat(wantPrice);
+                  const price = parseFloat(wantPrice);
                   const marginPc = parseFloat(wantMargin);
-                  const cost   = parseFloat(formData.costPrice);
-                  // Use the SAME definition of margin as the rest of this screen:
-                  // (sell − cost) / COST, i.e. markup on cost. The first version
-                  // used the accounting margin (÷ sell), so the two boxes on one
-                  // screen meant different things by the same word — and at 100
-                  // it divided to zero and silently rendered nothing.
-                  //   sell = cost × size × (1 + m/100)  ⇒  size = sell ÷ (cost × (1 + m/100))
+                  const cost = parseFloat(formData.costPrice);
                   const ok = price > 0 && marginPc >= 0;
                   const size = ok ? price / (cost * (1 + marginPc / 100)) : null;
                   const isWeight = ['KG', 'LITRE'].includes(String(formData.unit || '').toUpperCase());
                   return (
-                    <div className="mt-3 pt-3 border-t border-accent-signature/20">
-                      <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">
-                        Not sure of the pack size? Enter what you want to charge
+                    <div className="mt-3 flex flex-wrap items-end gap-2.5 border-t border-[#F3E3C8] pt-3">
+                      <Hint className="mt-0 w-full">Not sure of the pack size? Enter what you want to charge</Hint>
+                      <div className="w-24">
+                        <Label htmlFor="it-want">Sell at ₹</Label>
+                        <Input id="it-want" type="number" step="0.01" placeholder="30" value={wantPrice} onChange={e => setWantPrice(e.target.value)} />
                       </div>
-                      <div className="flex flex-wrap items-end gap-2">
-                        <div className="w-28">
-                          <label className="block text-[9px] font-semibold text-muted-foreground mb-1">Sell at ₹</label>
-                          <input type="number" step="0.01" placeholder="30" value={wantPrice}
-                            onChange={e => setWantPrice(e.target.value)}
-                            className="w-full h-8 px-2 rounded-lg border border-border bg-card text-[13px] font-semibold tabular-nums outline-none focus:border-accent-signature/50" />
-                        </div>
-                        <div className="w-24">
-                          <label className="block text-[9px] font-semibold text-muted-foreground mb-1">Margin % on cost</label>
-                          <input type="number" step="1" placeholder="25" value={wantMargin}
-                            onChange={e => setWantMargin(e.target.value)}
-                            className="w-full h-8 px-2 rounded-lg border border-border bg-card text-[13px] font-semibold tabular-nums outline-none focus:border-accent-signature/50" />
-                        </div>
-                        {!(size > 0) && (wantPrice !== '' || wantMargin !== '') && (
-                          <div className="text-[11px] font-semibold text-muted-foreground pb-1.5">
-                            {!(price > 0)
-                              ? 'Enter the price you want to charge.'
-                              : 'Margin cannot be negative.'}
-                          </div>
-                        )}
-                        {size > 0 && (
-                          <>
-                            <div className="text-[13px] font-bold tabular-nums text-foreground pb-1.5">
-                              = {isWeight ? `${Math.round(size * 1000)} g` : `${Number(size.toFixed(4))} ${formData.unit}`}
-                              <span className="text-[11px] font-semibold text-muted-foreground ml-1.5">
-                                ({Number(size.toFixed(4))} {formData.unit}) per {formData.secondary_unit}
-                              </span>
-                            </div>
-                            <button type="button"
-                              onClick={() => {
-                                setFormData(f => ({
-                                  ...f,
-                                  conversion_factor: String(Number(size.toFixed(4))),
-                                  sellingPrice: String(Number((price / size).toFixed(4))),
-                                }));
-                                packSellRef.current = true;
-                                setPackSell(String(Number(price.toFixed(2))));
-                                packSizeRef.current = true;
-                                setPackSize(subUnit ? String(Math.round(size * 1000)) : '');
-                              }}
-                              className="h-8 px-3 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white text-[12px] font-bold transition-colors">
-                              Use this
-                            </button>
-                          </>
-                        )}
+                      <div className="w-24">
+                        <Label htmlFor="it-wantm">Margin % on cost</Label>
+                        <Input id="it-wantm" type="number" step="1" placeholder="25" value={wantMargin} onChange={e => setWantMargin(e.target.value)} />
                       </div>
-                      {size > 0 && (
-                        <div className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">
-                          That pack costs ₹{(size * cost).toFixed(2)} and sells at ₹{price.toFixed(2)} — ₹{(price / size).toFixed(2)} per {formData.unit}.
-                        </div>
+                      {!(size > 0) && (wantPrice !== '' || wantMargin !== '') && (
+                        <span className="pb-2 text-[12.5px] font-medium text-mute">
+                          {!(price > 0) ? 'Enter the price you want to charge.' : 'Margin cannot be negative.'}
+                        </span>
                       )}
+                      {size > 0 && (<>
+                        <span className="pb-2 font-tight text-[14px] font-semibold tabular-nums">
+                          = {isWeight ? `${Math.round(size * 1000)} g` : `${Number(size.toFixed(4))} ${formData.unit}`}
+                          <small className="ml-1.5 font-sans text-[12px] font-medium text-mute">({Number(size.toFixed(4))} {formData.unit}) per {formData.secondary_unit}</small>
+                        </span>
+                        <Button size="xs" className="mb-1"
+                          onClick={() => {
+                            setFormData(f => ({
+                              ...f,
+                              conversion_factor: String(Number(size.toFixed(4))),
+                              sellingPrice: String(Number((price / size).toFixed(4))),
+                            }));
+                            packSellRef.current = true;
+                            setPackSell(String(Number(price.toFixed(2))));
+                            packSizeRef.current = true;
+                            setPackSize(subUnit ? String(Math.round(size * 1000)) : '');
+                          }}>
+                          Use this
+                        </Button>
+                        <Hint className="mt-0 w-full tabular-nums">
+                          That pack costs ₹{(size * cost).toFixed(2)} and sells at ₹{price.toFixed(2)}, ₹{(price / size).toFixed(2)} per {formData.unit}.
+                        </Hint>
+                      </>)}
                     </div>
                   );
                 })()}
-              </div>
-            )}
-
-            {!isService && (
-              <div className="mt-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-semibold text-muted-foreground">Price tiers</span>
-                  <label className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
-                    <input type="checkbox" checked={!!formData.price_inclusive}
-                      onChange={e => setFormData({ ...formData, price_inclusive: e.target.checked })} />
-                    Prices include tax
-                  </label>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className={labelCls}>Wholesale (₹) <span className="text-muted-foreground font-normal">— bulk</span></label>
-                    <input type="number" step="0.01" className={inputCls} placeholder="0.00"
-                      value={formData.wholesale_price} onChange={e => setFormData({ ...formData, wholesale_price: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className={labelCls}>Distributor (₹) <span className="text-muted-foreground font-normal">— reseller</span></label>
-                    <input type="number" step="0.01" className={inputCls} placeholder="0.00"
-                      value={formData.distributor_price} onChange={e => setFormData({ ...formData, distributor_price: e.target.value })} />
-                  </div>
-                  <div className="flex items-end pb-2 text-[11px] text-muted-foreground">
-                    Retail = Selling Price above. Distributor is your lowest (reseller) rate.
-                  </div>
-                </div>
               </div>
             )}
 
             {!isService && (<>
-            {/* Alternate unit + conversion (optional) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className={labelCls}>
-                  Alternate Unit <span className="text-muted-foreground font-normal">— optional</span>
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <span className="font-tight text-[12.5px] font-semibold text-ink-2">Price tiers</span>
+                <label className="inline-flex cursor-pointer items-center gap-[7px] text-[12.5px] text-ink-2">
+                  <CheckBox checked={!!formData.price_inclusive} label="Prices include tax"
+                    onChange={() => set({ price_inclusive: !formData.price_inclusive })} />
+                  Prices include tax
                 </label>
-                <select className={inputCls} value={formData.secondary_unit || ''}
-                  onChange={e => setFormData({ ...formData, secondary_unit: e.target.value })}>
-                  <option value="">None</option>
-                  {UNITS.filter(u => u !== formData.unit).map(u => <option key={u} value={u}>{u}</option>)}
-                </select>
               </div>
-              <div>
-                <label className={labelCls}>
-                  Conversion {formData.secondary_unit && `(1 ${formData.secondary_unit} = ? ${formData.unit})`}
-                </label>
-                <input type="number" step="0.0001" min="0"
-                  className={`${inputCls} ${!formData.secondary_unit ? 'opacity-60 cursor-not-allowed !bg-muted hover:!border-border' : ''}`}
-                  placeholder={`e.g. 24`}
-                  disabled={!formData.secondary_unit}
-                  value={formData.conversion_factor}
-                  onChange={e => setFormData({ ...formData, conversion_factor: e.target.value })} />
-                {/* Live two-way readout — confirms the factor the moment it's
-                    typed, and shows the reciprocal so a fraction like 0.25 reads
-                    plainly ("4 PACK = 1 KG"). */}
-                {(() => {
-                  const f = parseFloat(formData.conversion_factor);
-                  if (!formData.secondary_unit || !(f > 0)) return null;
-                  const tidy = (n) => Number(n.toFixed(4)).toLocaleString('en-IN');
-                  return (
-                    <div className="mt-1.5 text-[11px] text-muted-foreground tabular-nums">
-                      1 {formData.secondary_unit} = <span className="font-semibold text-foreground">{tidy(f)} {formData.unit}</span>
-                      {subUnit && <span className="font-semibold text-foreground"> ({tidy(f * 1000)} {subUnit})</span>}
-                      <span className="mx-1.5 opacity-40">·</span>
-                      {tidy(1 / f)} {formData.secondary_unit} = 1 {formData.unit}
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
-
-            {/* Margin indicator + floor guard */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {showMargin && (
-                <div className="flex items-center justify-between bg-card border border-border rounded-xl px-4 py-3 shadow-sm self-end">
-                  <span className="text-[11px] font-semibold text-muted-foreground">Current Margin</span>
-                  <span className={`text-sm font-semibold tabular-nums ${marginColor}`}>
-                    {margin.toFixed(1)}%{margin < 0 ? ' · loss' : margin < 10 ? ' · low' : ''}
-                  </span>
+              <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div>
+                  <Label htmlFor="it-wh">Wholesale, ₹ (bulk)</Label>
+                  <Input id="it-wh" type="number" step="0.01" placeholder="0.00"
+                    value={formData.wholesale_price} onChange={e => set({ wholesale_price: e.target.value })} />
                 </div>
-              )}
-              <div>
-                <label className={labelCls}>Min Margin Floor (%)</label>
-                <div className="relative">
-                  <input type="number" step="1" min="0" max="100" className={inputCls} placeholder="e.g. 15"
-                    value={formData.min_margin}
-                    onChange={e => setFormData({ ...formData, min_margin: e.target.value })} />
-                  <Percent size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                <div>
+                  <Label htmlFor="it-dist">Distributor, ₹ (reseller)</Label>
+                  <Input id="it-dist" type="number" step="0.01" placeholder="0.00"
+                    value={formData.distributor_price} onChange={e => set({ distributor_price: e.target.value })} />
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-1">POS warns / blocks if margin drops below this</p>
-              </div>
-            </div>
-            </>)}
-
-            <Section>Taxation</Section>
-            <div className="mb-3">
-              <label className={labelCls}>Tax status</label>
-              <div className="flex gap-2 flex-wrap">
-                {[
-                  { id: 'TAXABLE', label: 'Taxable' },
-                  { id: 'EXEMPT', label: 'Exempt / Nil' },
-                  { id: 'NONGST', label: 'Non-GST' },
-                ].map(s => (
-                  <button key={s.id} type="button"
-                    onClick={() => setFormData({ ...formData, tax_status: s.id, ...(s.id !== 'TAXABLE' ? { taxRate: 0, cess_rate: 0 } : {}) })}
-                    className={`px-3 py-2 rounded-pill text-xs font-semibold border transition-all ${
-                      (formData.tax_status || 'TAXABLE') === s.id
-                        ? 'bg-accent-signature text-button-text border-accent-signature shadow-md'
-                        : 'bg-card border-border text-muted-foreground hover:border-accent-signature/40'
-                    }`}>{s.label}</button>
-                ))}
-              </div>
-            </div>
-            {(formData.tax_status || 'TAXABLE') === 'TAXABLE' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* GST + Cess slab dropdown */}
-              <div>
-                <label className={labelCls}>GST Tax Slab</label>
-                <select
-                  value={TAX_SLABS_WITH_CESS.findIndex(
-                    s => s.value === Number(formData.taxRate) && s.cess === Number(formData.cess_rate || 0)
-                  )}
-                  onChange={(e) => {
-                    const s = TAX_SLABS_WITH_CESS[Number(e.target.value)];
-                    if (s) setFormData({ ...formData, taxRate: s.value, cess_rate: s.cess });
-                  }}
-                  className="w-full px-3 py-2.5 rounded-xl bg-card border border-border shadow-sm text-xs font-semibold text-foreground focus:outline-none focus:border-accent-signature/40"
-                >
-                  {/* When the saved combo isn't a standard slab, findIndex returns -1 */}
-                  {TAX_SLABS_WITH_CESS.findIndex(s => s.value === Number(formData.taxRate) && s.cess === Number(formData.cess_rate || 0)) === -1 && (
-                    <option value={-1}>{`${Number(formData.taxRate) || 0}%${Number(formData.cess_rate) ? ` + ${Number(formData.cess_rate)}% Cess` : ''} (custom)`}</option>
-                  )}
-                  {TAX_SLABS_WITH_CESS.map((s, i) => (
-                    <option key={i} value={i}>{s.label}</option>
-                  ))}
-                </select>
-                <p className="text-[11px] text-muted-foreground mt-1">GST + Compensation Cess. Applied on invoice & POS checkout.</p>
+                <Hint className="self-center">Retail is the selling price above. Distributor is your lowest rate.</Hint>
               </div>
 
-              {/* HSN for goods, SAC for services — one column, see lib/hsn.js.
-                  Asking a tuition centre for an "HSN code" and showing them an
-                  8-digit plastics example is how the field gets left blank. */}
-              <div>
-                <label className={labelCls}>{isService ? 'SAC Code' : 'HSN Code'}</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={formData.hsn_code || ''}
-                  onChange={(e) => setFormData({ ...formData, hsn_code: e.target.value.replace(/[^0-9]/g, '') })}
-                  placeholder={isService ? 'e.g. 998313' : 'e.g. 39231090'}
-                  maxLength={8}
-                  className="w-full px-3 py-2.5 rounded-xl bg-card border border-border shadow-sm text-xs font-semibold text-foreground focus:outline-none focus:border-accent-signature/40"
-                />
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  {isService
-                    ? 'Services use a 6-digit SAC. Required for the GSTR-1 summary (Table 12).'
-                    : 'Required for GSTR-1 HSN summary (Table 12).'}
-                </p>
-              </div>
-            </div>
-            )}
-
-            <Section>Product Photo</Section>
-            {/* ── Product Photo ──────────────────────────────────────── */}
-            <div>
-              <div className="flex gap-3 items-start">
-                {/* Preview */}
-                <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-card border border-border shadow-sm flex-shrink-0 flex items-center justify-center">
-                  {imagePreview ? (
-                    <>
-                      <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => { setImagePreview(null); setImageFile(null); setFormData(f => ({ ...f, image: '' })); }}
-                        className="absolute top-1 right-1 bg-black/60 rounded-pill p-0.5 text-white hover:bg-black"
-                      >
-                        <X size={10} />
-                      </button>
-                    </>
-                  ) : (
-                    <Camera size={20} className="text-muted-foreground" />
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div className="flex flex-col gap-2 flex-1">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-pill bg-card border border-border shadow-sm text-xs font-semibold text-foreground hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
-                  >
-                    <Upload size={13} /> Upload New Photo
-                  </button>
-                  <button
-                    type="button"
-                    onClick={openPhotoLib}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-pill bg-card border border-border shadow-sm text-xs font-semibold text-foreground hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
-                  >
-                    <Images size={13} /> Choose from Library
-                  </button>
-                  <p className="text-[11px] text-muted-foreground">Max 5 MB · JPG, PNG, WEBP</p>
-                </div>
-
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleImageChange}
-                />
-              </div>
-
-              {/* ── Photo Library Panel ── */}
-              {showPhotoLib && (
-                <div className="mt-3 bg-card border border-border shadow-sm rounded-xl p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-semibold text-muted-foreground">Recent Photos</span>
-                    <button type="button" onClick={() => setShowPhotoLib(false)}>
-                      <X size={14} className="text-muted-foreground hover:text-foreground" />
-                    </button>
+              {/* Margin indicator + floor guard */}
+              <div className="mt-3 grid grid-cols-1 items-end gap-3 md:grid-cols-3">
+                <div>
+                  <span className="mb-1.5 block font-tight text-[12.5px] font-semibold text-ink-2">Current margin</span>
+                  <div className="flex h-9 items-center justify-between rounded-[10px] bg-tile px-3 text-[13.5px]">
+                    <span className="text-body">On cost</span>
+                    <b className={cn('font-tight font-semibold tabular-nums', showMargin ? marginColor : 'text-mute')}>
+                      {showMargin ? `${margin.toFixed(1)}%${margin < 0 ? ' · loss' : margin < 10 ? ' · low' : ''}` : '—'}
+                    </b>
                   </div>
-                  {libLoading ? (
-                    <div className="flex items-center justify-center py-6">
-                      <Loader2 size={18} className="animate-spin text-muted-foreground" />
-                    </div>
-                  ) : libPhotos.length === 0 ? (
-                    <div className="text-center py-6 text-xs text-muted-foreground">
-                      No photos uploaded yet. Upload your first photo above.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                      {libPhotos.map(photo => (
-                        <button
-                          key={photo.name}
-                          type="button"
-                          onClick={() => selectLibPhoto(photo.url)}
-                          className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all hover:opacity-90 ${
-                            formData.image === photo.url
-                              ? 'border-accent-signature ring-2 ring-accent-signature/30'
-                              : 'border-transparent'
-                          }`}
-                        >
-                          <img src={photo.url} alt={photo.name} className="w-full h-full object-cover" />
-                          {formData.image === photo.url && (
-                            <div className="absolute inset-0 bg-accent-signature/20 flex items-center justify-center">
-                              <CheckCircle2 size={16} className="text-accent-signature" />
-                            </div>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => { fileInputRef.current?.click(); setShowPhotoLib(false); }}
-                    className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-pill border border-dashed border-border text-[11px] font-semibold text-muted-foreground hover:border-accent-signature hover:text-accent-signature transition-colors"
-                  >
-                    <Upload size={11} /> Upload new photo
-                  </button>
                 </div>
-              )}
-            </div>
+                <div>
+                  <Label htmlFor="it-minm">Minimum margin, %</Label>
+                  <Input id="it-minm" type="number" step="1" min="0" max="100" placeholder="e.g. 15"
+                    value={formData.min_margin} onChange={e => set({ min_margin: e.target.value })} />
+                </div>
+                <Hint className="self-center">The till warns or blocks a sale below this margin</Hint>
+              </div>
+            </>)}
+          </Sec>
 
-            {saveError && (
-              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs font-semibold text-red-600">
-                {saveError}
+          {/* 3 · Tax */}
+          <Sec id="f3" n={3} title="Tax" hint="Used on invoices and at the till">
+            <span className="mb-1.5 block font-tight text-[12.5px] font-semibold text-ink-2">Tax status</span>
+            <div role="radiogroup" aria-label="Tax status" className="flex flex-wrap gap-1.5">
+              {[
+                { id: 'TAXABLE', label: 'Taxable' },
+                { id: 'EXEMPT', label: 'Exempt or nil' },
+                { id: 'NONGST', label: 'Non-GST' },
+              ].map(st => (
+                <button key={st.id} type="button" role="radio" aria-checked={taxStatus === st.id}
+                  onClick={() => set({ tax_status: st.id, ...(st.id !== 'TAXABLE' ? { taxRate: 0, cess_rate: 0 } : {}) })}
+                  className={cn('m-press rounded-pill px-3.5 py-2 font-tight text-[13px] font-semibold',
+                    taxStatus === st.id ? 'bg-ink text-white' : 'text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile')}>
+                  {st.label}
+                </button>
+              ))}
+            </div>
+            {taxStatus === 'TAXABLE' && (
+              <div className="mt-3.5 grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div>
+                  <Label htmlFor="it-slab">GST slab</Label>
+                  <Select id="it-slab" value={slabIdx}
+                    onChange={(e) => {
+                      const sl = TAX_SLABS_WITH_CESS[Number(e.target.value)];
+                      if (sl) set({ taxRate: sl.value, cess_rate: sl.cess });
+                    }}>
+                    {/* When the saved combo isn't a standard slab, findIndex returns -1 */}
+                    {slabIdx === -1 && (
+                      <option value={-1}>{`${Number(formData.taxRate) || 0}%${Number(formData.cess_rate) ? ` + ${Number(formData.cess_rate)}% Cess` : ''} (custom)`}</option>
+                    )}
+                    {TAX_SLABS_WITH_CESS.map((sl, i) => <option key={i} value={i}>{sl.label}</option>)}
+                  </Select>
+                  <Hint>GST and cess. Applied on invoices and at the till</Hint>
+                </div>
+                {/* HSN for goods, SAC for services — one column, see lib/hsn.js. */}
+                <div>
+                  <Label htmlFor="it-hsn">{isService ? 'SAC code' : 'HSN code'}</Label>
+                  <Input id="it-hsn" type="text" inputMode="numeric" maxLength={8}
+                    placeholder={isService ? 'e.g. 998313' : 'e.g. 39231090'}
+                    value={formData.hsn_code || ''} onChange={(e) => set({ hsn_code: e.target.value.replace(/[^0-9]/g, '') })} />
+                  <Hint>
+                    {isService
+                      ? 'Services use a 6-digit SAC. Needed for the GSTR-1 summary (Table 12)'
+                      : 'Needed for the GSTR-1 HSN summary (Table 12)'}
+                  </Hint>
+                </div>
               </div>
             )}
-            <Button type="submit" disabled={uploading} icon={CheckCircle2} className="w-full !rounded-xl !h-12 shadow-xl">
-              {uploading ? 'Saving...' : editingProduct ? 'Save Changes' : 'Save Product'}
-            </Button>
-          </form>
-        );
-      })()}
-    </Modal>
+          </Sec>
+
+          {/* 4 · Photo */}
+          <Sec id="f4" n={4} title="Photo" hint="Kept as a small thumbnail">
+            <div className="flex flex-wrap items-center gap-3.5">
+              <div className="relative">
+                {imagePreview ? (
+                  <>
+                    <img src={imagePreview} alt="Product" className="h-[72px] w-[72px] rounded-[14px] object-cover" />
+                    <button type="button" aria-label="Remove photo"
+                      onClick={() => { setImagePreview(null); setImageFile(null); setFormData(f => ({ ...f, image: '' })); }}
+                      className="absolute -top-1.5 -right-1.5 grid h-5 w-5 place-items-center rounded-xl bg-ink text-white"><X size={11} /></button>
+                  </>
+                ) : (
+                  <ProductAvatar product={{ name: formData.name || 'New product', category: formData.category }} size="lg" />
+                )}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="secondary" onClick={() => fileInputRef.current?.click()}><Upload /> Upload new photo</Button>
+                <Button variant="secondary" onClick={openPhotoLib}><Images /> Choose from library</Button>
+                <Hint className="mt-0 w-full">Up to 5 MB · JPG, PNG, WEBP</Hint>
+              </div>
+              <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleImageChange} />
+            </div>
+
+            {showPhotoLib && (
+              <div className="mt-3 rounded-xl bg-tile p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="font-tight text-[12.5px] font-semibold text-ink-2">Recent photos</span>
+                  <button type="button" onClick={() => setShowPhotoLib(false)} aria-label="Close photo library"><X size={14} className="text-mute hover:text-ink" /></button>
+                </div>
+                {libLoading ? (
+                  <div className="flex items-center justify-center py-6"><Loader2 size={18} className="animate-spin text-mute" /></div>
+                ) : libPhotos.length === 0 ? (
+                  <div className="py-6 text-center text-[12.5px] text-mute">No photos uploaded yet. Upload your first photo above.</div>
+                ) : (
+                  <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+                    {libPhotos.map(photo => (
+                      <button key={photo.name} type="button" data-card onClick={() => selectLibPhoto(photo.url)}
+                        className={cn('relative aspect-square overflow-hidden rounded-lg border-2 transition-opacity hover:opacity-90',
+                          formData.image === photo.url ? 'border-amber' : 'border-transparent')}>
+                        <img src={photo.url} alt={photo.name} className="h-full w-full object-cover" />
+                        {formData.image === photo.url && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-amber/20"><CheckCircle2 size={16} className="text-amber" /></div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <button type="button" onClick={() => { fileInputRef.current?.click(); setShowPhotoLib(false); }}
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-pill py-2 text-[12px] font-semibold text-mute shadow-[inset_0_0_0_1px_var(--color-line)] hover:text-amber-text">
+                  <Upload size={11} /> Upload new photo
+                </button>
+              </div>
+            )}
+          </Sec>
+        </div>
+
+        {/* Summary */}
+        <aside className="m-rise lg:sticky lg:top-4">
+          <div className="overflow-hidden rounded-[14px] bg-surface shadow-[inset_0_0_0_1px_var(--color-line)]">
+            <div className="flex items-center gap-3 border-b border-sep px-[18px] py-4">
+              {imagePreview
+                ? <img src={imagePreview} alt="" aria-hidden="true" className="h-[34px] w-[34px] shrink-0 rounded-[9px] object-cover" />
+                : <ProductAvatar product={{ name: formData.name || 'New product', category: formData.category }} />}
+              <div className="min-w-0">
+                <b className="block truncate font-tight text-[14.5px] font-semibold">{formData.name || 'New product'}</b>
+                <small className="block truncate text-[12px] text-mute">{[formData.category, formData.sku].filter(Boolean).join(' · ') || 'No category yet'}</small>
+              </div>
+            </div>
+            <div className="px-[18px] pt-1.5 pb-3">
+              <SumRow label="Sells at" value={s > 0 ? `${cur}${fx(s)}${isService ? '' : ` / ${formData.unit}`}` : '—'} />
+              {!isService && packConv > 0 && s > 0 && <SumRow label={`Per ${formData.secondary_unit}`} value={`${cur}${fx(s * packConv)}`} />}
+              {!isService && <SumRow label="Margin on cost" value={showMargin ? `${margin.toFixed(1)}%` : '—'} cls={showMargin ? marginColor : ''} />}
+              <SumRow label="GST" value={taxStatus === 'TAXABLE'
+                ? `${Number(formData.taxRate) || 0}%${Number(formData.cess_rate) ? ` + ${Number(formData.cess_rate)}% cess` : ''}${formData.hsn_code ? ` · ${isService ? 'SAC' : 'HSN'} ${formData.hsn_code}` : ''}`
+                : taxStatus === 'EXEMPT' ? 'Exempt or nil' : 'Non-GST'} />
+            </div>
+            <nav aria-label="Form sections" className="border-t border-sep px-2.5 py-3">
+              {steps.map((st, i) => (
+                <button key={st.key} type="button" data-card onClick={() => jump(st.key)}
+                  className={cn('flex w-full items-center gap-2.5 rounded-lg px-2 py-[7px] text-left text-[13px] text-ink-2 hover:bg-tile', i === 0 && 'bg-tile font-semibold text-ink')}>
+                  <i className={cn('grid h-[18px] w-[18px] place-items-center rounded-full font-tight text-[10.5px] font-semibold not-italic',
+                    st.state === 'done' ? 'bg-good-soft text-good-text' : 'bg-well text-mute')}>{st.n}</i>
+                  {st.label}
+                  <small className="ml-auto text-[11.5px] text-mute">{st.state === 'done' ? 'Done' : st.state === 'optional' ? 'Optional' : 'To do'}</small>
+                </button>
+              ))}
+            </nav>
+            <div className="grid gap-2 border-t border-sep px-[18px] pt-3.5 pb-4">
+              {saveError && (
+                <div role="alert" className="rounded-[10px] bg-bad-soft px-3 py-2.5 text-[12.5px] font-medium text-bad-text">{saveError}</div>
+              )}
+              <WriteFailure error={writeError} noun="product" onReread={onReread} />
+              <Button type="submit" disabled={uploading} className="h-11">
+                {uploading ? 'Saving…' : editingProduct ? 'Save changes' : 'Save product'}
+              </Button>
+              <Button variant="secondary" className="h-11" onClick={onClose}>Cancel</Button>
+              <Hint className="mt-0 text-center">Ctrl Enter saves · Esc cancels</Hint>
+            </div>
+          </div>
+        </aside>
+      </form>
+    </div>
   );
 };
+
+const SumRow = ({ label, value, cls = '' }) => (
+  <div className="flex justify-between gap-3 border-t border-sep py-2 text-[13px] first:border-t-0">
+    <span className="text-body">{label}</span>
+    <span className={cn('text-right font-tight font-medium tabular-nums text-ink-2', cls)}>{value}</span>
+  </div>
+);
+
+// Form pieces live at module scope: defined inside the component they would
+// be new types on every keystroke, and React would remount the inputs in
+// them and drop the focus.
+const Sec = ({ id, n, title, hint, children }) => (
+  <section id={`item-${id}`} className="m-rise mb-3.5 scroll-mt-4 rounded-[14px] bg-surface px-5 py-[18px] shadow-[inset_0_0_0_1px_var(--color-line)]">
+    <div className="mb-3.5 flex items-baseline gap-2.5">
+      <span className="inline-grid h-5 w-5 place-items-center rounded-full bg-well font-tight text-[11px] font-semibold text-mute">{n}</span>
+      <h3 className="font-tight text-[15px] font-semibold">{title}</h3>
+      {hint && <span className="text-[12px] text-mute">{hint}</span>}
+    </div>
+    {children}
+  </section>
+);
+const Sub = ({ children }) => <h4 className="mt-4 mb-2.5 border-t border-sep pt-3.5 font-tight text-[13px] font-semibold text-ink-2">{children}</h4>;
+const AssignBtn = ({ onClick, title }) => (
+  <button type="button" onClick={onClick} title={title}
+    className="m-press inline-flex shrink-0 items-center gap-[5px] whitespace-nowrap rounded-pill px-3 font-tight text-[12.5px] font-semibold text-amber-text shadow-[inset_0_0_0_1px_#F3D3A6] hover:bg-amber-soft">
+    <Wand2 size={13} /> Assign
+  </button>
+);
+const Toggle = ({ on, onClick, title, hint }) => (
+  <div className="mt-3.5 flex items-center gap-3 border-t border-sep pt-3.5">
+    <button type="button" role="switch" aria-checked={!!on} aria-label={title} onClick={onClick}
+      className={cn('relative h-[21px] w-9 shrink-0 rounded-pill transition-colors duration-(--dur-press)', on ? 'bg-amber' : 'bg-[#D7DADE]')}>
+      <span className={cn('absolute top-0.5 h-[17px] w-[17px] rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.2)] transition-[left] duration-(--dur-press)', on ? 'left-[17px]' : 'left-0.5')} />
+    </button>
+    <div>
+      <b className="block font-tight text-[13.5px] font-semibold">{title}</b>
+      <small className="text-[12px] text-mute">{hint}</small>
+    </div>
+  </div>
+);
+const Ro = ({ children, cls = '' }) => <div className={cn('flex h-9 items-center font-tight text-[15px] font-semibold tabular-nums', cls)}>{children}</div>;
+
 
 export default AddItemModal;
