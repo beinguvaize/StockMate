@@ -71,37 +71,12 @@ export const tabFromSearch = (search) => {
   } catch { return 'account'; }
 };
 
-// Users & roles is its own page, embedded, with the same reskin as before
-// until that page is redrawn.
-const EMBED_SKIN_CSS = `
-  .settings-embedded .glass-panel { background:#fff !important; border:1px solid #e5e7eb !important; border-radius:8px !important; box-shadow:none !important; }
-  .settings-embedded [class*="shadow-"] { box-shadow:none !important; }
-  .settings-embedded .bg-ink-primary { background:#f9fafb !important; border-bottom:1px solid #f3f4f6 !important; }
-  .settings-embedded .bg-ink-primary h2, .settings-embedded .bg-ink-primary .text-surface,
-  .settings-embedded .bg-ink-primary .text-white { color:#111827 !important; font-size:14px !important; font-weight:600 !important; }
-  .settings-embedded .bg-ink-primary .text-accent-signature, .settings-embedded .bg-ink-primary svg { color:#6b7280 !important; }
-  .settings-embedded .btn-signature, .settings-embedded button.bg-accent-signature, .settings-embedded a.bg-accent-signature {
-    background:#111827 !important; color:#fff !important; border-radius:6px !important; box-shadow:none !important; }
-  .settings-embedded .text-accent-signature { color:#374151 !important; }
-  .settings-embedded .border-accent-signature { border-color:#d1d5db !important; }
-  .settings-embedded h1, .settings-embedded h2 { font-size:14px !important; font-weight:600 !important; color:#111827 !important; letter-spacing:0 !important; font-family:inherit !important; }
-  .settings-embedded h3, .settings-embedded h4 { font-size:13px !important; font-weight:600 !important; color:#111827 !important; letter-spacing:0 !important; }
-  .settings-embedded label, .settings-embedded [class*="text-[9px]"], .settings-embedded [class*="text-[10px]"], .settings-embedded [class*="text-[11px]"] {
-    font-size:12.5px !important; font-weight:500 !important; color:#6b7280 !important; letter-spacing:0 !important; text-transform:none !important; }
-  .settings-embedded [class*="text-[12px]"], .settings-embedded .text-xs, .settings-embedded [class*="text-[13px]"], .settings-embedded .text-sm { font-size:13px !important; letter-spacing:0 !important; }
-  .settings-embedded [class*="text-2xl"], .settings-embedded [class*="text-3xl"], .settings-embedded [class*="text-4xl"], .settings-embedded [class*="text-xl"] { font-size:15px !important; font-weight:600 !important; color:#111827 !important; }
-  .settings-embedded [class*="font-black"] { font-weight:600 !important; }
-  .settings-embedded [class*="uppercase"] { text-transform:none !important; letter-spacing:0 !important; }
-  .settings-embedded [class*="tracking-"] { letter-spacing:0 !important; }
-  .settings-embedded [class*="font-sora"] { font-family:inherit !important; }
-  .settings-embedded input, .settings-embedded select, .settings-embedded textarea { border-radius:6px !important; border-color:#d1d5db !important; background:#fff !important; font-size:13px !important; color:#111827 !important; }
-  .settings-embedded .rounded-pill, .settings-embedded [class*="rounded-2xl"], .settings-embedded [class*="rounded-xl"], .settings-embedded [class*="rounded-bento"] { border-radius:8px !important; }
-  .settings-embedded .bg-canvas { background:#f9fafb !important; }
-`;
-
-export default function SettingsHub() {
+// initialTab: /users opens the hub on Users & roles, so that page sits in
+// the rail as drawn (users-01 to 08).
+export default function SettingsHub({ initialTab } = {}) {
   const { hasPermission } = useAuth();
-  const [active, setActive] = useState(() => tabFromSearch(typeof window !== 'undefined' ? window.location.search : ''));
+  const [active, setActive] = useState(() => (PANEL_IDS.has(initialTab) ? initialTab
+    : tabFromSearch(typeof window !== 'undefined' ? window.location.search : '')));
   const allowed = !NEEDS_PERMISSION.has(active) || hasPermission('MANAGE_SETTINGS');
   const Panel = PANELS[active];
 
@@ -133,7 +108,7 @@ export default function SettingsHub() {
 
         <div className="min-w-0 max-w-[820px]" data-testid="settings-panel">
           {!allowed ? <NoSettingsAccess />
-            : active === 'users' ? <div className="settings-embedded"><style dangerouslySetInnerHTML={{ __html: EMBED_SKIN_CSS }} /><Users embedded /></div>
+            : active === 'users' ? <Users />
             : Panel ? <Panel key={active} /> : null}
         </div>
       </div>

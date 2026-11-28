@@ -28,7 +28,6 @@ const Accounts         = lazy(() => import('./pages/Accounts.jsx'));
 const Inventory        = lazy(() => import('./pages/inventory/index.jsx'));
 const Sales            = lazy(() => import('./pages/sales/index.jsx'));
 const Expenses         = lazy(() => import('./pages/Expenses'));
-const Settings         = lazy(() => import('./pages/Settings'));
 const SettingsHub      = lazy(() => import('./pages/settings/SettingsHub'));
 const SyncDiagnostics  = lazy(() => import('./pages/SyncDiagnostics'));
 const SaaSLogin        = lazy(() => import('./pages/SaaSLogin'));
@@ -41,7 +40,6 @@ const InvoiceEmbed     = lazy(() => import('./pages/embed/InvoiceEmbed'));
 // Customer-facing UPI QR for dual-monitor POS. Param-only, no auth.
 const PayQrScreen      = lazy(() => import('./pages/embed/PayQrScreen'));
 const Vehicles         = lazy(() => import('./pages/Vehicles'));
-const Users            = lazy(() => import('./pages/Users'));
 const Clients          = lazy(() => import('./pages/Clients'));
 const Reports          = lazy(() => import('./pages/Reports'));
 const Orders           = lazy(() => import('./pages/Orders'));
@@ -252,7 +250,7 @@ function AppRoutes() {
         {/* /settings-classic retired — the hub embeds Settings sections directly. */}
         <Route path="sync-diagnostics" element={<ProtectedRoute><SyncDiagnostics /></ProtectedRoute>} />
         <Route path="audit-log" element={<ProtectedRoute><AuditLog /></ProtectedRoute>} />
-        <Route path="users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
+        <Route path="users" element={<ProtectedRoute><SettingsHub initialTab="users" /></ProtectedRoute>} />
         <Route path="clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
         <Route path="reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
         <Route path="orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />

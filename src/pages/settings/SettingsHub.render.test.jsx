@@ -65,6 +65,12 @@ describe('Settings panels render', () => {
       'Users &amp; roles', 'Plan &amp; billing', 'Data tools', 'Backup &amp; restore', 'API', 'Help &amp; support']) expect(h).toContain(s);
     expect(h).toContain('href="/backup"');
   });
+  it('hub: /users opens Users & roles inside the rail', () => {
+    perms = true;
+    const h = html(<SettingsHub initialTab="users" />);
+    expect(h).toContain('Users page');
+    expect(h).toContain('aria-label="Settings sections"');
+  });
   it('account', () => has(<AccountPanel />, ['Profile', 'Test Owner', 'Password', 'Update password', 'WhatsApp sign-in', 'Not set, password sign-in only', 'Log out']));
   it('business: PAN and account number masked', () => {
     const h = html(<BusinessPanel />);
