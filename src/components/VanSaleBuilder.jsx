@@ -1,38 +1,41 @@
 /**
- * VanSaleBuilder
- * Same UI as InvoiceBuilder (POS) but logic deducts from van stock.
+ * VanSaleBuilder (web redesign, vehicles-17 to 19)
+ * Sell from the van's own stock: pick list + cart, checkout, receipt.
+ * The cart rules, the credit-needs-a-client guard and the onSubmit call are
+ * unchanged; only the layout is new.
  *
  * Props:
  *  vanItems    — [{productId, productName, qty, sellingPrice, costPrice, maxQty}]
- *  route       — active route object (id, vehicleId, _vehicleLocId, ...)
- *  vehicle     — {name, plate, plateNumber} for header
+ *  route       — active route object (id, vehicleId, location, ...)
+ *  vehicle     — {name, plate, plateNumber, type} for the header
+ *  driverName  — the trip's driver, for the header
  *  clients     — array of client objects
  *  onSubmit    — async fn({cart, clientId, clientName, paymentMethod, total, subtotal}) → {success, error}
- *  onClose     — fn() to close modal
+ *  onClose     — fn() to leave
  *  sym         — currency symbol, default '₹'
  */
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useDialogClose } from '../hooks/useDialogClose';
-import {
-  ShoppingCart as CartIcon,
-  Search, Plus, Minus, Check, ArrowRight,
-  Package, X, User, ChevronLeft,
-  Banknote, Smartphone, CreditCard,
-  CheckCircle2, Truck,
-} from 'lucide-react';
-import { formatCurrency } from '../lib/utils';
+import { Search, X, Check } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 import { CREDIT_NEEDS_CLIENT } from '../lib/vanSale';
+import { cn } from '../lib/utils';
+import { rupees2 } from './estimates/parts';
+import WriteFailure from './invoices/WriteFailure';
+import { Button } from './ui/button';
+import { PAY_LABEL, plural } from '../lib/vehiclesView';
+import { BackLink, VehicleIcon, Initials, Stepper, IconBtn, Eyebrow } from './vehicles/parts';
 
 const VanSaleBuilder = ({
   vanItems = [],
   route,
   vehicle,
+  driverName,
   clients = [],
   onSubmit,
   onClose,
   sym = '₹',
-  pageMode = false,   // true → render as full page (no fixed overlay backdrop)
+  pageMode = false,   // true → rendered as its own page (Escape does not leave)
 }) => {
   useDialogClose(onClose, { enabled: !pageMode });
   const { addNotification } = useNotifications();
@@ -46,7 +49,7 @@ const VanSaleBuilder = ({
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [showCheckout, setShowCheckout] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState('');
+  const [submitError, setSubmitError] = useState(null);
   const [receipt, setReceipt] = useState(null);
 
   const clientDropRef = useRef(null);
@@ -148,10 +151,10 @@ const VanSaleBuilder = ({
     if (paymentMethod === 'CREDIT' && selectedClientId === 'WALKIN') {
       // Same words as the hook's own guard (lib/vanSale.js), which refuses it
       // too: a credit sale with nobody to owe it is the bug, not an option.
-      setSubmitError(CREDIT_NEEDS_CLIENT);
+      setSubmitError(new Error(CREDIT_NEEDS_CLIENT));
       addNotification(CREDIT_NEEDS_CLIENT, 'error'); return;
     }
-    setSubmitError('');
+    setSubmitError(null);
     setIsSubmitting(true);
     try {
       const clientName = selectedClientId === 'WALKIN'
@@ -168,7 +171,7 @@ const VanSaleBuilder = ({
       });
 
       if (result?.success === false) {
-        setSubmitError(result.error?.message || result.error?.toString() || 'Sale failed');
+        setSubmitError(result.error || new Error('Sale failed'));
         return;
       }
 
@@ -183,7 +186,7 @@ const VanSaleBuilder = ({
       setCart([]);
       setShowCheckout(false);
     } catch (err) {
-      setSubmitError(err?.message || 'Unexpected error');
+      setSubmitError(err || new Error('Unexpected error'));
     } finally {
       setIsSubmitting(false);
     }
@@ -191,554 +194,221 @@ const VanSaleBuilder = ({
 
   const vanName  = vehicle?.name || 'Van';
   const vanPlate = vehicle?.plate || vehicle?.plateNumber || '';
+  const selClient = selectedClientId !== 'WALKIN' ? clients.find(c => c.id === selectedClientId) : null;
+  const who = selClient?.name || 'Walk-in';
+  const money2 = (n) => rupees2(n, sym);
+  const units = cart.reduce((s, i) => s + i.quantity, 0);
 
-  /* ══════════════════════════════════════════════════════════════════════
-     RECEIPT SCREEN
-     ══════════════════════════════════════════════════════════════════════ */
+  /* ── Receipt (vehicles-19) ─────────────────────────────────────────── */
   if (receipt) {
     return (
-      <div className="fixed inset-0 z-50 bg-canvas flex items-center justify-center p-4">
-        <div className="w-full max-w-sm bg-white rounded-3xl border border-black/8 shadow-2xl overflow-hidden">
-          {/* Green success header */}
-          <div className="bg-emerald-500 px-6 pt-8 pb-10 text-white text-center relative">
-            <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-3">
-              <CheckCircle2 size={30} className="text-white" />
-            </div>
-            <div className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Van Sale Recorded</div>
-            <div className="text-3xl font-black tabular-nums">{formatCurrency(receipt.total)}</div>
-            <div className="text-[11px] opacity-60 mt-1">{receipt.time} · {vanName}</div>
+      <div className="pb-16">
+        <div className="m-rise mx-auto mt-2.5 max-w-[420px] overflow-hidden rounded-[18px] border border-line bg-surface">
+          <div className="bg-good-soft px-5 pt-[26px] pb-[22px] text-center">
+            <span className="mx-auto mb-2.5 grid h-12 w-12 place-items-center rounded-full bg-good"><Check size={22} strokeWidth={2.6} className="text-white" /></span>
+            <span className="text-[12.5px] text-good-text">Van sale recorded</span>
+            <b className="block font-tight text-[32px] font-semibold tracking-[-0.02em] tabular-nums">{money2(receipt.total)}</b>
+            <span className="text-[12.5px] text-body">{receipt.time} · {vanName}</span>
           </div>
-
-          {/* Receipt body */}
-          <div className="px-6 py-5 space-y-3">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground font-semibold">Customer</span>
-              <span className="font-bold text-ink-primary">{receipt.client}</span>
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground font-semibold">Payment</span>
-              <span className="font-black uppercase text-ink-primary">{receipt.method}</span>
-            </div>
-            <div className="border-t border-black/5 pt-3 space-y-1.5">
+          <div className="px-5 py-4">
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-[9px] text-[13px]">
+              <dt className="text-mute">Customer</dt><dd className="text-right font-medium">{receipt.client}</dd>
+              <dt className="text-mute">Payment</dt><dd className="text-right font-medium">{PAY_LABEL[receipt.method] || receipt.method}</dd>
+            </dl>
+            <div className="mt-3 border-t border-sep pt-2.5">
               {receipt.items.map(item => (
-                <div key={item.productId} className="flex justify-between text-xs">
-                  <span className="text-ink-secondary">{item.name} ×{item.quantity}</span>
-                  <span className="font-bold tabular-nums text-ink-primary">{formatCurrency(item.price * item.quantity)}</span>
+                <div key={item.productId} className="flex justify-between gap-3 py-[3px] text-[13px]">
+                  <span className="min-w-0 truncate">{item.name} × {item.quantity}</span>
+                  <span className="font-tight font-semibold tabular-nums">{money2(item.price * item.quantity)}</span>
                 </div>
               ))}
             </div>
           </div>
-
-          <div className="px-6 pb-6 space-y-2">
-            <button
-              onClick={() => { setReceipt(null); }}
-              className="w-full py-3 rounded-pill bg-emerald-500 text-white font-black text-sm hover:bg-emerald-600 transition-all"
-            >
-              New Sale
-            </button>
-            <button
-              onClick={onClose}
-              className="w-full py-3 rounded-pill border border-black/8 text-ink-secondary font-semibold text-sm hover:bg-canvas transition-all"
-            >
-              Done
-            </button>
+          <div className="flex gap-2 px-5 pb-5 [&>*]:flex-1">
+            <Button variant="secondary" onClick={onClose}>Done</Button>
+            <Button onClick={() => { setReceipt(null); }}>New sale</Button>
           </div>
         </div>
       </div>
     );
   }
 
-  /* ══════════════════════════════════════════════════════════════════════
-     CHECKOUT OVERLAY (full-screen, same as InvoiceBuilder)
-     ══════════════════════════════════════════════════════════════════════ */
-  const CheckoutOverlay = () => (
-    <div className="fixed inset-0 z-50 bg-canvas flex flex-col">
-      {/* Header */}
-      <div className="flex items-center gap-4 px-6 py-4 bg-white border-b border-black/5 shrink-0">
-        <button
-          onClick={() => { setShowCheckout(false); setSubmitError(''); }}
-          className="flex items-center gap-2 text-xs font-black text-muted-foreground hover:text-ink-primary transition-colors"
-        >
-          <ChevronLeft size={16} /> Back to Cart
-        </button>
-        <div className="flex-1" />
-        <h1 className="text-base font-black uppercase text-ink-primary">
-          Van Sale<span className="text-emerald-500">.</span>
-        </h1>
-        <div className="flex-1" />
-        <span className="text-xs font-semibold text-muted-foreground">{cart.length} item{cart.length !== 1 ? 's' : ''}</span>
+  /* ── Checkout (vehicles-18) ────────────────────────────────────────── */
+  if (showCheckout) {
+    const opts = [
+      { key: 'CASH', label: 'Cash', sub: "Into the van's cash" },
+      { key: 'UPI', label: 'UPI', sub: 'Paid on phone' },
+      { key: 'CREDIT', label: 'Client credit', sub: 'Added to what they owe' },
+    ];
+    return (
+      <div className="pb-16">
+        <BackLink onClick={() => { setShowCheckout(false); setSubmitError(null); }}>Back to cart</BackLink>
+        <div className="m-rise grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_420px]">
+          <div className="rounded-2xl border border-line bg-surface p-[18px]">
+            <h3 className="font-tight text-[16px] font-semibold">Order summary</h3>
+            <p className="mt-0.5 mb-2.5 text-[12px] text-mute">{vanName} · {who}</p>
+            {cart.map(item => (
+              <div key={item.productId} className="flex items-center justify-between gap-3 border-t border-sep py-2.5 text-[13.5px]">
+                <div className="min-w-0"><span className="block truncate">{item.name}</span><small className="text-[12px] text-mute tabular-nums">{item.quantity} × {money2(item.price)}</small></div>
+                <span className="font-tight font-semibold tabular-nums">{money2(item.price * item.quantity)}</span>
+              </div>
+            ))}
+            <div className="mt-1 flex justify-between border-t border-line pt-3 font-tight text-[15px] font-semibold">
+              <span>Total</span><span className="tabular-nums">{money2(total)}</span>
+            </div>
+          </div>
+          <div>
+            <div className="rounded-2xl bg-tile px-[18px] py-4">
+              <Eyebrow>To collect</Eyebrow>
+              <b className="mt-1 block font-tight text-[30px] font-semibold tracking-[-0.02em] tabular-nums">{money2(total)}</b>
+              <small className="text-[12.5px] text-body">{who} · {vanName}</small>
+            </div>
+            <div className="mt-4 mb-2 font-tight text-[13px] font-semibold">Payment method</div>
+            <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Payment method">
+              {opts.map(o => {
+                const dim = o.key === 'CREDIT' && selectedClientId === 'WALKIN';
+                const on = paymentMethod === o.key;
+                return (
+                  <button key={o.key} type="button" data-card role="radio" aria-checked={on} aria-disabled={dim}
+                    onClick={() => {
+                      if (dim) { addNotification('Select a client before choosing Credit.', 'info'); return; }
+                      setPaymentMethod(o.key);
+                    }}
+                    className={cn('m-press flex flex-col items-start gap-1.5 rounded-[14px] bg-surface p-3.5 text-left',
+                      on ? 'shadow-[inset_0_0_0_2px_var(--color-ink)]' : 'shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile',
+                      dim && 'cursor-not-allowed opacity-50')}>
+                    <b className="font-tight text-[13.5px] font-semibold">{o.label}</b>
+                    <small className="text-[12px] text-mute">{o.sub}</small>
+                  </button>
+                );
+              })}
+            </div>
+            {selectedClientId === 'WALKIN' && <p className="mt-2 text-[12px] text-mute">Client credit needs a client. Pick one on the cart first.</p>}
+            {submitError && <WriteFailure error={submitError} noun="van sale" className="mt-3" />}
+            <Button size="lg" className="mt-4 w-full" onClick={handleConfirm} disabled={isSubmitting || !cart.length}>
+              {isSubmitting ? 'Saving…' : `Confirm sale · ${money2(total)}`}
+            </Button>
+          </div>
+        </div>
       </div>
+    );
+  }
 
-      {/* Body */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6">
+  /* ── Pick list + cart (vehicles-17) ────────────────────────────────── */
+  const clientList = clients.filter(c => !clientSearch || (c.name || '').toLowerCase().includes(clientSearch.toLowerCase()) || (c.phone || '').toLowerCase().includes(clientSearch.toLowerCase()));
+  return (
+    <div className="pb-16">
+      <BackLink onClick={onClose} />
+      <div className="m-rise mb-4 flex items-center gap-3" style={{ '--i': 0 }}>
+        <VehicleIcon type={vehicle?.type} />
+        <div className="min-w-0">
+          <h3 className="font-tight text-[20px] font-semibold leading-tight tracking-[-0.02em]">Van sale · {vanName}</h3>
+          <p className="mt-0.5 text-[13px] text-body">{[vanPlate, route?.location, driverName, 'sells only what is on this van'].filter(Boolean).join(' · ')}</p>
+        </div>
+      </div>
+      <div className="m-rise grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_400px]" style={{ '--i': 1 }}>
+        <div className="overflow-hidden rounded-[14px] border border-line bg-surface">
+          <div className="relative m-3">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-mute" size={16} />
+            <input ref={searchInputRef} type="text" aria-label="Search products" placeholder="Search products" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+              className="h-10 w-full rounded-pill bg-well pl-10 pr-9 text-[13px] outline-none placeholder:text-mute focus:shadow-[inset_0_0_0_2px_var(--color-ink)]" />
+            {searchTerm && <button type="button" aria-label="Clear search" onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-mute hover:text-ink"><X size={14} /></button>}
+          </div>
+          {filteredProducts.length === 0 && (
+            <p className="border-t border-sep px-4 py-12 text-center text-[13px] text-mute">
+              {vanItems.length ? `No products match “${searchTerm}”` : <>No stock on van.<br />Load products from Vehicles, Fleet, Load van stock.</>}
+            </p>
+          )}
+          {filteredProducts.map(item => {
+            const stock = item.maxQty ?? 0;
+            const outOfStock = stock <= 0;
+            const inCart = cart.find(c => c.productId === item.productId);
+            return (
+              <button key={item.productId} type="button" disabled={outOfStock} onClick={() => addToCart(item)}
+                className={cn('grid w-full grid-cols-[34px_minmax(0,1fr)_auto_auto] items-center gap-3 border-t border-sep px-4 py-2.5 text-left text-[13px] hover:bg-tile disabled:opacity-45', inCart && 'bg-[#FFFBF4]')}>
+                <Initials name={item.productName} />
+                <div className="min-w-0"><b className="block truncate font-tight text-[13.5px] font-semibold">{item.productName}</b><small className="text-[12px] text-mute">{outOfStock ? 'None on van' : `${stock} on van`}</small></div>
+                <span className="text-right font-tight text-[13.5px] font-semibold tabular-nums">{money2(item.sellingPrice)}</span>
+                {inCart ? <span className="grid h-[22px] min-w-6 place-items-center rounded-pill bg-amber px-[7px] font-tight text-[12px] font-semibold text-white tabular-nums">{inCart.quantity}</span> : <span className="w-6" />}
+              </button>
+            );
+          })}
+        </div>
 
-          {/* Left: Order Summary */}
-          <div className="space-y-4">
-            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Order Summary</p>
-            <div className="bg-white rounded-2xl border border-black/5 overflow-hidden">
-              {cart.map((item, idx) => (
-                <div key={item.productId} className={`flex items-center gap-4 px-5 py-3.5 ${idx !== cart.length - 1 ? 'border-b border-black/5' : ''}`}>
-                  <div className="w-8 h-8 rounded-lg bg-white border border-border shadow-sm flex items-center justify-center shrink-0">
-                    <Package size={14} className="text-muted-foreground" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-ink-primary truncate">{item.name}</div>
-                    <div className="text-[10px] text-muted-foreground font-medium">{formatCurrency(item.price)} × {item.quantity}</div>
-                  </div>
-                  <div className="text-sm font-black text-ink-primary tabular-nums shrink-0">
-                    {formatCurrency(item.price * item.quantity)}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Totals */}
-            <div className="bg-white rounded-2xl border border-black/5 p-5">
-              <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-2">
-                <span>Subtotal</span>
-                <span className="tabular-nums">{formatCurrency(subtotal)}</span>
-              </div>
-              <div className="border-t border-black/8 pt-2 flex justify-between text-base font-black text-ink-primary">
-                <span>Total</span>
-                <span className="tabular-nums">{formatCurrency(total)}</span>
-              </div>
-            </div>
-
-            {/* Van info */}
-            <div className="bg-white rounded-2xl border border-black/5 p-4 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
-                <Truck size={16} className="text-emerald-600" />
-              </div>
-              <div>
-                <div className="text-sm font-bold text-ink-primary">{vanName}</div>
-                {vanPlate && <div className="text-[10px] text-muted-foreground tabular-nums">{vanPlate}</div>}
-              </div>
-              <div className="ml-auto">
-                <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-                  VAN STOCK
-                </span>
-              </div>
-            </div>
-
-            {/* Client info */}
-            {selectedClientId !== 'WALKIN' && (() => {
-              const cl = clients.find(c => c.id === selectedClientId);
-              return cl ? (
-                <div className="bg-white rounded-2xl border border-black/5 p-4 flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-accent-signature/10 border border-accent-signature/20 flex items-center justify-center text-sm font-black text-ink-primary shrink-0">
-                    {cl.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-ink-primary">{cl.name}</div>
-                    {cl.phone && <div className="text-[10px] text-muted-foreground">{cl.phone}</div>}
-                  </div>
-                </div>
-              ) : null;
-            })()}
+        <div className="rounded-[14px] border border-line bg-surface lg:sticky lg:top-4">
+          <div className="flex items-center gap-2 px-[18px] pt-4 pb-2.5">
+            <h3 className="font-tight text-[16px] font-semibold">Cart</h3><span className="flex-1" />
+            <span className="text-[12px] text-mute">{plural(units, 'item')}</span>
           </div>
 
-          {/* Right: Payment */}
-          <div className="space-y-4">
-            {/* Payment Method */}
-            <div>
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Payment Method</p>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { key: 'CASH', label: 'Cash', icon: <Banknote size={22} /> },
-                  { key: 'UPI',  label: 'UPI',  icon: <Smartphone size={22} /> },
-                ].map(({ key, label, icon }) => (
-                  <button key={key} type="button"
-                    onClick={() => setPaymentMethod(key)}
-                    className={`p-4 rounded-pill border-2 transition-all flex flex-col items-center gap-2 ${
-                      paymentMethod === key
-                        ? 'border-accent-signature bg-accent-signature/5'
-                        : 'border-black/8 bg-white hover:border-black/15'
-                    }`}
-                  >
-                    <div className={`p-2 rounded-xl ${paymentMethod === key ? 'bg-accent-signature text-button-text' : 'bg-canvas text-muted-foreground'}`}>
-                      {icon}
-                    </div>
-                    <span className="text-xs font-black uppercase tracking-widest">{label}</span>
-                  </button>
-                ))}
-
-                {/* Credit — client required */}
-                <button type="button"
-                  onClick={() => {
-                    if (selectedClientId === 'WALKIN') { addNotification('Select a client before choosing Credit.', 'info'); return; }
-                    setPaymentMethod('CREDIT');
-                  }}
-                  className={`col-span-2 p-4 rounded-pill border-2 transition-all flex items-center justify-center gap-3 ${
-                    selectedClientId === 'WALKIN'
-                      ? 'opacity-40 cursor-not-allowed border-black/8 bg-white'
-                      : paymentMethod === 'CREDIT'
-                      ? 'border-accent-signature bg-accent-signature/5'
-                      : 'border-black/8 bg-white hover:border-black/15'
-                  }`}
-                >
-                  <div className={`p-2 rounded-xl ${paymentMethod === 'CREDIT' ? 'bg-accent-signature text-button-text' : 'bg-canvas text-muted-foreground'}`}>
-                    <CreditCard size={22} />
-                  </div>
-                  <div className="text-left">
-                    <div className="text-xs font-black uppercase tracking-widest">Client Credit</div>
-                    {selectedClientId === 'WALKIN' && <div className="text-[9px] text-muted-foreground">Select a client first</div>}
-                  </div>
-                </button>
+          <div ref={clientDropRef} className="relative mx-[18px] mb-2.5">
+            {selClient && !clientDropOpen ? (
+              <div className="flex items-center gap-2.5 rounded-xl bg-tile px-3 py-2.5">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-amber-soft font-tight text-[12px] font-semibold uppercase text-amber-text">{(selClient.name || '?').slice(0, 2)}</span>
+                <div className="min-w-0 flex-1"><b className="block truncate font-tight text-[13.5px] font-semibold">{selClient.name}</b><small className="text-[12px] text-mute">Client · type a name to change, or Walk-in</small></div>
+                <button type="button" onClick={() => { setClientDropOpen(true); setClientSearch(''); }} className="font-tight text-[12.5px] font-semibold text-amber-text hover:underline underline-offset-4">Change</button>
               </div>
-            </div>
-
-            {/* Error */}
-            {submitError && (
-              <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700">
-                <X size={13} className="shrink-0 mt-0.5" />
-                <p className="text-xs font-bold leading-snug">{submitError}</p>
+            ) : (
+              <div className="relative">
+                <Search size={14} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-mute" />
+                <input type="text" aria-label="Client" placeholder={selClient ? 'Type a client name' : 'Walk-in · type a client name to change'}
+                  className="h-10 w-full rounded-xl bg-tile pl-9 pr-8 text-[13px] outline-none placeholder:text-mute focus:shadow-[inset_0_0_0_2px_var(--color-ink)]"
+                  value={clientSearch} onChange={e => { setClientSearch(e.target.value); setClientDropOpen(true); }} onFocus={() => setClientDropOpen(true)} />
+                {clientSearch && <button type="button" aria-label="Clear client search" onClick={() => { setClientSearch(''); setClientDropOpen(false); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-mute hover:text-ink"><X size={12} /></button>}
               </div>
             )}
+            {clientDropOpen && (
+              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-xl bg-surface shadow-[0_18px_40px_-18px_rgba(17,20,24,0.45),inset_0_0_0_1px_var(--color-line)]">
+                <button type="button" onClick={() => { setSelectedClientId('WALKIN'); setClientDropOpen(false); setClientSearch(''); }}
+                  className="flex w-full items-center justify-between border-b border-sep px-3.5 py-2.5 text-left text-[13px] hover:bg-tile">
+                  Walk-in / No client{selectedClientId === 'WALKIN' && <Check size={13} className="text-amber-text" />}
+                </button>
+                {clientList.map(c => (
+                  <button key={c.id} type="button" onClick={() => { setSelectedClientId(c.id); setClientDropOpen(false); setClientSearch(''); }}
+                    className="flex w-full items-center justify-between gap-2 px-3.5 py-2 text-left hover:bg-tile">
+                    <span className="min-w-0"><b className="block truncate font-tight text-[13px] font-semibold">{c.name || 'Unnamed'}</b>{(c.phone || c.address) && <small className="block truncate text-[12px] text-mute">{c.phone || c.address}</small>}</span>
+                    {selectedClientId === c.id && <Check size={13} className="shrink-0 text-amber-text" />}
+                  </button>
+                ))}
+                {clientSearch && clientList.length === 0 && <p className="px-3.5 py-4 text-center text-[12.5px] text-mute">No clients match “{clientSearch}”</p>}
+              </div>
+            )}
+          </div>
 
-            {/* Confirm */}
-            <button
-              onClick={handleConfirm}
-              disabled={isSubmitting || !cart.length}
-              className="w-full h-14 rounded-pill bg-ink-primary text-white font-black text-sm flex items-center justify-center gap-2 hover:bg-ink-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xl shadow-ink-primary/20"
-            >
-              {isSubmitting
-                ? <><span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> Processing…</>
-                : <><Check size={16} /> Confirm &amp; Pay {formatCurrency(total)}</>
-              }
-            </button>
+          {cart.length === 0 && <p className="border-t border-sep px-[18px] py-8 text-center text-[13px] text-mute">Tap products to add them</p>}
+          {cart.map(item => (
+            <div key={item.productId} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2.5 border-t border-sep px-[18px] py-2.5">
+              <div className="min-w-0">
+                <b className="block truncate font-tight text-[13.5px] font-semibold">{item.name}</b>
+                <small className="flex items-center gap-1 text-[12px] text-mute">
+                  <span className="relative inline-flex">
+                    <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[12px] text-mute">{sym}</span>
+                    <input type="number" min="0" step="0.01" aria-label={`Price of ${item.name}`} value={item.price} onChange={e => setItemPrice(item.productId, e.target.value)}
+                      className="h-7 w-[84px] rounded-lg bg-surface pl-5 pr-1.5 font-tight text-[12.5px] font-medium text-ink-2 tabular-nums outline-none shadow-[inset_0_0_0_1px_var(--color-line)] focus:shadow-[inset_0_0_0_2px_var(--color-ink)]" />
+                  </span>
+                  · {getStock(item.productId)} on van
+                </small>
+              </div>
+              <Stepper value={item.quantity} label={item.name} onMinus={() => updateQuantity(item.productId, -1)}
+                onPlus={() => addToCart(vanItems.find(v => v.productId === item.productId))} onType={v => setQuantityDirect(item.productId, v)} />
+              <div className="flex items-center gap-1.5">
+                <span className="min-w-[70px] text-right font-tight text-[14px] font-semibold tabular-nums">{money2(item.price * item.quantity)}</span>
+                <IconBtn label={`Remove ${item.name}`} onClick={() => setCart(prev => prev.filter(c => c.productId !== item.productId))} className="h-7 w-7"><X /></IconBtn>
+              </div>
+            </div>
+          ))}
+
+          <div className="border-t border-line px-[18px] pt-3.5 pb-[18px]">
+            <div className="mb-1.5 flex justify-between text-[12.5px] text-mute"><span>Subtotal</span><span className="tabular-nums">{money2(subtotal)}</span></div>
+            <div className="flex items-baseline justify-between font-tight text-[15px] font-semibold">
+              <span>Total</span><span className="text-[24px] tracking-[-0.02em] tabular-nums">{money2(total)}</span>
+            </div>
+            <p className="mt-1 text-[12px] text-mute">Van sales carry no tax line and no delivery fee</p>
+            <Button size="lg" className="mt-3.5 w-full" disabled={!cart.length} onClick={() => setShowCheckout(true)}>Checkout</Button>
           </div>
         </div>
       </div>
     </div>
-  );
-
-  /* ══════════════════════════════════════════════════════════════════════
-     MAIN POS UI  (same layout as InvoiceBuilder)
-     ══════════════════════════════════════════════════════════════════════ */
-  return (
-    <>
-      {showCheckout && <CheckoutOverlay />}
-
-      <div className={pageMode
-        ? "w-full flex items-stretch justify-center"
-        : "fixed inset-0 z-40 bg-black/40 backdrop-blur-sm flex items-stretch justify-center"
-      }>
-        <div className={`bg-canvas flex flex-col overflow-hidden ${pageMode ? 'w-full h-[calc(100vh-130px)]' : 'w-full max-w-6xl h-full'}`}>
-
-          {/* Modal header */}
-          <div className="flex items-center gap-4 px-6 py-4 bg-white border-b border-black/5 shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center">
-                <Truck size={15} className="text-emerald-600" />
-              </div>
-              <div>
-                <div className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">Van Sale</div>
-                <div className="text-sm font-black text-ink-primary leading-tight">
-                  {vanName}
-                  {vanPlate && <span className="ml-2 text-[10px] tabular-nums text-muted-foreground">{vanPlate}</span>}
-                </div>
-              </div>
-            </div>
-            <div className="flex-1" />
-            <button
-              onClick={onClose}
-              className="w-8 h-8 rounded-xl border border-black/10 flex items-center justify-center text-muted-foreground hover:text-ink-primary hover:border-black/20 transition-all"
-            >
-              <X size={14} />
-            </button>
-          </div>
-
-          {/* Body: two-column POS layout */}
-          <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
-
-            {/* ── LEFT: Product list ───────────────────────────────────── */}
-            <div className="flex-1 flex flex-col gap-4 overflow-hidden p-4">
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder="Search products…"
-                  className="w-full bg-white rounded-2xl py-4 pl-12 pr-4 border border-black/5 outline-none focus:ring-2 focus:ring-accent-signature/20 shadow-sm font-medium"
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-                {searchTerm && (
-                  <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-ink-secondary">
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
-
-              {/* Product rows */}
-              <div className="flex flex-col gap-px overflow-y-auto pr-1 pb-4">
-                {filteredProducts.length === 0 && (
-                  <div className="py-16 text-center text-sm text-muted-foreground">
-                    No stock on van.<br />
-                    <span className="text-[11px]">Load products via Fleet → Load Van Stock</span>
-                  </div>
-                )}
-                {filteredProducts.map(item => {
-                  const stock     = item.maxQty ?? 0;
-                  const outOfStock = stock <= 0;
-                  const inCart    = cart.find(c => c.productId === item.productId);
-                  return (
-                    <div
-                      key={item.productId}
-                      onClick={() => !outOfStock && addToCart(item)}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all border group ${
-                        outOfStock
-                          ? 'opacity-40 cursor-not-allowed border-transparent'
-                          : inCart
-                          ? 'border-accent-signature/30 bg-accent-signature/5 hover:bg-accent-signature/8'
-                          : 'border-transparent bg-white/60 hover:bg-white hover:border-accent-signature/20 hover:shadow-sm'
-                      }`}
-                    >
-                      {/* Thumbnail */}
-                      <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 bg-white border border-border shadow-sm">
-                        <span className="text-[11px] font-black text-ink-primary/30 uppercase">
-                          {(item.productName || '?').slice(0, 2)}
-                        </span>
-                      </div>
-
-                      {/* Name */}
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold text-ink-primary truncate leading-tight">{item.productName}</div>
-                        {inCart && (
-                          <div className="text-[10px] text-accent-signature font-bold">{inCart.quantity} in cart</div>
-                        )}
-                      </div>
-
-                      {/* Price + stock */}
-                      <div className="text-right flex-shrink-0">
-                        <div className="text-sm font-black text-ink-primary">{formatCurrency(item.sellingPrice)}</div>
-                        <div className={`text-xs font-semibold mt-0.5 ${outOfStock ? 'text-red-400' : 'text-muted-foreground'}`}>
-                          {outOfStock ? 'OUT' : `${stock} avail`}
-                        </div>
-                      </div>
-
-                      {/* In-cart badge */}
-                      {inCart && (
-                        <div className="w-5 h-5 rounded-full bg-accent-signature text-button-text text-[9px] font-black flex items-center justify-center shrink-0">
-                          {inCart.quantity}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* ── RIGHT: Cart ──────────────────────────────────────────── */}
-            <div className="w-full lg:w-[580px] xl:w-[640px] glass-panel !p-0 flex flex-col overflow-hidden border-l border-black/5 shadow-2xl">
-
-              {/* Cart header */}
-              <div className="px-4 py-3 border-b border-black/5 flex justify-between items-center bg-canvas/30">
-                <div className="flex items-center gap-2">
-                  <CartIcon size={18} className="text-accent-signature" />
-                  <h2 className="font-semibold text-sm text-ink-primary">Cart</h2>
-                </div>
-                <div className="bg-accent-signature text-button-text text-[10px] font-black px-2 py-1 rounded-pill ring-4 ring-accent-signature/10">
-                  {cart.reduce((s, i) => s + i.quantity, 0)} items
-                </div>
-              </div>
-
-              {/* Column headers */}
-              {cart.length > 0 && (
-                <div className="grid grid-cols-[1fr_90px_80px_64px_20px] gap-2 px-4 py-2 bg-canvas/50 border-b border-black/5">
-                  <span className="text-xs font-black text-muted-foreground uppercase tracking-widest">Product</span>
-                  <span className="text-xs font-black text-muted-foreground uppercase tracking-widest text-center">Qty</span>
-                  <span className="text-xs font-black text-muted-foreground uppercase tracking-widest text-right">Unit Price</span>
-                  <span className="text-xs font-black text-muted-foreground uppercase tracking-widest text-right">Total</span>
-                  <span />
-                </div>
-              )}
-
-              {/* Cart items */}
-              <div className="flex-1 overflow-y-auto">
-                {cart.map(item => (
-                  <div
-                    key={item.productId}
-                    className="grid grid-cols-[1fr_90px_80px_64px_20px] gap-2 items-center px-4 py-2.5 border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors"
-                  >
-                    {/* Name */}
-                    <div className="min-w-0">
-                      <div className="text-sm font-bold text-ink-primary truncate uppercase">{item.name}</div>
-                    </div>
-
-                    {/* Qty stepper */}
-                    <div className="flex items-center justify-center gap-0.5 bg-white border border-black/8 rounded-lg p-0.5">
-                      <button
-                        onClick={() => updateQuantity(item.productId, -1)}
-                        className="w-5 h-5 rounded flex items-center justify-center hover:bg-canvas transition-all text-ink-primary shrink-0"
-                      >
-                        <Minus size={9} strokeWidth={3} />
-                      </button>
-                      <input
-                        type="number"
-                        min="1"
-                        value={item.quantity}
-                        onChange={e => setQuantityDirect(item.productId, e.target.value)}
-                        className="w-8 text-center text-sm font-black text-ink-primary bg-transparent outline-none tabular-nums"
-                      />
-                      <button
-                        onClick={() => addToCart(vanItems.find(v => v.productId === item.productId))}
-                        className="w-5 h-5 rounded flex items-center justify-center hover:bg-canvas transition-all text-ink-primary shrink-0"
-                      >
-                        <Plus size={9} strokeWidth={3} />
-                      </button>
-                    </div>
-
-                    {/* Unit price input */}
-                    <div className="relative">
-                      <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-bold pointer-events-none">₹</span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.price}
-                        onChange={e => setItemPrice(item.productId, e.target.value)}
-                        className="w-full pl-4 pr-1 py-1 text-sm font-bold bg-canvas rounded-lg outline-none focus:ring-1 border border-black/8 text-ink-primary focus:ring-accent-signature/30 tabular-nums"
-                      />
-                    </div>
-
-                    {/* Line total */}
-                    <div className="text-sm font-black text-ink-primary tabular-nums text-right">
-                      {formatCurrency(item.price * item.quantity)}
-                    </div>
-
-                    {/* Remove */}
-                    <button
-                      onClick={() => setCart(prev => prev.filter(c => c.productId !== item.productId))}
-                      className="text-muted-foreground hover:text-red-400 transition-colors flex items-center justify-center"
-                    >
-                      <X size={11} strokeWidth={2.5} />
-                    </button>
-                  </div>
-                ))}
-
-                {cart.length === 0 && (
-                  <div className="h-full flex flex-col items-center justify-center opacity-30 pointer-events-none p-10 text-center">
-                    <Package size={48} className="mb-4" />
-                    <div className="text-xs font-bold uppercase tracking-widest">Cart is empty</div>
-                  </div>
-                )}
-              </div>
-
-              {/* Bottom: client + totals + checkout */}
-              <div className="p-6 border-t border-black/5 bg-canvas/10">
-
-                {/* Client picker */}
-                <div className="mb-4">
-                  <label className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">
-                    <User size={12} /> Client
-                  </label>
-                  <div ref={clientDropRef} className="relative">
-                    {selectedClientId !== 'WALKIN' && !clientDropOpen ? (() => {
-                      const sel = clients.find(c => c.id === selectedClientId);
-                      return (
-                        <div className="w-full bg-accent-signature/5 border border-accent-signature/20 rounded-xl px-4 py-3 flex items-center justify-between gap-2">
-                          <span className="flex flex-col min-w-0 flex-1">
-                            <span className="text-xs font-black text-ink-primary uppercase tracking-tight truncate">{(sel?.name || 'Unknown').toUpperCase()}</span>
-                            {(sel?.phone || sel?.address) && (
-                              <span className="text-[9px] text-muted-foreground font-medium truncate mt-0.5">{sel?.phone || sel?.address}</span>
-                            )}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => { setSelectedClientId('WALKIN'); setClientSearch(''); setClientDropOpen(false); }}
-                            className="w-6 h-6 rounded-xl bg-black/5 flex items-center justify-center text-muted-foreground hover:bg-black/10 shrink-0"
-                          >
-                            <X size={10} />
-                          </button>
-                        </div>
-                      );
-                    })() : (
-                      <div className="relative">
-                        <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                        <input
-                          type="text"
-                          placeholder="Type client name to search…"
-                          className="w-full bg-white rounded-xl py-3 pl-9 pr-4 border border-black/8 outline-none focus:ring-2 focus:ring-accent-signature/20 text-xs font-semibold text-ink-primary placeholder:text-muted-foreground placeholder:font-normal"
-                          value={clientSearch}
-                          onChange={e => { setClientSearch(e.target.value); setClientDropOpen(true); }}
-                          onFocus={() => setClientDropOpen(true)}
-                        />
-                        {clientSearch && (
-                          <button type="button" onClick={() => { setClientSearch(''); setClientDropOpen(false); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-ink-secondary">
-                            <X size={11} />
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {clientDropOpen && (
-                      <div className="absolute z-50 bottom-full mb-1 left-0 right-0 bg-white border border-black/10 rounded-xl shadow-xl overflow-hidden">
-                        <div className="max-h-52 overflow-y-auto">
-                          <button
-                            type="button"
-                            onClick={() => { setSelectedClientId('WALKIN'); setClientDropOpen(false); setClientSearch(''); }}
-                            className={`w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-tight flex items-center justify-between hover:bg-canvas transition-colors border-b border-black/5 ${selectedClientId === 'WALKIN' ? 'text-accent-signature bg-accent-signature/5' : 'text-muted-foreground'}`}
-                          >
-                            Walk-in / No client
-                            {selectedClientId === 'WALKIN' && <Check size={12} />}
-                          </button>
-                          {clients
-                            .filter(c => !clientSearch || (c.name || '').toLowerCase().includes(clientSearch.toLowerCase()) || (c.phone || '').toLowerCase().includes(clientSearch.toLowerCase()))
-                            .map(c => (
-                              <button
-                                key={c.id}
-                                type="button"
-                                onClick={() => { setSelectedClientId(c.id); setClientDropOpen(false); setClientSearch(''); }}
-                                className={`w-full text-left px-4 py-2.5 flex items-center justify-between hover:bg-canvas transition-colors ${selectedClientId === c.id ? 'bg-accent-signature/5' : ''}`}
-                              >
-                                <span className="flex flex-col min-w-0 flex-1">
-                                  <span className={`text-xs font-bold uppercase tracking-tight truncate ${selectedClientId === c.id ? 'text-accent-signature' : 'text-ink-primary'}`}>
-                                    {(c.name || 'Unnamed').toUpperCase()}
-                                  </span>
-                                  {(c.phone || c.address) && (
-                                    <span className="text-[9px] text-muted-foreground font-medium truncate mt-0.5">{c.phone || c.address}</span>
-                                  )}
-                                </span>
-                                {selectedClientId === c.id && <Check size={12} className="shrink-0 text-accent-signature ml-2" />}
-                              </button>
-                            ))
-                          }
-                          {clientSearch && clients.filter(c => (c.name || '').toLowerCase().includes(clientSearch.toLowerCase())).length === 0 && (
-                            <div className="px-4 py-5 text-center text-[10px] text-muted-foreground">No clients match "{clientSearch}"</div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Totals */}
-                <div className="space-y-2 mb-6">
-                  <div className="flex justify-between text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                    <span>Subtotal</span><span>{formatCurrency(subtotal)}</span>
-                  </div>
-                  <div className="flex justify-between text-xl font-black text-ink-primary pt-2 border-t border-black/5">
-                    <span>Total</span><span>{formatCurrency(total)}</span>
-                  </div>
-                </div>
-
-                {/* Checkout button */}
-                <button
-                  disabled={!cart.length}
-                  onClick={() => setShowCheckout(true)}
-                  className="w-full h-14 rounded-pill bg-ink-primary text-white font-black text-sm flex items-center justify-center gap-2 hover:bg-ink-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xl shadow-ink-primary/20"
-                >
-                  <ArrowRight size={16} /> Checkout
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
   );
 };
 
