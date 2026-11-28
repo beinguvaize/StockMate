@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Plus, Trash2, ScanLine, Search } from 'lucide-react';
+import { Plus, Trash2, ScanLine, Search, X, AlertCircle } from 'lucide-react';
 import Dialog from '../ui/Dialog';
 import { Button } from '../ui/button';
 import { cn } from '../../lib/utils';
+import { money } from '../../lib/clientView';
+import { lineAmount, panelTotal, panelBalance } from '../../lib/documentTotals';
 
 // Shared building blocks for the document builder (PartyPicker, DocItemGrid,
 // TotalsPanel). Extracted from CreateDocument so the same parts can power
@@ -35,7 +37,7 @@ export const Row = ({ label, value, muted, tone }) => (
 
 const initials = (name = '') => String(name).trim().split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase() || '?';
 
-export const PartyPicker = ({ label, party, clients = [], onChange, manual = false }) => {
+export const PartyPicker = ({ label, party, clients = [], onChange, manual = false, invalid = false }) => {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const list = useMemo(() => {
@@ -72,9 +74,10 @@ export const PartyPicker = ({ label, party, clients = [], onChange, manual = fal
           <Button variant="secondary" size="xs" className="ml-auto" onClick={() => setOpen(true)}>Change</Button>
         </div>
       ) : (
-        <button type="button" data-card onClick={() => setOpen(true)}
-          className="m-press mt-2.5 w-full rounded-xl py-7 font-tight text-[13.5px] font-semibold text-ink shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile">
-          <Plus size={15} className="mr-1 inline -mt-0.5" />Add party
+        <button type="button" data-card onClick={() => setOpen(true)} aria-invalid={invalid || undefined}
+          className={cn('m-press mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl py-[26px] font-tight text-[13.5px] font-semibold text-ink hover:bg-tile',
+            invalid ? 'bg-[#FFFBFB] shadow-[inset_0_0_0_1.5px_#F5C2C2]' : 'shadow-[inset_0_0_0_1px_var(--color-line)]')}>
+          <Plus size={15} />Add party
         </button>
       ))}
       {open && (
@@ -90,14 +93,19 @@ export const PartyPicker = ({ label, party, clients = [], onChange, manual = fal
             {list.map((c) => (
               <button key={c.id} type="button" data-card onClick={() => { onChange(c); setOpen(false); setQ(''); }}
                 className="flex w-full items-center gap-3 rounded-lg border-t border-sep px-1 py-2.5 text-left first:border-t-0 hover:bg-tile">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-well font-tight text-[12px] font-semibold text-body">{initials(c.name)}</span>
-                <span className="min-w-0">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-amber-soft font-tight text-[12px] font-semibold text-amber-text">{initials(c.name)}</span>
+                <span className="min-w-0 flex-1">
                   <b className="block truncate font-tight text-[13.5px] font-semibold text-ink">{c.name}</b>
                   <small className="block truncate text-[12px] text-mute">{[c.gstin && `GSTIN ${c.gstin}`, c.state].filter(Boolean).join(' · ') || '—'}</small>
                 </span>
+                {/* What they owe: clients.outstanding_balance, kept by the database. */}
+                {Number(c.outstanding_balance) > 0 && (
+                  <span className="shrink-0 font-tight text-[12.5px] font-medium tabular-nums text-mute">{money(c.outstanding_balance)} due</span>
+                )}
               </button>
             ))}
           </div>
+          <p className="mt-2 text-[12px] text-mute">Searches name, GSTIN and phone. Due amounts are shown.</p>
         </Dialog>
       )}
     </div>
@@ -134,8 +142,15 @@ export const DocItemGrid = ({ lines = [], products = [], gstOn = true, onAdd, on
             </tr>
           </thead>
           <tbody>
+            {lines.length === 0 && (
+              <tr className="border-t border-sep">
+                <td colSpan={9} className="px-2.5 py-7 text-center text-[13px] text-mute">
+                  {manual ? 'No items yet. Add an item or pick a product.' : 'No items yet. Add an item to start.'}
+                </td>
+              </tr>
+            )}
             {lines.map((l, i) => {
-              const lineAmt = (Number(l.qty) || 0) * (Number(l.rate) || 0) * (1 - (Number(l.disc) || 0) / 100);
+              const lineAmt = lineAmount(l);
               return (
                 <tr key={l.uid} className="border-t border-sep">
                   <td className="px-2.5 py-2 text-mute">{i + 1}</td>
@@ -264,9 +279,9 @@ export const TotalsPanel = ({
   taxMode, setTaxMode, taxModeLocked = false, taxModeHint,
   note,
 }) => {
-  const base = gstOn ? Number(gst.grandTotal) || 0 : Number(gst.subtotal) || 0;
-  const total = Math.max(0, base + (Number(charges) || 0) - (Number(billDiscount) || 0));
-  const balance = Math.max(0, total - (Number(received) || 0));
+  // (lib/documentTotals: the same expressions, moved there unchanged.)
+  const total = panelTotal(gst, gstOn, charges, billDiscount);
+  const balance = panelBalance(total, received);
   return (
     <div className="rounded-[14px] border border-line bg-surface px-[18px] py-4">
       {gstOn && taxMode && (
@@ -324,3 +339,27 @@ export const TotalsPanel = ({
     </div>
   );
 };
+
+/**
+ * A failed save (approved newdoc-09, 10): the dark toast at the foot of the
+ * page with the title, the reason, and at most one next step. Stays until
+ * closed or the next save; enters with the dialog motion, none when reduced.
+ */
+export const SaveToast = ({ title, detail, action, onClose }) => (
+  <div role="alert" className="m-dialog fixed bottom-7 left-1/2 z-[170] flex w-[min(560px,calc(100vw-32px))] -translate-x-1/2 items-start gap-2.5 rounded-[14px] bg-ink py-3 pl-4 pr-3.5 text-[13px] leading-[1.45] text-white shadow-[0_18px_40px_-16px_rgba(17,20,24,0.5)]">
+    <AlertCircle size={18} className="mt-px shrink-0 text-[#FCA5A5]" />
+    <div className="min-w-0 flex-1">
+      <b className="block font-tight text-[13.5px] font-semibold">{title}</b>
+      <span className="block break-words text-white/80">{detail}</span>
+    </div>
+    {action && (
+      <button type="button" onClick={action.onClick}
+        className="ml-2 self-center whitespace-nowrap font-tight text-[13px] font-semibold text-[#FFC46B] hover:underline underline-offset-4">
+        {action.label}
+      </button>
+    )}
+    <button type="button" onClick={onClose} aria-label="Dismiss" className="grid h-6 w-6 shrink-0 place-items-center self-center rounded-xl text-white/70 hover:bg-white/10 hover:text-white">
+      <X size={14} />
+    </button>
+  </div>
+);

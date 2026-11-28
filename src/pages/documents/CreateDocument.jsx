@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  ArrowLeft, FileText, FileCheck, Wallet,
+  ChevronLeft, AlertCircle, FileText, FileCheck, Wallet,
   RotateCcw, ReceiptText, Truck, FileSpreadsheet, FilePen, Copy,
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
@@ -17,10 +17,11 @@ import { useSales } from '../../hooks/useSales';
 import { useInventory } from '../../hooks/useInventory';
 import { useEstimates } from '../../hooks/useEstimates';
 import { usePeople } from '../../hooks/usePeople';
-import { calculateGST, shareToWhatsApp } from '../../lib/gstEngine';
+import { shareToWhatsApp } from '../../lib/gstEngine';
+import { documentGst, documentFinalTotal, documentPaidNow, estimateGrandTotal } from '../../lib/documentTotals';
 import { tierPrice } from '../../lib/priceResolver';
 import { collectionGoesToClientSettlement, clientSettlementBlocker, creditInvoiceTakesMoney, CREDIT_INVOICE_PAID_MSG } from '../../lib/documentLedger';
-import { PartyPicker, DocItemGrid, TotalsPanel, Field, inr } from '../../components/documents/DocParts';
+import { PartyPicker, DocItemGrid, TotalsPanel, Field, SaveToast, inr } from '../../components/documents/DocParts';
 
 const genId = (p) => `${p}-${Date.now().toString(36).toUpperCase()}`;
 
@@ -37,6 +38,24 @@ const DOC_TYPES = {
   DELIVERY_CHALLAN:{ label: 'Delivery challan', prefix: 'DC',  icon: Truck,           gst: false, stock: 'OUT',  party: 'Ship to',   save: 'estimate' },
   PROFORMA:        { label: 'Proforma',         prefix: 'PI',  icon: FileSpreadsheet, gst: true,  stock: 'NONE', party: 'Bill to',   save: 'estimate' },
   MANUAL_INVOICE:  { label: 'Manual bill',      prefix: 'MB',  icon: FilePen,         gst: true,  stock: 'NONE', party: 'Bill to',   save: 'manual', manual: true },
+};
+
+// Where each save path's documents are listed: the page a successful save
+// already goes to, offered when a save could not be confirmed so the user can
+// look before saving again.
+const LIST_FOR_SAVE = {
+  invoice: ['/invoices', 'Invoices'], estimate: ['/estimates', 'Estimates'], manual: ['/estimates', 'Estimates'],
+  return: ['/sales', 'Sales'], payment: ['/clients', 'Clients'],
+};
+
+// What a document does, under its total (approved newdoc-03, 04, 06). Each
+// line says only what that type's save path does today.
+const totalsNote = (docType, party) => {
+  if (docType === 'CREDIT_NOTE' && party?.name) return `Credits ${party.name}'s account. The items go back into stock.`;
+  if (docType === 'SALES_RETURN' && party?.name) return `Goes back into stock and is credited to ${party.name}'s account.`;
+  if (docType === 'DELIVERY_CHALLAN') return 'A challan goes with the goods. No GST and no bill: make the invoice later.';
+  if (docType === 'MANUAL_INVOICE') return 'A manual bill is not a sale: no stock, GST return or ledger entry.';
+  return undefined;
 };
 
 // The shop's today, not UTC's: between midnight and 5:30 am IST the UTC date
@@ -72,6 +91,11 @@ const CreateDocument = () => {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [printBill, setPrintBill] = useState(null); // manual bill → invoice template preview
+  // A failed save, said in a toast (approved newdoc-09, 10): the server's
+  // reason, or "may have saved" with a way to the list.
+  const [failure, setFailure] = useState(null);
+  // Save pressed before the document is complete (approved newdoc-08).
+  const [tried, setTried] = useState(false);
 
   // The database posts every rupee this page takes in (post_sale_to_ledger
   // and post_client_payment_to_ledger, see lib/documentLedger.js). Nothing in
@@ -99,18 +123,13 @@ const CreateDocument = () => {
   const taxModeLocked = cfg.save === 'invoice';
 
   // Live GST totals — single source of truth, recomputed from the lines.
-  const gst = useMemo(() => calculateGST(
-    lines.map((l) => ({
-      qty: l.qty, rate: l.rate, discountPercent: l.disc,
-      taxRate: cfg.gst ? l.taxRate : 0, hsn_code: l.hsn,
-    })),
-    businessState, party?.state || '',
-    { taxMode: cfg.gst ? taxMode : 'NONE' },
-  ), [lines, cfg.gst, businessState, party, taxMode]);
+  // (lib/documentTotals: the same expressions, moved there unchanged.)
+  const gst = useMemo(() => documentGst(lines, cfg.gst, businessState, party?.state, taxMode),
+    [lines, cfg.gst, businessState, party, taxMode]);
 
   // Final payable = line totals + extra charges − bill discount.
-  const finalTotal = Math.max(0, (Number(gst.grandTotal) || 0) + (Number(charges) || 0) - (Number(billDiscount) || 0));
-  const paidNow = markPaid ? finalTotal : (Number(received) || 0);
+  const finalTotal = documentFinalTotal(gst, charges, billDiscount);
+  const paidNow = documentPaidNow(markPaid, finalTotal, received);
 
   const addLine = (p) => setLines((prev) => [...prev, {
     uid: `${p.id}-${Date.now()}`, productId: p.id, name: p.name,
@@ -137,15 +156,19 @@ const CreateDocument = () => {
   );
 
   const handleSave = async () => {
-    if (!canSave) return;
+    if (!canSave) { setTried(true); return; }
+    setFailure(null);
     setSaving(true);
     // A refusal says "Not saved" and the server's reason. A dropped connection
     // may still have committed, so it says it could not confirm instead.
     const fail = (m) => {
       const f = classifyWriteFailure(typeof m === 'string' ? new Error(m) : m, { noun: cfg.label.toLowerCase() });
-      addNotification(f.maySaved
-        ? `${f.title}. It may have been saved: check the list before saving again. ${f.detail}`
-        : `${f.title}: ${f.detail}`, 'error', 9000);
+      setFailure({
+        title: f.title,
+        detail: f.maySaved ? `It may have been saved: check the list before saving again. ${f.detail}` : f.detail,
+        maySaved: f.maySaved,
+        list: LIST_FOR_SAVE[cfg.save],
+      });
       setSaving(false);
     };
     try {
@@ -178,7 +201,7 @@ const CreateDocument = () => {
           taxable_amount: gst.taxable, tax_total: gst.totalTax, cgst_amount: gst.cgst,
           sgst_amount: gst.sgst, igst_amount: gst.igst,
           discount_total: (gst.totalDiscount || 0) + (Number(billDiscount) || 0),
-          round_off: gst.roundOff, grand_total: cfg.gst ? finalTotal : (Number(gst.subtotal) + (Number(charges) || 0) - (Number(billDiscount) || 0)),
+          round_off: gst.roundOff, grand_total: estimateGrandTotal(cfg.gst, gst, finalTotal, charges, billDiscount),
           notes: notes || null, status: 'DRAFT',
         });
         if (res?.error) return fail(res.error.message);
@@ -297,21 +320,35 @@ const CreateDocument = () => {
   const backLabel = location.state?.from || 'Back';
   const goBack = () => navigate(-1);
   const partyMeta = cfg.noItems ? 'Payment' : cfg.label;
+  // What is missing, said beside Save once Save was pressed (newdoc-08).
+  const missingParty = !party?.name;
+  const missingBody = cfg.save === 'payment' ? !(Number(payAmount) > 0) : lines.length === 0;
+  const showMissing = tried && !saving && (missingParty || missingBody);
+  const missingWords = cfg.save === 'payment'
+    ? (missingParty && missingBody ? 'Add a party and the amount received to save' : missingParty ? 'Add a party to save' : 'Enter the amount received to save')
+    : (missingParty && missingBody ? 'Add a party and at least one item to save' : missingParty ? 'Add a party to save' : 'Add at least one item to save');
+  useEffect(() => { if (tried && !missingParty && !missingBody) setTried(false); }, [tried, missingParty, missingBody]);
 
   return (
     <div className="flex flex-col pb-16">
-      {/* Header: back, title, cancel and save */}
-      <div className="m-rise mb-4 flex flex-wrap items-center gap-2.5">
-        <div className="min-w-0">
-          <button type="button" onClick={goBack}
-            className="inline-flex items-center gap-1 font-tight text-[13px] font-semibold text-body hover:text-ink">
-            <ArrowLeft size={14} /> {backLabel}
-          </button>
-          <h3 className="mt-1 font-tight text-[22px] font-semibold tracking-[-0.02em] text-ink">Create {cfg.label.toLowerCase()}</h3>
-        </div>
+      {/* Header: back, title, cancel and save (approved newdoc-01) */}
+      <div className="m-rise mb-[18px] flex flex-wrap items-center gap-3.5">
+        <button type="button" onClick={goBack}
+          className="m-press inline-flex items-center gap-1.5 font-tight text-[13px] font-semibold text-body hover:text-ink">
+          <ChevronLeft size={15} /> {backLabel}
+        </button>
+        <h3 className="font-tight text-[20px] font-semibold tracking-[-0.02em] text-ink">Create {cfg.label.toLowerCase()}</h3>
         <span className="flex-1" />
+        {showMissing && (
+          <span role="status" className="inline-flex items-center gap-2 text-[12.5px] text-bad-text">
+            <AlertCircle size={15} /> {missingWords}
+          </span>
+        )}
         <Button variant="secondary" onClick={goBack}>Cancel</Button>
-        <Button disabled={!canSave} onClick={handleSave}>
+        {/* Looks disabled until the document is complete, but still answers a
+            press: it then says what is missing instead of doing nothing. */}
+        <Button aria-disabled={!canSave} disabled={saving} onClick={handleSave}
+          className={!canSave && !saving ? 'opacity-40' : undefined}>
           {saving ? 'Saving…' : `Save ${cfg.label.toLowerCase()}`}
         </Button>
       </div>
@@ -336,7 +373,7 @@ const CreateDocument = () => {
       {/* Doc-type switch */}
       <div role="group" aria-label="Document type" className="m-rise mb-4 flex flex-wrap gap-1.5" style={{ '--i': 1 }}>
         {Object.entries(DOC_TYPES).map(([k, d]) => (
-          <button key={k} type="button" aria-pressed={docType === k} onClick={() => { setDocType(k); }}
+          <button key={k} type="button" aria-pressed={docType === k} onClick={() => { setDocType(k); setTried(false); }}
             className={`m-press whitespace-nowrap rounded-pill px-3.5 py-[7px] font-tight text-[13px] font-semibold ${
               docType === k ? 'bg-ink text-white' : 'text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile'
             }`}>{d.label}</button>
@@ -346,9 +383,9 @@ const CreateDocument = () => {
       <div className="flex flex-col gap-4">
         {/* Party + meta */}
         <div className="m-rise grid gap-4 md:grid-cols-2" style={{ '--i': 2 }}>
-          <PartyPicker label={cfg.party} party={party} clients={clients} onChange={setParty} manual={cfg.manual} />
+          <PartyPicker label={cfg.party} party={party} clients={clients} onChange={setParty} manual={cfg.manual} invalid={showMissing && missingParty} />
 
-          <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-[14px] border border-line bg-surface px-5 py-[18px]">
+          <div className="grid grid-cols-2 content-start gap-x-4 gap-y-3 rounded-[14px] border border-line bg-surface px-5 py-[18px]">
             <Field label={`${partyMeta} no.`} value="Given on save" muted />
             <label className="block">
               <span className="block font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-mute">Date</span>
@@ -402,27 +439,30 @@ const CreateDocument = () => {
             taxModeHint={taxModeLocked
               ? 'Set by your GST settings; a sales invoice is taxed when it is saved.'
               : undefined}
-            note={docType === 'CREDIT_NOTE' && party?.name
-              ? `Credits ${party.name}'s account. The items go back into stock.`
-              : undefined} />
+            note={totalsNote(docType, party)} />
         </div>
         )}
       </div>
 
-      {/* Manual bill — printable invoice preview */}
+      {/* Manual bill: the saved bill on the shop's invoice layout (approved
+          newdoc-07). The template is its own full-screen viewer. */}
       {printBill && (
-        <div className="fixed inset-0 z-50 bg-black/50 overflow-auto p-4 sm:p-8" onClick={() => setPrintBill(null)}>
-          <div className="max-w-3xl mx-auto" onClick={(e) => e.stopPropagation()}>
-            <InvoiceTemplate
-              invoice={printBill}
-              businessProfile={businessProfile}
-              client={{ name: printBill.client_name, gst_no: printBill.client_gstin, state: printBill.place_of_supply }}
-              onPrint={() => window.print()}
-              onShare={() => shareToWhatsApp(printBill, { name: printBill.client_name, gst_no: printBill.client_gstin, state: printBill.place_of_supply }, businessProfile)}
-              onClose={() => { setPrintBill(null); navigate('/estimates'); }}
-            />
-          </div>
-        </div>
+        <InvoiceTemplate
+          invoice={printBill}
+          businessProfile={businessProfile}
+          client={{ name: printBill.client_name, gst_no: printBill.client_gstin, state: printBill.place_of_supply }}
+          title={`Manual bill ${printBill.invoice_number}`}
+          subtitle="Saved. Shown on your invoice layout."
+          printLabel="Print"
+          onPrint={() => window.print()}
+          onShare={() => shareToWhatsApp(printBill, { name: printBill.client_name, gst_no: printBill.client_gstin, state: printBill.place_of_supply }, businessProfile)}
+          onClose={() => { setPrintBill(null); navigate('/estimates'); }}
+        />
+      )}
+
+      {failure && (
+        <SaveToast title={failure.title} detail={failure.detail} onClose={() => setFailure(null)}
+          action={failure.maySaved && failure.list ? { label: `Open ${failure.list[1]}`, onClick: () => navigate(failure.list[0]) } : null} />
       )}
     </div>
   );
