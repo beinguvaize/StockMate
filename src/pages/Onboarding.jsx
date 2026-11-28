@@ -1,365 +1,157 @@
 import React, { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useTenant } from '../context/TenantContext';
+import { useNavigate } from 'react-router-dom';
 import {
-  CheckCircle2, ArrowRight, Package, Users, ShoppingCart,
-  FileText, Building2, Zap, Star, Shield, ChevronRight,
-  BarChart3, Wallet, BookOpen, Calendar
+  Check, ChevronRight, LayoutGrid, Package, FileText, Users, Store, ShoppingCart,
 } from 'lucide-react';
+import { useTenant } from '../context/TenantContext';
+import { useAuth } from '../context/AuthContext';
+import { formatDate } from '../lib/utils';
+import { cn } from '../lib/utils';
+import { ONBOARD_STEPS, planLabel, rowState, welcomeIncludes } from '../lib/setupFlow';
+import { SetupFrame, StepBar, StepQ, StepNav, navBtn } from '../components/auth/SetupParts';
+import { AuthMark, Hint } from '../components/auth/AuthParts';
 
-// Steps for new Starter users
-const STEPS = [
-  {
-    id: 'welcome',
-    title: 'Welcome to bookledger!',
-    subtitle: 'Your 60-day free trial has started.',
-  },
-  {
-    id: 'profile',
-    title: 'Set up your business profile',
-    subtitle: 'Add GST number, address, and logo for professional invoices.',
-  },
-  {
-    id: 'product',
-    title: 'Add your first product',
-    subtitle: 'Start tracking your inventory.',
-  },
-  {
-    id: 'client',
-    title: 'Add your first client',
-    subtitle: 'Save a customer for fast billing.',
-  },
-  {
-    id: 'sale',
-    title: 'Make your first sale',
-    subtitle: 'Create an invoice or a POS sale.',
-  },
+/**
+ * After the shop is created (approved setup-09 to 13): a welcome card with
+ * what the plan includes, then four first-day tasks. Nothing here writes
+ * anything; each task opens the page where it is done.
+ */
+
+const STEP_ICON = { profile: Store, product: Package, client: Users, sale: ShoppingCart };
+
+// Quick action cards shown from the first task on.
+const QUICK_ACTIONS = [
+  { label: 'Dashboard',      Icon: LayoutGrid, path: 'dashboard' },
+  { label: 'Add product',    Icon: Package,    path: 'inventory' },
+  { label: 'Create invoice', Icon: FileText,   path: 'sales' },
+  { label: 'Add client',     Icon: Users,      path: 'clients' },
 ];
 
-const PLAN_FEATURES = {
-  STARTER: {
-    label: 'Starter',
-    color: 'text-accent-signature',
-    included: [
-      { icon: <BarChart3 size={14} />, label: 'Dashboard & Analytics' },
-      { icon: <Package size={14} />, label: 'Inventory Management' },
-      { icon: <ShoppingCart size={14} />, label: 'Sales & Mobile POS' },
-      { icon: <FileText size={14} />, label: 'GST Invoices' },
-      { icon: <Users size={14} />, label: 'Client Management' },
-      { icon: <Wallet size={14} />, label: 'Expense Tracking' },
-      { icon: <BookOpen size={14} />, label: 'Day Book' },
-      { icon: <Calendar size={14} />, label: '500 invoices/month' },
-    ],
-    locked: ['Purchases & Suppliers', 'Delivery Routes', 'Payroll', 'GSTR Export', 'Reports'],
-    upgrade: 'PRO',
-  },
-  PRO: {
-    label: 'Professional',
-    color: 'text-blue-500',
-    included: [
-      { icon: <Package size={14} />, label: 'Everything in Starter' },
-      { icon: <ShoppingCart size={14} />, label: 'Purchases & Suppliers' },
-      { icon: <FileText size={14} />, label: 'GSTR-1 & GSTR-3B Export' },
-      { icon: <BarChart3 size={14} />, label: 'Full Reports Suite' },
-      { icon: <Calendar size={14} />, label: 'Payroll Management' },
-      { icon: <Star size={14} />, label: 'Price Lists & WAC Costing' },
-    ],
-    locked: ['Multi-Location Inventory', 'White Label', 'API Access'],
-    upgrade: 'ENTERPRISE',
-  },
-  ENTERPRISE: {
-    label: 'Enterprise',
-    color: 'text-purple-500',
-    included: [
-      { icon: <Shield size={14} />, label: 'Everything in Pro' },
-      { icon: <Package size={14} />, label: 'Multi-Location Inventory' },
-      { icon: <Users size={14} />, label: 'Full User Management' },
-      { icon: <FileText size={14} />, label: 'Audit Log' },
-      { icon: <Zap size={14} />, label: 'API Access & White Label' },
-    ],
-    locked: [],
-    upgrade: null,
-  },
+const PILL = {
+  done:    ['bg-good-soft text-good-text', 'Done'],
+  now:     ['bg-amber-soft text-amber-text', 'Now'],
+  next:    ['bg-well text-body', 'Next'],
+  skipped: ['bg-well text-body', 'Skipped'],
 };
 
-// Quick action cards shown at the end
-const QUICK_ACTIONS = [
-  { label: 'Go to Dashboard', icon: <BarChart3 size={18} />, path: 'dashboard', color: 'bg-ink-primary text-white' },
-  { label: 'Add Product', icon: <Package size={18} />, path: 'inventory', color: 'bg-white border border-black/8 text-ink-primary' },
-  { label: 'Create Invoice', icon: <FileText size={18} />, path: 'sales', color: 'bg-white border border-black/8 text-ink-primary' },
-  { label: 'Add Client', icon: <Users size={18} />, path: 'clients', color: 'bg-white border border-black/8 text-ink-primary' },
-];
-
 const Onboarding = () => {
-  const { tenantSlug } = useParams();
   const { currentTenant } = useTenant();
+  const { logout } = useAuth();
   const navigate = useNavigate();
+  // 0 is the welcome card; 1 to 4 are the tasks.
   const [currentStep, setCurrentStep] = useState(0);
   const [completed, setCompleted] = useState(new Set());
 
-  const rawPlan = currentTenant?.plan || 'STARTER';
-  const plan = rawPlan === 'GROWTH' ? 'STARTER' : rawPlan === 'FREE' ? 'STARTER' : rawPlan;
-  const planInfo = PLAN_FEATURES[plan] || PLAN_FEATURES.STARTER;
-  const slug = tenantSlug || currentTenant?.slug;
-  const isLastStep = currentStep === STEPS.length - 1;
+  const plan = currentTenant?.plan || 'FREE';
+  const includes = welcomeIncludes(plan);
+  const label = planLabel(plan === 'STARTER' ? 'GROWTH' : plan);
+  const total = ONBOARD_STEPS.length;
+  const isLastStep = currentStep === total;
+  const task = ONBOARD_STEPS[currentStep - 1];
 
   const markDone = () => {
-    setCompleted(prev => new Set([...prev, STEPS[currentStep].id]));
-    if (!isLastStep) {
-      setCurrentStep(s => s + 1);
-    }
+    if (currentStep > 0) setCompleted(prev => new Set([...prev, task.id]));
+    if (!isLastStep) setCurrentStep(s => s + 1);
   };
 
   const goToDashboard = () => navigate(`/dashboard`);
 
+  const skipLink = (text) => (
+    <p className="mt-5 text-center">
+      <button type="button" onClick={goToDashboard} className="font-tight text-[13px] font-semibold text-body hover:text-ink">{text}</button>
+    </p>
+  );
+
   return (
-    <div className="min-h-screen bg-canvas font-inter flex flex-col items-center justify-start py-12 px-4">
-
-      {/* Brand */}
-      <img
-        src={`${import.meta.env.BASE_URL}logo-clear.png`}
-        alt="bookledger"
-        className="h-8 w-auto object-contain mb-8"
-        onError={(e) => { e.target.style.display = 'none'; }}
-      />
-
-      {/* Header */}
-      <div className="w-full max-w-2xl mb-8">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-accent-signature flex items-center justify-center">
-              <CheckCircle2 size={18} className="text-white" />
-            </div>
-            <div>
-              <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Workspace Ready</div>
-              <div className="text-sm font-black text-ink-primary">{currentTenant?.name || 'Your Business'}</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-accent-signature/10 border border-accent-signature/25 rounded-full">
-            <Calendar size={11} className="text-accent-signature" />
-            <span className="text-[10px] font-black text-accent-signature-hover uppercase tracking-widest">60-day trial active</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Progress bar */}
-      <div className="w-full max-w-2xl mb-8">
-        <div className="flex items-center gap-1">
-          {STEPS.map((step, i) => (
-            <React.Fragment key={step.id}>
-              <div className={`flex items-center justify-center w-7 h-7 rounded-full border-2 text-[10px] font-black transition-all ${
-                completed.has(step.id)
-                  ? 'bg-accent-signature border-accent-signature text-button-text'
-                  : i === currentStep
-                  ? 'border-ink-primary bg-ink-primary text-white'
-                  : 'border-black/10 bg-white text-muted-foreground'
-              }`}>
-                {completed.has(step.id) ? <CheckCircle2 size={12} /> : i + 1}
-              </div>
-              {i < STEPS.length - 1 && (
-                <div className={`flex-1 h-0.5 transition-all ${completed.has(step.id) ? 'bg-accent-signature' : 'bg-black/5'}`} />
-              )}
-            </React.Fragment>
-          ))}
-        </div>
-        <div className="flex justify-between mt-1">
-          {STEPS.map((step, i) => (
-            <span key={step.id} className={`text-[8px] font-black uppercase tracking-widest ${i === currentStep ? 'text-ink-primary' : 'text-muted-foreground'}`}>
-              {step.title.split(' ')[0]}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Main card */}
-      <div className="w-full max-w-2xl">
-
-        {/* Step 0: Welcome + plan features */}
-        {currentStep === 0 && (
-          <div className="bg-white border border-black/5 rounded-3xl shadow-premium p-8">
-            <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-accent-signature rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-[0_0_34px_rgba(217,119,6,0.45)]">
-                <Zap size={28} className="text-white" />
-              </div>
-              <h1 className="text-2xl font-black text-ink-primary tracking-tight mb-2">
-                Welcome, {currentTenant?.name || 'to bookledger'}!
-              </h1>
-              <p className="text-[12px] text-muted-foreground font-medium">
-                Your <span className={`font-black ${planInfo.color}`}>{planInfo.label} plan</span> is active.
-                60 days free, no credit card needed.
+    <SetupFrame onSignOut={() => logout()}>
+      {currentStep === 0 ? (
+        // setup-09
+        <div className="m-rise">
+          <AuthMark tone="gr"><Check size={24} aria-hidden="true" /></AuthMark>
+          <StepQ className="mt-0" title={`Welcome, ${currentTenant?.name || 'to bookledger'}`}
+            sub={`Your ${label} plan trial has started: 60 days free, no card needed. Four short steps get the shop ready to bill.`} />
+          <section className="overflow-hidden rounded-[14px] border border-line bg-white">
+            <div className="border-b border-sep px-5 pb-3.5 pt-4">
+              <h4 className="font-tight text-[15px] font-semibold text-ink">What is included</h4>
+              <p className="mt-0.5 text-[13px] text-body">
+                {label} plan{currentTenant?.trial_end_date ? ` · trial ends ${formatDate(currentTenant.trial_end_date)}` : ''}
               </p>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
-              {/* What's included */}
-              <div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">What's included</div>
-                <ul className="space-y-2">
-                  {planInfo.included.map((f, i) => (
-                    <li key={i} className="flex items-center gap-2.5 text-[11px] font-semibold text-ink-primary">
-                      <span className="text-accent-signature">{f.icon}</span>
-                      {f.label}
-                    </li>
-                  ))}
-                </ul>
+            <div className="px-5 py-4">
+              <div className="grid gap-x-[18px] gap-y-1.5 text-[13.5px] text-ink-2 sm:grid-cols-2">
+                {includes.items.map((f) => (
+                  <span key={f} className="flex items-center gap-2"><Check size={14} strokeWidth={2.4} className="shrink-0 text-good-text" aria-hidden="true" />{f}</span>
+                ))}
               </div>
-
-              {/* Locked / upgrade */}
-              {planInfo.locked.length > 0 && (
-                <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">Unlock with upgrade</div>
-                  <ul className="space-y-2 mb-4">
-                    {planInfo.locked.map((f, i) => (
-                      <li key={i} className="flex items-center gap-2.5 text-[11px] font-semibold text-muted-foreground">
-                        <span className="w-3.5 h-3.5 rounded border border-black/10 shrink-0" />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                  {planInfo.upgrade && (
-                    <button className="text-[10px] font-black text-blue-500 hover:underline uppercase tracking-widest">
-                      Upgrade to {planInfo.upgrade} →
-                    </button>
-                  )}
-                </div>
+              {includes.more && (
+                <Hint className="mt-3">
+                  {includes.more}{' '}
+                  <button type="button" onClick={() => navigate('/settings?tab=pricing')}
+                    className="font-tight text-[13px] font-semibold text-amber-text hover:underline underline-offset-4">Compare plans</button>
+                </Hint>
               )}
             </div>
-
-            <button
-              onClick={markDone}
-              className="w-full flex items-center justify-center gap-2 py-4 bg-ink-primary text-white rounded-pill text-[12px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
-            >
-              Get Started <ArrowRight size={14} />
-            </button>
-          </div>
-        )}
-
-        {/* Steps 1-3: Action steps */}
-        {currentStep > 0 && currentStep < STEPS.length && (
-          <div className="bg-white border border-black/5 rounded-3xl shadow-premium p-8">
-            <div className="mb-6">
-              <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">
-                Step {currentStep} of {STEPS.length - 1}
-              </div>
-              <h2 className="text-xl font-black text-ink-primary tracking-tight">{STEPS[currentStep].title}</h2>
-              <p className="text-[12px] text-muted-foreground font-medium mt-1">{STEPS[currentStep].subtitle}</p>
-            </div>
-
-            {/* Step-specific content */}
-            {STEPS[currentStep].id === 'profile' && (
-              <div className="space-y-3 mb-6">
-                <p className="text-[12px] text-ink-secondary font-medium">
-                  Go to <strong>Settings → Business Profile</strong> to add your GST number, address, and upload your logo. This information appears on all your invoices.
-                </p>
-                <button
-                  onClick={() => navigate(`/settings`)}
-                  className="flex items-center gap-2 px-5 py-3 bg-white border border-border shadow-sm rounded-pill text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
-                >
-                  Open Settings <ChevronRight size={14} />
-                </button>
-              </div>
-            )}
-
-            {STEPS[currentStep].id === 'product' && (
-              <div className="space-y-3 mb-6">
-                <p className="text-[12px] text-ink-secondary font-medium">
-                  Add products to your inventory. Include HSN code and GST tax rate for accurate billing.
-                </p>
-                <button
-                  onClick={() => navigate(`/inventory`)}
-                  className="flex items-center gap-2 px-5 py-3 bg-white border border-border shadow-sm rounded-pill text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
-                >
-                  Go to Inventory <ChevronRight size={14} />
-                </button>
-              </div>
-            )}
-
-            {STEPS[currentStep].id === 'client' && (
-              <div className="space-y-3 mb-6">
-                <p className="text-[12px] text-ink-secondary font-medium">
-                  Add a client with their GSTIN for B2B billing. Walk-in customers don't need registration.
-                </p>
-                <button
-                  onClick={() => navigate(`/clients`)}
-                  className="flex items-center gap-2 px-5 py-3 bg-white border border-border shadow-sm rounded-pill text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
-                >
-                  Go to Clients <ChevronRight size={14} />
-                </button>
-              </div>
-            )}
-
-            {STEPS[currentStep].id === 'sale' && (
-              <div className="space-y-3 mb-6">
-                <p className="text-[12px] text-ink-secondary font-medium">
-                  Create your first sale. Use the <strong>Invoice Builder</strong> for formal GST invoices or <strong>POS</strong> for quick counter sales.
-                </p>
-                <button
-                  onClick={() => navigate(`/sales`)}
-                  className="flex items-center gap-2 px-5 py-3 bg-white border border-border shadow-sm rounded-pill text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
-                >
-                  Go to Sales <ChevronRight size={14} />
-                </button>
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              {isLastStep ? (
-                <button
-                  onClick={goToDashboard}
-                  className="flex-1 flex items-center justify-center gap-2 py-4 bg-accent-signature text-button-text rounded-pill text-[12px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
-                >
-                  Go to Dashboard <ArrowRight size={14} />
-                </button>
-              ) : (
-                <>
-                  <button
-                    onClick={markDone}
-                    className="flex-1 flex items-center justify-center gap-2 py-4 bg-ink-primary text-white rounded-pill text-[12px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
-                  >
-                    Done <CheckCircle2 size={14} />
-                  </button>
-                  <button
-                    onClick={() => setCurrentStep(s => s + 1)}
-                    className="px-6 py-4 border border-black/8 rounded-pill text-[12px] font-black text-muted-foreground hover:text-ink-primary hover:bg-canvas transition-all"
-                  >
-                    Skip
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Quick actions at bottom (always visible from step 1+) */}
-        {currentStep > 0 && (
-          <div className="mt-6">
-            <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">Quick access</div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {QUICK_ACTIONS.map(action => (
-                <button
-                  key={action.label}
-                  onClick={() => navigate(`/${action.path}`)}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-2xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-center ${action.color}`}
-                >
-                  {action.icon}
-                  <span className="text-[10px] font-black uppercase tracking-widest leading-tight">{action.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Skip onboarding link */}
-        <div className="text-center mt-6">
-          <button
-            onClick={goToDashboard}
-            className="text-[10px] font-black text-muted-foreground hover:text-ink-secondary uppercase tracking-widest transition-colors"
-          >
-            Skip onboarding → Go to dashboard
-          </button>
+          </section>
+          <StepNav right={<button type="button" onClick={markDone} className={navBtn('pri')}>Get started</button>} />
+          {skipLink('Skip, go to the Dashboard')}
         </div>
-      </div>
-    </div>
+      ) : (
+        // setup-10 to 13
+        <>
+          <StepBar step={currentStep} total={total} names={['Profile', 'Product', 'Client', 'Sale']} />
+          <div key={currentStep} className="m-rise">
+            <StepQ title={task.q} sub={task.qs} />
+            <div className="overflow-hidden rounded-[14px] border border-line">
+              {ONBOARD_STEPS.map((s, i) => {
+                const st = rowState(i, currentStep - 1, completed, s.id);
+                const I = st === 'done' ? Check : STEP_ICON[s.id];
+                const [pillCls, pillText] = PILL[st];
+                return (
+                  <div key={s.id} className="flex items-center gap-3 border-t border-sep px-4 py-3.5 first:border-t-0">
+                    <span className={cn('grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[10px]',
+                      st === 'done' ? 'bg-good-soft text-good-text' : st === 'now' ? 'bg-ink text-white' : 'bg-tile text-ink-2')}>
+                      <I size={16} aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <b className="block font-tight text-[13.5px] font-semibold text-ink">{s.title}</b>
+                      <small className="block text-[12px] text-mute">{s.small}</small>
+                    </div>
+                    <span className={cn('whitespace-nowrap rounded-pill px-[9px] py-[3px] font-tight text-[11.5px] font-semibold', pillCls)}>{pillText}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-3.5">
+              <button type="button" onClick={() => navigate(task.id === 'profile' ? '/settings?tab=business' : task.path)}
+                className="m-press inline-flex h-10 items-center gap-[7px] rounded-pill bg-white px-[18px] font-tight text-[13.5px] font-semibold text-ink shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile">
+                {task.go}<ChevronRight size={15} aria-hidden="true" />
+              </button>
+            </div>
+
+            {isLastStep ? (
+              <StepNav
+                left={<button type="button" onClick={() => setCurrentStep(s => s - 1)} className={navBtn('sec')}>Back</button>}
+                right={<button type="button" onClick={goToDashboard} className={navBtn('pri')}>Go to the Dashboard</button>} />
+            ) : (
+              <StepNav
+                left={<button type="button" onClick={() => setCurrentStep(s => s + 1)} className={navBtn('sec')}>Skip</button>}
+                right={<button type="button" onClick={markDone} className={navBtn('pri')}>Done, next step</button>} />
+            )}
+          </div>
+
+          <div className="mb-1.5 mt-[22px] font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-mute">Quick access</div>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            {QUICK_ACTIONS.map(({ label: l, Icon: QI, path }) => (
+              <button key={l} type="button" data-card onClick={() => navigate(`/${path}`)}
+                className="m-press flex flex-col items-start gap-2 rounded-xl border border-line p-3.5 text-left font-tight text-[13px] font-semibold text-ink hover:bg-tile">
+                <QI size={18} className="text-ink-2" aria-hidden="true" />{l}
+              </button>
+            ))}
+          </div>
+          {skipLink('Skip setup, go to the Dashboard')}
+        </>
+      )}
+    </SetupFrame>
   );
 };
 

@@ -234,9 +234,10 @@ function AppRoutes() {
       <Route path="/admin" element={<ProtectedRoute requireGlobalAdmin><AdminPanel /></ProtectedRoute>} />
       <Route path="/nexus-hq" element={<ProtectedRoute requireGlobalAdmin><SuperAdminPortal /></ProtectedRoute>} />
 
+      {/* First-day tasks: a page of its own, no side menu (setup-09 to 13). */}
+      <Route path="/onboarding" element={<TenantGate><ProtectedRoute><Onboarding /></ProtectedRoute></TenantGate>} />
       <Route element={<TenantGate><AppLayout /></TenantGate>}>
         <Route path="dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
         <Route path="inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
         <Route path="vehicles" element={<ProtectedRoute><Vehicles /></ProtectedRoute>} />
         <Route path="vehicles/van-sale" element={<ProtectedRoute><VanSalePage /></ProtectedRoute>} />
