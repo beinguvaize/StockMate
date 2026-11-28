@@ -459,6 +459,19 @@ function processedDay(stamp) {
   return Number.isNaN(d.getTime()) ? null : SHOP_DAY.format(d);
 }
 
+/**
+ * What one saved pay line settled for its days: cash paid plus the staff
+ * advance taken back from it. Lines saved before advances existed have no
+ * advanceRecovered, so this is their netPay, exactly as before.
+ */
+export function paidOnLine(item) {
+  const n = (v) => {
+    const x = Number(v);
+    return Number.isFinite(x) ? x : 0;
+  };
+  return n(item?.netPay) + Math.max(0, n(item?.advanceRecovered));
+}
+
 export function paidForWindow({ from, to, employeeId, records = [] } = {}) {
   if (!from || !to || !employeeId) return 0;
   const wFrom = parseISO(from), wTo = parseISO(to);
@@ -473,7 +486,10 @@ export function paidForWindow({ from, to, employeeId, records = [] } = {}) {
     if (!p) continue;
 
     const item = (r.items || []).find(i => i.employeeId === employeeId);
-    const net = Number(item?.netPay || 0);
+    // What that run paid FOR these days: the cash (netPay) plus any staff
+    // advance it took back (advanceRecovered). The recovered part was earned
+    // and settled against the advance; leaving it out would pay it again here.
+    const net = paidOnLine(item);
     if (net <= 0) continue;
 
     // Day-rate pay covers nothing after the day the run was made. Only ever

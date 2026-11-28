@@ -6,5 +6,5 @@
  * to cost a run, so web and phone pay from one set of rules instead of two that
  * drift. payRunServer.test.js fails when the bundle is older than these sources.
  */
-export { buildPayRun, netOf, ATTENDANCE_MARKS } from './payRun.js';
-export { findOverlapping, needsOverlapConfirmation, parsePeriod } from './payrollPeriods.js';
+export { buildPayRun, netOf, planAdvanceRecovery, ATTENDANCE_MARKS } from './payRun.js';
+export { findOverlapping, needsOverlapConfirmation, parsePeriod, paidForWindow } from './payrollPeriods.js';

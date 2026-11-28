@@ -109,6 +109,13 @@ function processedDay(stamp) {
   const d = new Date(stamp);
   return Number.isNaN(d.getTime()) ? null : SHOP_DAY.format(d);
 }
+function paidOnLine(item) {
+  const n = (v) => {
+    const x = Number(v);
+    return Number.isFinite(x) ? x : 0;
+  };
+  return n(item?.netPay) + Math.max(0, n(item?.advanceRecovered));
+}
 function paidForWindow({ from, to, employeeId, records = [] } = {}) {
   if (!from || !to || !employeeId) return 0;
   const wFrom = parseISO(from), wTo = parseISO(to);
@@ -120,7 +127,7 @@ function paidForWindow({ from, to, employeeId, records = [] } = {}) {
     const p = parsePeriod(r.period);
     if (!p) continue;
     const item = (r.items || []).find((i) => i.employeeId === employeeId);
-    const net = Number(item?.netPay || 0);
+    const net = paidOnLine(item);
     if (net <= 0) continue;
     let pTo = p.to;
     if (["DAILY", "HOURLY"].includes(String(item.payType || "").toUpperCase())) {
@@ -412,6 +419,13 @@ function payRunTotals(items = []) {
     totalDeductions: sum("deductions")
   };
 }
+function planAdvanceRecovery({ netPay, balance, skip = false, recoverAll = false } = {}) {
+  const outstanding = Math.max(0, num3(balance?.outstanding));
+  if (skip || outstanding <= 0) return { outstanding, planned: 0 };
+  const due = recoverAll ? outstanding : Math.min(outstanding, Math.max(0, num3(balance?.due_per_run)));
+  const planned = Math.max(0, Math.min(due, num3(netPay)));
+  return { outstanding, planned: Math.round(planned * 100) / 100 };
+}
 function buildPayRun({
   employees = [],
   attendance = {},
@@ -419,17 +433,35 @@ function buildPayRun({
   from,
   to,
   includeOnLeave = [],
-  adjustments = {}
+  adjustments = {},
+  advances = null,
+  skipAdvance = [],
+  recoverAll = []
 } = {}) {
   const switchedIn = new Set(includeOnLeave || []);
-  const line = (emp) => payRunItem({
-    employee: emp,
-    days: attendance[emp.id],
-    from,
-    to,
-    records,
-    adjust: adjustments[emp.id]
-  });
+  const skip = new Set(skipAdvance || []);
+  const all = new Set(recoverAll || []);
+  const line = (emp) => {
+    const item = payRunItem({
+      employee: emp,
+      days: attendance[emp.id],
+      from,
+      to,
+      records,
+      adjust: adjustments[emp.id]
+    });
+    if (advances) {
+      const plan = planAdvanceRecovery({
+        netPay: item.netPay,
+        balance: advances[emp.id],
+        skip: skip.has(emp.id),
+        recoverAll: all.has(emp.id)
+      });
+      item.advanceOutstanding = plan.outstanding;
+      item.advancePlanned = plan.planned;
+    }
+    return item;
+  };
   const items = [];
   const held = [];
   for (const emp of employees || []) {
@@ -444,5 +476,7 @@ export {
   findOverlapping,
   needsOverlapConfirmation,
   netOf,
-  parsePeriod
+  paidForWindow,
+  parsePeriod,
+  planAdvanceRecovery
 };

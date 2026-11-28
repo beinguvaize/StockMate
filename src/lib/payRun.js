@@ -213,6 +213,27 @@ export function payRunTotals(items = []) {
 }
 
 /**
+ * What a run will take back from one person's staff advances. A PREVIEW: the
+ * database works the real figure out again when the run is saved
+ * (process_payroll_run), under a lock, and ignores any figure a client sends.
+ *
+ * `balance` is that person's row of staff_advance_balances:
+ *   outstanding  what is still owed
+ *   due_per_run  sum over open advances of min(fixed amount per run, what is
+ *                left on that advance)
+ * The take is never more than is owed and never more than `netPay` (net pay
+ * does not go below 0; the rest waits for the next run). `skip` takes nothing
+ * this run; `recoverAll` takes everything owed.
+ */
+export function planAdvanceRecovery({ netPay, balance, skip = false, recoverAll = false } = {}) {
+  const outstanding = Math.max(0, num(balance?.outstanding));
+  if (skip || outstanding <= 0) return { outstanding, planned: 0 };
+  const due = recoverAll ? outstanding : Math.min(outstanding, Math.max(0, num(balance?.due_per_run)));
+  const planned = Math.max(0, Math.min(due, num(netPay)));
+  return { outstanding, planned: Math.round(planned * 100) / 100 };
+}
+
+/**
  * The whole run for a window.
  *
  * `items` are the lines that will be paid: every ACTIVE employee, plus any
@@ -222,16 +243,35 @@ export function payRunTotals(items = []) {
  *
  * `attendance` is { employeeId: { 'YYYY-MM-DD': { status, custom_rate } } }.
  * `adjustments` is { employeeId: { bonus, deductions, overtime, commission } }.
+ *
+ * `advances` (optional) is { employeeId: staff_advance_balances row }. When it
+ * is given, every line also carries advanceOutstanding and advancePlanned.
+ * netPay is NOT reduced by the advance: it stays what the person earned, which
+ * is what process_payroll_run expects to be sent and takes the recovery from.
  */
 export function buildPayRun({
   employees = [], attendance = {}, records = [], from, to,
   includeOnLeave = [], adjustments = {},
+  advances = null, skipAdvance = [], recoverAll = [],
 } = {}) {
   const switchedIn = new Set(includeOnLeave || []);
-  const line = (emp) => payRunItem({
-    employee: emp, days: attendance[emp.id], from, to, records,
-    adjust: adjustments[emp.id],
-  });
+  const skip = new Set(skipAdvance || []);
+  const all = new Set(recoverAll || []);
+  const line = (emp) => {
+    const item = payRunItem({
+      employee: emp, days: attendance[emp.id], from, to, records,
+      adjust: adjustments[emp.id],
+    });
+    if (advances) {
+      const plan = planAdvanceRecovery({
+        netPay: item.netPay, balance: advances[emp.id],
+        skip: skip.has(emp.id), recoverAll: all.has(emp.id),
+      });
+      item.advanceOutstanding = plan.outstanding;
+      item.advancePlanned = plan.planned;
+    }
+    return item;
+  };
 
   const items = [];
   const held = [];
