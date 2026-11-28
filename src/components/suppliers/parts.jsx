@@ -105,8 +105,8 @@ export function HoldConfirmDialog({ open, onClose, title, text, children, holdLa
 
   return (
     <Dialog open={open} onClose={busy ? () => {} : onClose} width={440} label={typeof title === 'string' ? title : 'Confirm'}>
-      <div role="alertdialog" aria-label={typeof title === 'string' ? title : undefined}>
-        <div className="flex items-start gap-3">
+      <div role="alertdialog" aria-label={typeof title === 'string' ? title : undefined} className="-mt-[48px]">
+        <div className="flex items-start gap-3 pr-10">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-bad-soft text-bad-text"><Trash2 size={19} /></span>
           <div className="min-w-0">
             <h3 className="font-tight text-[18px] font-semibold tracking-[-0.01em]">{title}</h3>

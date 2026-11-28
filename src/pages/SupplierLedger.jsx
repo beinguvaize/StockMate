@@ -363,7 +363,7 @@ const SupplierLedger = () => {
       </div>
 
       <div className="supplier-ledger-print">
-        <FigureStrip cols={4} className="m-rise mb-5" style={{ '--i': 1 }}>
+        <FigureStrip cols={4} className="m-rise mb-5 print:[&_small]:whitespace-normal" style={{ '--i': 1 }}>
           <Figure label="Amount due" value={<span className={metrics.payable > 0 ? 'text-bad-text' : 'text-good-text'}>{money(metrics.payable, cur)}</span>}
             sub={metrics.payable > 0
               ? `${unpaidCredit.length} unpaid credit ${unpaidCredit.length === 1 ? 'bill' : 'bills'}${unpaidCredit[0] ? ` · oldest ${shortDay(unpaidCredit[0].date)}` : ''}`

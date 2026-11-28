@@ -83,7 +83,9 @@ export default function SupplierPanel({
               const bill = billOfLine.get(b.id);
               const pill = bill ? billPill(bill) : null;
               const items = bill?.lines?.length || 1;
-              const sub = [fmtDate(b.date, { year: false }), items > 1 ? `${items} items` : null,
+              // One row per product, as before: a bill of several products
+              // shows once per line, so say which line this is.
+              const sub = [fmtDate(b.date, { year: false }), items > 1 ? `line ${String(b.id).slice(-6).toUpperCase()} of ${items}` : null,
                 bill?.state === 'over' ? `was due ${fmtDate(bill.dueOn, { year: false })}` : null].filter(Boolean).join(' · ');
               return (
                 <div key={b.id} className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-0.5 border-t border-sep py-2.5 first:border-t-0">
