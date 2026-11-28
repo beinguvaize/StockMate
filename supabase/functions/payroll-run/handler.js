@@ -60,6 +60,8 @@ export async function handle(req, deps) {
   const { tenant_id: tenantId, from, to } = body || {};
   const includeOnLeave = Array.isArray(body?.include_on_leave) ? body.include_on_leave.map(String) : [];
   const adjustments = body?.adjustments && typeof body.adjustments === "object" ? body.adjustments : {};
+  const skipAdvance = Array.isArray(body?.skip_advance) ? body.skip_advance.map(String) : [];
+  const recoverAll = Array.isArray(body?.recover_all) ? body.recover_all.map(String) : [];
 
   if (!UUID.test(String(tenantId || ""))) return refuse(400, "bad_request", "Shop is missing.");
   if (!realDay(from) || !realDay(to)) return refuse(400, "bad_dates", "Choose a start and an end date.");
@@ -81,12 +83,33 @@ export async function handle(req, deps) {
         .eq("tenant_id", tenantId).is("deleted_at", null).order("created_at", { ascending: false }).order("id")),
     ]);
 
+    // Staff advances: what each person still owes, so each line can show what
+    // this run would take back. A preview only -- process_payroll_run works the
+    // real figure out again under a lock when the run is saved. Read on its own
+    // so a database without advances yet (or a plan without payroll) still
+    // costs the run; the reason is handed back rather than hidden.
+    let advances = {};
+    let advanceError = null;
+    try {
+      const rows = await readAll(() => db.from("staff_advance_balances")
+        .select("employee_id, outstanding, due_per_run, open_advances")
+        .eq("tenant_id", tenantId).order("employee_id"));
+      for (const a of rows) advances[a.employee_id] = a;
+    } catch (e) {
+      advances = {};
+      advanceError = String(e?.message || e);
+      console.error("payroll-run: staff advances not read:", e);
+    }
+
     const attendance = {};
     for (const m of marks) {
       (attendance[m.employee_id] ||= {})[String(m.day).slice(0, 10)] = { status: m.status, custom_rate: m.custom_rate };
     }
 
-    const run = buildPayRun({ employees, attendance, records, from, to, includeOnLeave, adjustments });
+    const run = buildPayRun({
+      employees, attendance, records, from, to, includeOnLeave, adjustments,
+      advances, skipAdvance, recoverAll,
+    });
     const period = periodFor(from, to);
     const overlapping = findOverlapping(period, records);
     return reply(200, {
@@ -98,6 +121,11 @@ export async function handle(req, deps) {
       // True only when a line would genuinely be paid twice. When earlier pay
       // has simply been taken off the amounts, there is nothing to agree to.
       must_confirm_already_paid: needsOverlapConfirmation(run.items, overlapping),
+      // New fields; nothing above changed. Each line also carries
+      // advanceOutstanding and advancePlanned. netPay stays what was earned:
+      // send it back unchanged with p_options.advance_aware = true.
+      advances_read: advanceError === null,
+      ...(advanceError === null ? {} : { advances_error: advanceError }),
     });
   } catch (e) {
     console.error("payroll-run read failed:", e);
