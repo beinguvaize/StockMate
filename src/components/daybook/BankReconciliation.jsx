@@ -12,7 +12,11 @@
  *      app-recorded "Bank In" vs statement-imported "Bank In".
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Upload, Check, AlertTriangle, RefreshCcw, Trash2, Search, Plus } from 'lucide-react';
+import { Upload, Check, RefreshCcw, X, ChevronDown } from 'lucide-react';
+import { Box } from './parts';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../ui/table';
 import { supabase } from '../../lib/supabase';
 import { formatCurrency } from '../../lib/utils';
 
@@ -81,7 +85,7 @@ const inWindow = (a, b, days = 3) => {
   return Math.abs((da - db) / 86400000) <= days;
 };
 
-const BankReconciliation = ({ tenantId, currentUserId, selectedDate, daySales = [], dayCollect = [], dayExpenses = [] }) => {
+const BankReconciliation = ({ tenantId, currentUserId, selectedDate, daySales = [], dayCollect = [], dayExpenses = [], className, style }) => {
   const [bankTx, setBankTx] = useState([]);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -219,13 +223,16 @@ const BankReconciliation = ({ tenantId, currentUserId, selectedDate, daySales = 
     if (candidate?.kind === 'sale')    patch.matched_sale_id    = candidate.id;
     if (candidate?.kind === 'payment') patch.matched_payment_id = candidate.id;
     if (candidate?.kind === 'expense') patch.matched_expense_id = candidate.id;
-    await supabase.from('bank_transactions').update(patch).eq('id', txId);
+    const { error } = await supabase.from('bank_transactions').update(patch).eq('id', txId);
+    // The write is unchanged; its failure is now said rather than dropped.
+    if (error) { console.error('[bank-recon] match failed', error); setMsg(`Could not save the match: ${error.message || error}`); }
     fetchBankTx();
   };
 
   const deleteTx = async (txId) => {
     if (!confirm('Delete this statement line?')) return;
-    await supabase.from('bank_transactions').delete().eq('id', txId);
+    const { error } = await supabase.from('bank_transactions').delete().eq('id', txId);
+    if (error) { console.error('[bank-recon] delete failed', error); setMsg(`Could not delete the line: ${error.message || error}`); }
     fetchBankTx();
   };
 
@@ -249,140 +256,124 @@ const BankReconciliation = ({ tenantId, currentUserId, selectedDate, daySales = 
     !t.matched_sale_id && !t.matched_payment_id && !t.matched_expense_id
   ).length;
 
-  return (
-    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-      <div className="px-5 pt-5 pb-3 border-b border-slate-200 flex flex-wrap items-center gap-3">
-        <div className="flex-1 min-w-[200px]">
-          <h3 className="text-lg font-bold text-slate-900 tracking-tight"
-              style={{ fontFamily: '"Sora", Inter, sans-serif' }}>
-            Bank Reconciliation
-          </h3>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Match each bank/UPI line in DayBook against your bank statement.
-          </p>
-        </div>
-        <input ref={fileRef} type="file" accept=".csv" hidden
-          onChange={(e) => handleImport(e.target.files?.[0])} />
-        <button onClick={() => fileRef.current?.click()} disabled={loading}
-          className="flex items-center gap-2 px-3 py-2 rounded-pill border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40">
-          <Upload size={14} /> Import CSV
-        </button>
-        <button onClick={autoMatch} disabled={loading || !bankTx.length}
-          className="flex items-center gap-2 px-3 py-2 rounded-pill bg-slate-900 text-white text-sm font-bold disabled:opacity-40">
-          <RefreshCcw size={14} /> Auto-match
-        </button>
-      </div>
+  const dmy = (d) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || '')); return m ? `${m[3]}/${m[2]}/${m[1]}` : (d || '—'); };
 
-      {/* Variance chips */}
-      <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px] tabular-nums">
-        <div>
-          <div className="text-[10px] font-bold text-slate-500 uppercase">Bank In (app)</div>
-          <div className="text-sm font-bold text-slate-900">{formatCurrency(bankInApp)}</div>
+  return (
+    <Box className={className} style={style} flush
+      title="Bank Reconciliation" sub="Match each bank/UPI line in DayBook against your bank statement."
+      right={(
+        <div className="ml-auto flex items-center gap-2">
+          <input ref={fileRef} type="file" accept=".csv" hidden
+            onChange={(e) => handleImport(e.target.files?.[0])} />
+          <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={loading}>
+            <Upload /> Import CSV
+          </Button>
+          <Button variant="dark" size="sm" onClick={autoMatch} disabled={loading || !bankTx.length}>
+            <RefreshCcw /> Auto-match
+          </Button>
         </div>
-        <div>
-          <div className="text-[10px] font-bold text-slate-500 uppercase">Bank In (statement)</div>
-          <div className="text-sm font-bold text-slate-900">{formatCurrency(bankInStmt)}</div>
-        </div>
-        <div>
-          <div className="text-[10px] font-bold text-slate-500 uppercase">Δ Variance</div>
-          <div className={`text-sm font-bold ${Math.abs(inDelta) < 0.5 ? 'text-emerald-600' : 'text-red-600'}`}>
-            {formatCurrency(Math.abs(inDelta))}{inDelta < 0 ? ' short' : inDelta > 0 ? ' extra' : ' ✓'}
+      )}>
+      {/* Variance figures */}
+      <div className="grid grid-cols-2 border-t border-line bg-tile md:grid-cols-4">
+        {[
+          ['Bank In (app)', formatCurrency(bankInApp), ''],
+          ['Bank In (statement)', formatCurrency(bankInStmt), ''],
+          ['Δ Variance', `${formatCurrency(Math.abs(inDelta))}${inDelta < 0 ? ' short' : inDelta > 0 ? ' extra' : ' ✓'}`, Math.abs(inDelta) < 0.5 ? 'text-good-text' : 'text-bad-text'],
+          ['Unmatched', unmatchedCount, unmatchedCount === 0 ? 'text-good-text' : 'text-amber-text'],
+        ].map(([label, value, tone]) => (
+          <div key={label} className="px-4 py-2.5">
+            <small className="block font-tight text-[10.5px] font-semibold uppercase tracking-[0.06em] text-mute">{label}</small>
+            <b className={`font-tight text-[15px] font-semibold tabular-nums ${tone}`}>{value}</b>
           </div>
-        </div>
-        <div>
-          <div className="text-[10px] font-bold text-slate-500 uppercase">Unmatched</div>
-          <div className={`text-sm font-bold ${unmatchedCount === 0 ? 'text-emerald-600' : 'text-accent-signature'}`}>
-            {unmatchedCount}
-          </div>
-        </div>
+        ))}
       </div>
 
       {msg && (
-        <div className="px-5 py-2 text-xs text-slate-600 bg-slate-50 border-b border-slate-100">{msg}</div>
+        <div role="status" className="border-t border-line px-4 py-2 text-[12.5px] text-body">{msg}</div>
       )}
 
-      <table className="w-full text-sm">
-        <thead className="bg-slate-50 border-b border-slate-200">
-          <tr>
-            {['Date', 'Type', 'Amount', 'Reference', 'Description', 'Matched to', ''].map(h => (
-              <th key={h} className="text-left text-[10px] font-bold uppercase tracking-wider text-slate-500 px-4 py-3"
-                  style={{ fontFamily: '"Sora", Inter, sans-serif' }}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {bankTx.length === 0 && (
+      {bankTx.length === 0 ? (
+        <div className="border-t border-line px-5 py-7 text-center text-[13px] text-body">
+          {loading ? 'Loading…' : 'No statement lines yet. Click "Import CSV" to start.'}
+        </div>
+      ) : (
+        <Table wrapperClassName="border-t border-line">
+          <TableHeader className="[&_th]:bg-tile [&_th]:whitespace-nowrap">
             <tr>
-              <td colSpan={7} className="text-center text-sm text-slate-400 py-10">
-                {loading ? 'Loading…' : 'No statement lines yet. Click "Import CSV" to start.'}
-              </td>
+              <TableHead>Date</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead numeric>Amount</TableHead>
+              <TableHead>Reference</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead>Matched to</TableHead>
+              <TableHead className="w-10"><span className="sr-only">Delete</span></TableHead>
             </tr>
-          )}
-          {bankTx.map(tx => {
-            const matched = tx.matched_sale_id || tx.matched_payment_id || tx.matched_expense_id;
-            const matchedLabel = (() => {
-              if (tx.matched_sale_id)    return `Sale ${tx.matched_sale_id.slice(0, 8)}`;
-              if (tx.matched_payment_id) return `Payment ${tx.matched_payment_id.slice(0, 8)}`;
-              if (tx.matched_expense_id) return `Expense ${tx.matched_expense_id.slice(0, 8)}`;
-              return null;
-            })();
-            const pool = tx.type === 'CREDIT'
-              ? candidates.filter(c => c.kind !== 'expense')
-              : candidates.filter(c => c.kind === 'expense');
-            return (
-              <tr key={tx.id} className={`border-b border-slate-100 hover:bg-slate-50 ${matched ? 'bg-emerald-50/30' : ''}`}>
-                <td className="px-4 py-3 text-slate-700 tabular-nums">{tx.date}</td>
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                    tx.type === 'CREDIT' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
-                  }`}>{tx.type}</span>
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums font-semibold">{formatCurrency(tx.amount)}</td>
-                <td className="px-4 py-3 text-slate-600 text-xs tabular-nums">{tx.reference_no || '—'}</td>
-                <td className="px-4 py-3 text-slate-600 text-xs truncate max-w-[260px]" title={tx.description || ''}>
-                  {tx.description || '—'}
-                </td>
-                <td className="px-4 py-3">
-                  <select
-                    value={matched || ''}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (!val) { setMatch(tx.id, null); return; }
-                      const c = pool.find(c => c.id === val);
-                      if (c) setMatch(tx.id, c);
-                    }}
-                    className="text-xs border border-slate-200 rounded-md px-2 py-1 bg-white max-w-[240px]"
-                  >
-                    <option value="">— Unmatched —</option>
-                    {pool.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.label} · {formatCurrency(c.amount)}
-                      </option>
-                    ))}
-                  </select>
-                  {matchedLabel && (
-                    <div className="text-[10px] text-emerald-600 mt-0.5 flex items-center gap-1">
-                      <Check size={10} /> {matchedLabel}
-                    </div>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button onClick={() => deleteTx(tx.id)}
-                    className="text-slate-400 hover:text-red-500 p-1" title="Delete">
-                    <Trash2 size={13} />
-                  </button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+          </TableHeader>
+          <TableBody>
+            {bankTx.map(tx => {
+              const matched = tx.matched_sale_id || tx.matched_payment_id || tx.matched_expense_id;
+              const matchedLabel = (() => {
+                if (tx.matched_sale_id)    return `Sale ${tx.matched_sale_id.slice(0, 8)}`;
+                if (tx.matched_payment_id) return `Payment ${tx.matched_payment_id.slice(0, 8)}`;
+                if (tx.matched_expense_id) return `Expense ${tx.matched_expense_id.slice(0, 8)}`;
+                return null;
+              })();
+              const pool = tx.type === 'CREDIT'
+                ? candidates.filter(c => c.kind !== 'expense')
+                : candidates.filter(c => c.kind === 'expense');
+              const credit = tx.type === 'CREDIT';
+              return (
+                <TableRow key={tx.id} className={matched ? '' : '[&>td]:bg-amber-soft'}>
+                  <TableCell className="whitespace-nowrap">{dmy(tx.date)}</TableCell>
+                  <TableCell><Badge tone={credit ? 'good' : 'bad'}>{tx.type}</Badge></TableCell>
+                  <TableCell numeric className={`whitespace-nowrap ${credit ? 'text-good-text' : 'text-bad-text'}`}>
+                    {credit ? '+' : '−'}{formatCurrency(tx.amount)}
+                  </TableCell>
+                  <TableCell className="font-mono text-[12px] text-ink-2">{tx.reference_no || '—'}</TableCell>
+                  <TableCell className="max-w-[260px] truncate text-body" title={tx.description || ''}>{tx.description || '—'}</TableCell>
+                  <TableCell>
+                    <label className="relative inline-flex items-center">
+                      <select
+                        aria-label="Matched to"
+                        value={matched || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (!val) { setMatch(tx.id, null); return; }
+                          const c = pool.find(c => c.id === val);
+                          if (c) setMatch(tx.id, c);
+                        }}
+                        className="h-8 max-w-[240px] appearance-none rounded-pill bg-surface pl-3 pr-8 font-tight text-[12.5px] font-semibold text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)] outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--color-ink)]"
+                      >
+                        <option value="">— Unmatched —</option>
+                        {pool.map(c => (
+                          <option key={c.id} value={c.id}>
+                            {c.label} · {formatCurrency(c.amount)}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown size={14} className="pointer-events-none absolute right-2.5 text-mute" />
+                    </label>
+                    {matchedLabel && (
+                      <span className="mt-0.5 flex items-center gap-1 text-[11px] text-good-text">
+                        <Check size={11} /> {matchedLabel}
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell numeric>
+                    <Button variant="ghost" size="icon-sm" aria-label="Delete line" title="Delete" onClick={() => deleteTx(tx.id)}
+                      className="h-7 w-7 text-mute hover:text-bad-text"><X /></Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      )}
 
-      {/* Footer help */}
-      <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-500">
-        <strong>Tip:</strong> CSV must include columns for Date, Amount (or Credit/Debit), and ideally a Reference/UTR. Most Indian banks (HDFC, SBI, ICICI, Axis) export this format from net banking → Account Statement → Download CSV.
+      <div className="border-t border-line bg-tile px-4 py-2.5 text-[12px] text-body">
+        <b className="font-semibold">Tip:</b> CSV must include columns for Date, Amount (or Credit/Debit), and ideally a Reference/UTR. Most Indian banks (HDFC, SBI, ICICI, Axis) export this format from net banking → Account Statement → Download CSV.
       </div>
-    </div>
+    </Box>
   );
 };
 

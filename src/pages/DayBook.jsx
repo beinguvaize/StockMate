@@ -1,6 +1,8 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { receivedOnDay, carriedOpening, isBankMethod, saleReceiptsByMode } from '../lib/dayBook';
-import { useDialogClose } from '../hooks/useDialogClose';
+import React, { useState, useMemo } from 'react';
+import {
+  Calendar, Save, ChevronLeft, ChevronRight, ChevronDown, Check,
+  RefreshCcw, FileText, Lock, Banknote, Receipt, History,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { useDayBookData } from '../hooks/useDayBookData';
@@ -8,97 +10,60 @@ import { useAccounts, accountForMethod } from '../hooks/useAccounts';
 import { useNotifications } from '../context/NotificationContext';
 import { useInventory } from '../hooks/useInventory';
 import { PageSkeleton } from '../components/ui/States';
-import {
-  Calendar, Save, ChevronLeft, ChevronRight,
-  ArrowUpRight, ArrowDownRight, RefreshCcw, X,
-  FileText, ShieldCheck, Lock, Unlock,
-  Banknote, CreditCard, Building2, Receipt,
-  TrendingUp, TrendingDown, Clock, AlertTriangle,
-  Users, ShoppingCart, CheckCircle2, History
-} from 'lucide-react';
+import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
+import { Eyebrow } from '../components/ui/FigureStrip';
+import { RowMenu, MenuItem } from '../components/ui/RowMenu';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
+import WriteFailure from '../components/invoices/WriteFailure';
 import DailyLedgerDetail from '../components/reports/DailyLedgerDetail';
 import BankReconciliation from '../components/daybook/BankReconciliation';
-import { todayISOInAppTZ } from '../lib/utils';
+import CloseDayDialog from '../components/daybook/CloseDayDialog';
+import DayBookHistory from '../components/daybook/DayBookHistory';
+import { Tile, Tiles, Box, Line, VarianceStrip, Banner, AmountField, money } from '../components/daybook/parts';
+import {
+  ALL_STORES, buildDayLedger, varianceOf, varianceLook, dayPills, methodLabel, entryPill,
+  dayLabel, timeLabel, closedAtLabel,
+} from '../lib/dayBookView';
+import { todayISOInAppTZ, cn } from '../lib/utils';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-const fmt = (n) =>
-  (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-// Non-cash methods that settle to a bank/UPI account rather than the physical
-// drawer. One shared list so sales, client collections and purchases can't
-// drift apart — CARD, NEFT, RTGS and CHEQUE used to be missing from one bucket
-// or another, so a card sale or card collection fell into neither cash nor
-// bank and vanished from the day's totals. CREDIT is deliberately absent: a
-// credit purchase is settled later as a supplier payment, not counted here.
-
+// Kept exactly as before the redesign (see the report: in the shop's time
+// zone this steps by the UTC date, not the local one).
 const addDays = (dateStr, n) => {
   const d = new Date(dateStr + 'T00:00:00');
   d.setDate(d.getDate() + n);
   return d.toISOString().slice(0, 10);
 };
 
-const displayDate = (dateStr) => {
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
-};
-
-// ── Method Badge ─────────────────────────────────────────────────────────────
-const MethodBadge = ({ method = '' }) => {
-  const m = (method || '').toUpperCase();
-  if (m === 'CREDIT')
-    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 text-[8px] font-bold uppercase tracking-wider"><CreditCard size={9} />Credit</span>;
-  if (['BANK','UPI','TRANSFER','NEFT','RTGS'].includes(m))
-    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent-signature/10 text-accent-signature border border-accent-signature/15 text-[8px] font-bold uppercase tracking-wider"><Building2 size={9} />{m === 'UPI' ? 'UPI' : 'Bank'}</span>;
-  return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-canvas text-muted-foreground border border-black/5 text-[8px] font-bold uppercase tracking-wider"><Banknote size={9} />Cash</span>;
-};
-
-// ── KPI Card ──────────────────────────────────────────────────────────────────
-const KpiCard = ({ label, value, sub, icon, color = 'default', cy }) => {
-  const styles = {
-    default:  'bg-white border-black/5 text-ink-primary',
-    green:    'bg-emerald-50 border-emerald-100 text-emerald-600',
-    red:      'bg-red-50 border-red-100 text-red-600',
-    dark:     'bg-ink-primary border-transparent text-accent-signature',
-    darkred:  'bg-red-600 border-transparent text-white',
-  };
-  const labelColor = { default: 'text-muted-foreground', green: 'text-emerald-500/70', red: 'text-red-500/70', dark: 'text-white/40', darkred: 'text-red-200' };
-  const isDark = color === 'dark' || color === 'darkred';
-  return (
-    <div className={`p-5 rounded-2xl border flex flex-col gap-2 ${styles[color]}`}>
-      <div className="flex items-center justify-between">
-        <p className={`text-[9px] font-bold uppercase tracking-widest ${labelColor[color]}`}>{label}</p>
-        {icon && <span className={isDark ? 'opacity-40' : 'opacity-60'}>{icon}</span>}
-      </div>
-      <p className="text-2xl font-bold tabular-nums leading-none">
-        <span className="text-xs opacity-40 mr-0.5">{cy}</span>
-        {value}
-      </p>
-      {sub && <p className={`text-[9px] font-bold ${isDark ? 'opacity-50' : 'opacity-60'}`}>{sub}</p>}
-    </div>
-  );
-};
-
-// ── Main Component ────────────────────────────────────────────────────────────
+/**
+ * Day Book (web redesign, approved mockups daybook-01 to 12).
+ *
+ * The ledger is lib/dayBookView.buildDayLedger, moved out of this page
+ * unchanged. Every write below is the one the page made before: day_book
+ * through useDayBookData.updateDayBook, and on closing with a variance one
+ * DAY_CLOSE_VARIANCE row through useAccounts.addTxn. Failures that used to
+ * be dropped are now shown (WriteFailure); the writes themselves are as
+ * they were.
+ */
 const DayBook = () => {
   const { hasPermission, currentUser } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
   const currentUserId = currentUser?.id || null;
-  const [selectedDate,  setSelectedDate]  = useState(todayISOInAppTZ());
+  const [selectedDate, setSelectedDate] = useState(todayISOInAppTZ());
   const {
     sales, expenses, clientPayments, purchases, supplierPayments, saleReceipts, dayBook,
-    loading: dbLoading, updateDayBook, getDayBookForDate, getPrevDayBook,
+    loading: dbLoading, updateDayBook, getDayBookForDate, getPrevDayBook, refetch,
   } = useDayBookData(currentTenantId, selectedDate);
   const { addNotification } = useNotifications();
   const { inventoryLocations } = useInventory(currentTenantId);
 
-  const ALL_STORES = '00000000-0000-0000-0000-000000000000';
   const posStores = (inventoryLocations || []).filter(l => (l.type || 'WAREHOUSE') !== 'VEHICLE' && !l.deleted_at);
 
   const cy = businessProfile?.currencySymbol || '₹';
   const today = todayISOInAppTZ();
   const { accounts, addTxn } = useAccounts(currentTenantId);
 
-  const [storeFilter,    setStoreFilter]   = useState(ALL_STORES); // ALL_STORES = whole business
+  const [storeFilter,    setStoreFilter]   = useState(ALL_STORES);
   const [openingInput,   setOpeningInput]  = useState('');
   const [physicalCash,   setPhysicalCash]  = useState('');
   const [isSaving,       setIsSaving]      = useState(false);
@@ -106,224 +71,33 @@ const DayBook = () => {
   const [showReport,     setShowReport]    = useState(false);
   const [showHistory,    setShowHistory]   = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
+  const [failure,        setFailure]       = useState(null); // { error, noun }
 
-  // ── Ledger computation ────────────────────────────────────────────────────
-  const ledger = useMemo(() => {
-    // When a specific store is selected, segment sales by their store
-    // (location_id). "All stores" (sentinel) keeps the whole-business view.
-    const storeMatch = (s) => storeFilter === ALL_STORES || (s.location_id || ALL_STORES) === storeFilter;
-    const daySales      = (sales      || []).filter(s => s.date === selectedDate && storeMatch(s));
-    const dayExpenses   = (expenses   || []).filter(e => e.date === selectedDate && storeMatch(e));
-    const dayCollect    = (clientPayments || []).filter(p => p.date === selectedDate);
-    const dayPurchases  = (purchases  || []).filter(p => p.date === selectedDate);
-    // Supplier (credit-purchase) repayments made on this date. No location_id on
-    // the table → business-wide, shown in every store view (like collections).
-    const daySupPays    = (supplierPayments || []).filter(p => p.date === selectedDate);
-
-    const isCashM = (m) => (m || 'CASH').toUpperCase() === 'CASH';
-
-    // ── Receipts ─────────────────────────────────────────────────────────────
-    const paidOf = (s) => Number(s.paidAmount ?? s.paid_amount) || 0;
-    // Amount actually collected for a sale.
-    // CASH/BANK with no explicit paidAmount → assume fully received (old sales
-    // recorded before paidAmount was tracked). CREDIT always uses explicit value.
-    // receivedOnDay lives in src/lib/dayBook.js so the rule that separates
-    // counter cash from a later settlement can be tested without opening this
-    // page. It was the reason closed days grew after the fact.
-    const recv = receivedOnDay;
-    const isBank = isBankMethod;
-    // Sale receipts come from the LEDGER, not from the day's sales rows.
-    // A sale is dated when the bill was raised, so money collected later
-    // against an older bill is not in this day's sales at all — while the
-    // sale's own day counted the whole paidAmount, later collections
-    // included. That is how a closed day grew after it was signed off.
-    // account_transactions carries one row per payment event with its own
-    // date, so it answers "what came in today"; the rule is in
-    // saleReceiptsByMode so it can be tested without opening this page.
-    // Ledger rows carry the sale's location_id, so the per-store view still
-    // segments correctly (FUTURE DISPO runs two).
-    const receipts    = saleReceiptsByMode((saleReceipts || []).filter(storeMatch));
-    const cashSales   = receipts.cash;
-    const bankSales   = receipts.bank;
-    // Receivable = the UNPAID remainder of EVERY sale (any method) — incl. partial
-    // cash/UPI sales, not just credit-method ones.
-    const creditSales = daySales.reduce((t, s) => t + Math.max(0, (Number(s.totalAmount) || 0) - recv(s)), 0);
-    // Money received up front on credit-method sales (hits the drawer today).
-    const creditPaid  = daySales.filter(s => (s.paymentMethod || '').toUpperCase() === 'CREDIT')
-                                .reduce((t, s) => t + recv(s), 0);
-    const cashCollect = dayCollect.filter(p => (p.payment_method || '').toUpperCase() === 'CASH')
-                                  .reduce((t, p) => t + (Number(p.amount) || 0), 0);
-    const bankCollect = dayCollect.filter(p => isBankMethod(p.payment_method))
-                                  .reduce((t, p) => t + (Number(p.amount) || 0), 0);
-    // cashIn = money that hits the physical cash drawer (incl. amounts paid up
-    // front on partial credit sales).
-    const cashIn       = cashSales + cashCollect + creditPaid;
-    const bankIn       = bankSales + bankCollect;
-    const totalReceipts = cashIn + bankIn; // full display total
-
-    // ── Payments ─────────────────────────────────────────────────────────────
-    const isCash = (m) => (m || 'CASH').toUpperCase() === 'CASH';
-    const totalExpenses   = dayExpenses.reduce((t, e) => t + (Number(e.amount) || 0), 0);
-    // Only CASH expenses leave the physical drawer; bank/UPI/card don't.
-    const cashExpenses    = dayExpenses.filter(e => isCash(e.payment_method))
-      .reduce((t, e) => t + (Number(e.amount) || 0), 0);
-    const bankExpenses    = totalExpenses - cashExpenses;
-    // Cash purchases are paid in full at purchase time (process_purchase adds
-    // no supplier_payment row for them). Credit-purchase repayments arrive
-    // later as supplier_payments — counted separately below, so no double-count.
-    const cashPurchPaid   = dayPurchases
-      .filter(p => (p.payment_type || 'CASH').toUpperCase() === 'CASH')
-      .reduce((t, p) => t + (Number(p.total_amount) || 0), 0);
-    const bankPurchPaid   = dayPurchases
-      .filter(p => isBankMethod(p.payment_type))
-      .reduce((t, p) => t + (Number(p.total_amount) || 0), 0);
-    // Supplier repayments (credit purchases settled later). Cash → drawer.
-    const cashSupPay      = daySupPays.filter(p => isCash(p.payment_method))
-      .reduce((t, p) => t + (Number(p.amount) || 0), 0);
-    const bankSupPay      = daySupPays.filter(p => !isCash(p.payment_method))
-      .reduce((t, p) => t + (Number(p.amount) || 0), 0);
-    const totalPurchPaid  = cashPurchPaid + bankPurchPaid + cashSupPay + bankSupPay; // display
-    // cashOut = money leaving the physical cash drawer
-    const cashOut        = cashExpenses + cashPurchPaid + cashSupPay;
-    const totalPayments  = cashOut + bankPurchPaid + bankSupPay + bankExpenses; // full display total
-
-    // ── Balances ─────────────────────────────────────────────────────────────
-    // ── Net cash movement per day ────────────────────────────────────────────
-    // Needed to carry a balance across days nobody opened. Same rules as the
-    // selected-day figures above: only what touches the physical drawer.
-    const netByDay = {};
-    const bump = (d, v) => { const k = String(d || '').slice(0, 10); if (k) netByDay[k] = (netByDay[k] || 0) + v; };
-    (sales || []).filter(storeMatch).forEach(s => {
-      const m = (s.paymentMethod || '').toUpperCase();
-      if (m === 'CASH' || m === 'CREDIT') bump(s.date, recv(s));
-    });
-    (clientPayments || []).filter(p => isCashM(p.payment_method)).forEach(p => bump(p.date, Number(p.amount) || 0));
-    (expenses || []).filter(storeMatch).filter(e => isCashM(e.payment_method)).forEach(e => bump(e.date, -(Number(e.amount) || 0)));
-    (purchases || []).filter(p => (p.payment_type || 'CASH').toUpperCase() === 'CASH')
-      .forEach(p => bump(p.date, -(Number(p.total_amount) || 0)));
-    (supplierPayments || []).filter(p => isCashM(p.payment_method))
-      .forEach(p => bump(p.date, -(Number(p.amount) || 0)));
-
-    const record      = getDayBookForDate(selectedDate, storeFilter);
-    const prevRecord  = getPrevDayBook(selectedDate, storeFilter);
-    // A day nobody opened used to begin at ZERO, so its whole cash position was
-    // wrong. Only 2 of 14 days in August had a row, while twelve moved cash.
-    // Carry from the last COUNTED day and replay everything since.
-    const carried     = record?.id ? null : carriedOpening(selectedDate, dayBook || [], netByDay);
-    const openingBal  = record?.id
-      ? (Number(record.opening_balance) || 0)
-      : (carried ? carried.opening : 0);
-    // Closing = cash only (bank receipts/payments don't move the cash drawer)
-    const closingBal  = openingBal + cashIn - cashOut;
-    const isLocked          = !!record?.is_closed;
-    const closedAt          = record?.closed_at || null;
-    const hasOpening        = !!record?.id;
-    const savedPhysicalCash = record?.physical_cash != null ? Number(record.physical_cash) : null;
-    const savedVariance     = record?.variance      != null ? Number(record.variance)      : null;
-
-    // ── Transaction log ───────────────────────────────────────────────────────
-    const entries = [
-      ...daySales.map(s => {
-        const tot = Number(s.totalAmount) || 0;
-        const got = recv(s);
-        const due = Math.max(0, tot - got);
-        const items = s.items?.map(i => i.name || i.productName).filter(Boolean).slice(0, 3).join(', ') || '';
-        return {
-          id:        s.id,
-          type:      (s.paymentMethod || '').toUpperCase() === 'CREDIT' ? 'CREDIT_SALE' : 'INCOME',
-          category:  'Sale',
-          title:     s.customerInfo?.name ? `Sale — ${s.customerInfo.name}` : 'Sale (Walk-in)',
-          // Show received vs due so partial payments are explicit.
-          note:      due > 0 ? `${items}${items ? ' · ' : ''}Paid ${got} of ${tot} · due ${due}` : items,
-          method:    s.paymentMethod || 'CASH',
-          amount:    got,
-          invoiceAmount: tot,
-          createdAt: s.created_at || selectedDate,
-        };
-      }),
-      ...dayCollect.map(p => ({
-        id:        p.id,
-        type:      'INCOME',
-        category:  'Collection',
-        title:     'Client Collection',
-        note:      p.notes || '',
-        method:    p.payment_method || 'CASH',
-        amount:    Number(p.amount) || 0,
-        createdAt: p.created_at || selectedDate,
-      })),
-      ...dayExpenses.map(e => ({
-        id:        e.id,
-        type:      'EXPENSE',
-        category:  e.category || 'Expense',
-        title:     e.category || 'Expense',
-        note:      e.note || '',
-        method:    e.payment_method || 'CASH',
-        amount:    Number(e.amount) || 0,
-        createdAt: e.created_at || selectedDate,
-      })),
-      ...dayPurchases.map(p => ({
-        id:        p.id,
-        type:      'EXPENSE',
-        category:  'Purchase',
-        title:     'Purchase Payment',
-        note:      `Supplier payment`,
-        method:    p.payment_type || 'CASH',
-        amount:    Number(p.total_amount) || 0,
-        createdAt: p.created_at || selectedDate,
-      })),
-      ...daySupPays.map(p => ({
-        id:        p.id,
-        type:      'EXPENSE',
-        category:  'Supplier Payment',
-        title:     p.supplier_name ? `Supplier — ${p.supplier_name}` : 'Supplier Payment',
-        note:      p.purchase_id ? 'Order settlement' : 'On-account',
-        method:    p.payment_method || 'CASH',
-        amount:    Number(p.amount) || 0,
-        createdAt: p.created_at || selectedDate,
-      })),
-    ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-
-    // Running balance — physical cash drawer only. Credit sales and any
-    // bank/UPI/card line don't move cash, so the final running value ties out
-    // to closingBal.
-    let running = openingBal;
-    const entriesWithBal = entries.map(e => {
-      if (e.type !== 'CREDIT_SALE' && isCash(e.method)) {
-        running = e.type === 'INCOME' ? running + e.amount : running - e.amount;
-      }
-      return { ...e, runningBalance: running };
-    });
-
-    return {
-      openingBal, closingBal, isLocked, closedAt, hasOpening, carried,
-      savedPhysicalCash, savedVariance,
-      cashSales, bankSales, creditSales,
-      cashCollect, bankCollect,
-      cashIn, bankIn, cashOut, bankPurchPaid,
-      cashExpenses, bankExpenses, cashSupPay, bankSupPay,
-      totalReceipts, totalExpenses, cashPurchPaid, totalPurchPaid, totalPayments,
-      entries: entriesWithBal,
-      sales: daySales, expenses: dayExpenses, collect: dayCollect,
-      txCount: entries.filter(e => e.type !== 'CREDIT_SALE').length,
-      prevClosing: Number(prevRecord?.closing_balance) || null,
-      expenseCount: dayExpenses.length,
-      collectCount: dayCollect.length,
-    };
-  }, [sales, expenses, clientPayments, purchases, supplierPayments, selectedDate, storeFilter, getDayBookForDate, getPrevDayBook]);
+  const record = getDayBookForDate(selectedDate, storeFilter);
+  const prevRecord = getPrevDayBook(selectedDate, storeFilter);
+  const ledger = useMemo(() => buildDayLedger({
+    sales, expenses, clientPayments, purchases, supplierPayments, saleReceipts, dayBook,
+    selectedDate, storeFilter, record, prevRecord,
+  }), [sales, expenses, clientPayments, purchases, supplierPayments, saleReceipts, dayBook, selectedDate, storeFilter, record, prevRecord]);
 
   const isDeficit  = ledger.closingBal < 0;
-  const variance   = physicalCash !== '' ? (parseFloat(physicalCash) || 0) - ledger.closingBal : null;
+  const variance   = varianceOf(physicalCash, ledger.closingBal);
   const isFuture   = selectedDate > today;
+  const canEdit    = hasPermission('finance', 'edit');
 
   // Load saved physical cash when date changes
   React.useEffect(() => {
     setPhysicalCash(ledger.savedPhysicalCash != null ? String(ledger.savedPhysicalCash) : '');
+    setFailure(null);
   }, [selectedDate, storeFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Actions ───────────────────────────────────────────────────────────────
+  const fail = (noun, error) => { console.error(`[daybook] ${noun} failed`, error); setFailure({ noun, error }); };
+
+  // ── Actions (the same writes as before the redesign) ──────────────────────
   const handleSaveOpening = async () => {
     if (isSaving || !openingInput) return;
     setIsSaving(true);
+    setFailure(null);
     const { error } = await updateDayBook({
       date: selectedDate,
       location_id: storeFilter,
@@ -331,7 +105,7 @@ const DayBook = () => {
     });
     setIsSaving(false);
     if (error) {
-      console.error('Save opening error:', error);
+      fail('opening balance', error);
       addNotification?.(`Could not save opening balance: ${error.message || 'error'}`, 'error');
       return; // keep the input so the user can retry
     }
@@ -342,31 +116,35 @@ const DayBook = () => {
   const handleUseYesterdayClosing = async () => {
     if (!ledger.prevClosing) return;
     setIsSaving(true);
+    setFailure(null);
     const { error } = await updateDayBook({
       date: selectedDate,
       location_id: storeFilter,
       opening_balance: ledger.prevClosing,
     });
-    if (error) console.error('Carry forward error:', error);
+    if (error) fail('opening balance', error);
     setIsSaving(false);
   };
 
   const handleSavePhysicalCash = async () => {
     const pc = parseFloat(physicalCash);
     if (isNaN(pc)) return;
+    setFailure(null);
     const v = Math.round((pc - ledger.closingBal) * 100) / 100;
-    await updateDayBook({
+    const res = await updateDayBook({
       date:            selectedDate,
       location_id:     storeFilter,
       opening_balance: ledger.openingBal,
       physical_cash:   pc,
       variance:        v,
     });
+    if (res?.error) fail('cash count', res.error);
   };
 
   const handleCloseDay = async (physicalCount, note) => {
     if (isClosing) return;
     setIsClosing(true);
+    setFailure(null);
     const pc  = typeof physicalCount === 'number' ? physicalCount : parseFloat(physicalCash);
     const v   = isNaN(pc) ? null : Math.round((pc - ledger.closingBal) * 100) / 100;
     const { error } = await updateDayBook({
@@ -384,19 +162,24 @@ const DayBook = () => {
     if (!error && v != null && Math.abs(v) >= 0.01) {
       const cashAccId = accountForMethod(accounts, 'CASH');
       if (cashAccId) {
-        await addTxn({
-          account_id: cashAccId,
-          date:       selectedDate,
-          direction:  v > 0 ? 'IN' : 'OUT',
-          amount:     Math.abs(v),
-          mode:       'CASH',
-          ref_type:   'DAY_CLOSE_VARIANCE',
-          note:       note ? `Day close variance · ${note}` : `Day close variance ${selectedDate}`,
-        });
+        let res;
+        try {
+          res = await addTxn({
+            account_id: cashAccId,
+            date:       selectedDate,
+            direction:  v > 0 ? 'IN' : 'OUT',
+            amount:     Math.abs(v),
+            mode:       'CASH',
+            ref_type:   'DAY_CLOSE_VARIANCE',
+            note:       note ? `Day close variance · ${note}` : `Day close variance ${selectedDate}`,
+          });
+        } catch (err) { res = { error: err }; }
+        // The day is closed either way; a failed adjustment is now said.
+        if (res?.error) fail('cash variance entry', res.error);
       }
     }
     if (error) {
-      console.error('Close day error:', error);
+      fail('day close', error);
       addNotification?.(`Close failed: ${error.message || 'error'}`, 'error');
     } else {
       addNotification?.('Day closed & locked', 'success');
@@ -406,630 +189,256 @@ const DayBook = () => {
 
   if (dbLoading) return <PageSkeleton cards={4} rows={9} />;
 
-  // ── History full-page view ────────────────────────────────────────────────
   if (showHistory) {
-    const totalDays    = dayBook.length;
-    const closedDays   = dayBook.filter(r => r.is_closed).length;
-    const totalSales   = dayBook.reduce((s, r) => s + (Number(r.total_sales)    || 0), 0);
-    const totalExp     = dayBook.reduce((s, r) => s + (Number(r.total_expenses) || 0), 0);
-    const discrepDays  = dayBook.filter(r => r.variance != null && Math.abs(Number(r.variance)) >= 0.01).length;
-    const shortDays    = dayBook.filter(r => r.variance != null && Number(r.variance) < -0.01).length;
-
     return (
-      <div className="animate-fade-in flex flex-col gap-6 pb-20">
-
-        {/* Header */}
-        <div className="flex justify-between items-center py-2 border-b border-black/5">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowHistory(false)}
-              className="w-9 h-9 flex items-center justify-center bg-white border border-black/5 rounded-xl hover:bg-canvas transition-all text-ink-primary shadow-sm"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <div>
-              <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
-                Day Book History<span className="text-accent-signature">.</span>
-              </h1>
-              <span className="text-[10px] font-semibold text-muted-foreground">Click any day to view its ledger</span>
-            </div>
-          </div>
-          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{totalDays} records</span>
-        </div>
-
-        {/* Summary strip */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KpiCard label="Total Days" cy="" value={totalDays}
-            sub={`${closedDays} closed · ${discrepDays > 0 ? `${discrepDays} discrepancies` : 'no discrepancies'}`}
-            icon={<Calendar size={14} />} color="default" />
-          <KpiCard label="All-Time Sales" cy={cy} value={fmt(totalSales)} icon={<TrendingUp size={14} />} color="green" />
-          <KpiCard label="All-Time Expenses" cy={cy} value={fmt(totalExp)} icon={<TrendingDown size={14} />} color="red" />
-          <KpiCard label="Net Flow" cy={cy}
-            value={`${totalSales - totalExp < 0 ? '−' : ''}${fmt(Math.abs(totalSales - totalExp))}`}
-            icon={<CheckCircle2 size={14} />}
-            color={totalSales - totalExp < 0 ? 'darkred' : 'dark'} />
-        </div>
-
-        {/* History table */}
-        <div className="bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-black/5 flex items-center gap-3">
-            <History size={14} className="text-accent-signature" />
-            <span className="text-xs font-black text-ink-primary uppercase tracking-widest">All Days</span>
-          </div>
-
-          {dayBook.length === 0 ? (
-            <div className="py-20 flex flex-col items-center opacity-20">
-              <History size={32} strokeWidth={1.5} />
-              <p className="text-[10px] font-bold uppercase tracking-widest mt-3">No history yet</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-canvas/60 border-b border-black/[0.04]">
-                    {['Date', 'Opening', 'Sales', 'Expenses', 'Closing', 'Net', 'Discrepancy', 'Status', 'Closed At'].map(h => (
-                      <th key={h} className="py-3 px-4 text-[9px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-black/[0.04]">
-                  {[...dayBook]
-                    .sort((a, b) => b.date.localeCompare(a.date))
-                    .map(rec => {
-                      const isToday    = rec.date === today;
-                      const isSel      = rec.date === selectedDate;
-                      const isClosed   = !!rec.is_closed;
-                      const net        = (Number(rec.total_sales) || 0) - (Number(rec.total_expenses) || 0);
-                      const recVar     = rec.variance != null ? Number(rec.variance) : null;
-                      const hasDiscrep = recVar != null && Math.abs(recVar) >= 0.01;
-                      return (
-                        <tr
-                          key={rec.id || rec.date}
-                          onClick={() => { setSelectedDate(rec.date); setShowHistory(false); }}
-                          className={`cursor-pointer transition-colors hover:bg-accent-signature/5 ${isSel ? 'bg-accent-signature/10' : ''}`}
-                        >
-                          <td className="py-3.5 px-4">
-                            <div className="flex flex-col gap-0.5">
-                              <span className="text-[11px] font-black text-ink-primary">{displayDate(rec.date)}</span>
-                              {isToday && (
-                                <span className="text-[8px] font-bold text-accent-signature uppercase tracking-widest">Today</span>
-                              )}
-                              {isSel && !isToday && (
-                                <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Viewing</span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-3.5 px-4 text-[10px] font-black text-ink-primary tabular-nums">
-                            {cy}{fmt(rec.opening_balance)}
-                          </td>
-                          <td className="py-3.5 px-4 text-[10px] font-black text-emerald-600 tabular-nums">
-                            {cy}{fmt(rec.total_sales)}
-                          </td>
-                          <td className="py-3.5 px-4 text-[10px] font-black text-red-500 tabular-nums">
-                            {cy}{fmt(rec.total_expenses)}
-                          </td>
-                          <td className="py-3.5 px-4 text-[10px] font-black tabular-nums">
-                            <span className={Number(rec.closing_balance) < 0 ? 'text-red-600' : 'text-ink-primary'}>
-                              {cy}{fmt(rec.closing_balance)}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 text-[10px] font-black tabular-nums">
-                            <span className={net < 0 ? 'text-red-500' : 'text-emerald-600'}>
-                              {net < 0 ? '−' : '+'}{cy}{fmt(Math.abs(net))}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4">
-                            {recVar == null ? (
-                              <span className="text-[9px] text-muted-foreground font-bold">—</span>
-                            ) : !hasDiscrep ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full text-[8px] font-bold">
-                                <CheckCircle2 size={8} /> Balanced
-                              </span>
-                            ) : (
-                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-bold border ${
-                                recVar > 0
-                                  ? 'bg-blue-50 text-blue-600 border-blue-100'
-                                  : 'bg-red-50 text-red-600 border-red-100'
-                              }`}>
-                                <AlertTriangle size={8} />
-                                {recVar > 0 ? '+' : '−'}{cy}{fmt(Math.abs(recVar))}
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-3.5 px-4">
-                            {isClosed ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full text-[8px] font-bold uppercase tracking-wider">
-                                <Lock size={8} /> Closed
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-accent-signature/10 text-accent-signature border border-accent-signature/15 rounded-full text-[8px] font-bold uppercase tracking-wider">
-                                <Unlock size={8} /> Open
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-3.5 px-4 text-[9px] font-bold text-muted-foreground whitespace-nowrap">
-                            {rec.closed_at
-                              ? new Date(rec.closed_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
-                              : '—'}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
+      <DayBookHistory dayBook={dayBook || []} cy={cy} today={today} selectedDate={selectedDate}
+        onBack={() => setShowHistory(false)}
+        onPick={(d) => { setSelectedDate(d); setShowHistory(false); }} />
     );
   }
 
+  const storeName = storeFilter === ALL_STORES ? 'All Stores' : posStores.find(s => s.id === storeFilter)?.name || 'All Stores';
+  const net = ledger.cashIn - ledger.cashOut;
+  const noRows = ledger.entries.length === 0;
+  const countLook = varianceLook(variance);
+  const savedLook = varianceLook(ledger.savedVariance);
+  const varWords = (look, v) => look && (look.exact ? 'Exact match' : money(v, cy, { signed: true, plus: true }));
+
   return (
-    <div className="animate-fade-in flex flex-col gap-6 pb-20">
+    <div className="flex flex-col pb-16">
 
-      {/* ── Header ───────────────────────────────────────────────────────────── */}
-      <div className="flex justify-between items-center py-2 border-b border-black/5">
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
-            Day Book<span className="text-accent-signature">.</span>
-          </h1>
-          <span className="text-[10px] font-semibold text-muted-foreground hidden sm:block">Cash & transaction ledger</span>
-          {/* Store filter — per-store cash drawer when the tenant has >1 store. */}
+      {/* ── Page head ─────────────────────────────────────────────────────── */}
+      <div className="m-rise mb-4 flex flex-wrap items-start gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="min-w-0">
+            <h2 className="font-tight text-[22px] font-semibold leading-[1.15] tracking-[-0.02em]">Day Book</h2>
+            <p className="mt-[3px] text-[13px] text-body">Cash &amp; transaction ledger</p>
+          </div>
+          {/* Per-store cash drawer when the shop has more than one store. */}
           {posStores.length > 1 && (
-            <select
-              value={storeFilter}
-              onChange={e => setStoreFilter(e.target.value)}
-              className="ml-1 bg-white border border-black/8 rounded-pill px-3 py-1.5 text-[11px] font-bold text-ink-primary outline-none cursor-pointer shadow-sm"
-            >
-              <option value={ALL_STORES}>All Stores</option>
-              {posStores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
+            <RowMenu label="Store" width={240}
+              trigger={({ ref, onClick, open }) => (
+                <button ref={ref} type="button" onClick={onClick} aria-haspopup="menu" aria-expanded={open}
+                  className="m-press inline-flex items-center gap-1.5 rounded-pill py-[7px] pl-3.5 pr-3 font-tight text-[13px] font-semibold text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile">
+                  {storeName}<ChevronDown size={14} className="text-mute" />
+                </button>
+              )}>
+              {(close) => [{ id: ALL_STORES, name: 'All Stores' }, ...posStores].map(s => (
+                <MenuItem key={s.id} icon={storeFilter === s.id ? Check : undefined} onClick={() => { close(); setStoreFilter(s.id); }}>
+                  {storeFilter !== s.id && <span className="inline-block w-4" />}{s.name}
+                </MenuItem>
+              ))}
+            </RowMenu>
           )}
         </div>
 
-        {/* Date nav */}
-        <div className="flex items-center gap-2 no-print">
-          <button onClick={() => setSelectedDate(d => addDays(d, -1))}
-            className="w-9 h-9 flex items-center justify-center bg-white border border-black/5 rounded-xl hover:bg-canvas transition-all text-ink-primary shadow-sm">
-            <ChevronLeft size={16} />
-          </button>
-          <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-black/5 shadow-sm min-w-[200px] justify-center">
-            <Calendar size={13} className="text-muted-foreground" />
-            <input type="date"
-              className="bg-transparent border-none text-xs font-black outline-none cursor-pointer text-ink-primary"
-              value={selectedDate}
-              onChange={e => setSelectedDate(e.target.value)}
-            />
-          </div>
-          <button onClick={() => setSelectedDate(d => addDays(d, 1))}
-            disabled={selectedDate >= today}
-            className="w-9 h-9 flex items-center justify-center bg-white border border-black/5 rounded-xl hover:bg-canvas transition-all text-ink-primary shadow-sm disabled:opacity-30">
-            <ChevronRight size={16} />
-          </button>
-          {selectedDate !== today && (
-            <button onClick={() => setSelectedDate(today)}
-              className="px-3 h-9 text-[9px] font-black uppercase tracking-widest bg-white border border-border shadow-sm rounded-pill hover:bg-white transition-all text-muted-foreground">
-              Today
-            </button>
-          )}
-          <button onClick={() => setShowHistory(true)}
-            className="flex items-center gap-2 px-4 h-9 bg-white border border-border shadow-sm text-ink-secondary text-[9px] font-black uppercase tracking-widest rounded-pill hover:bg-white transition-all shadow-sm">
-            <History size={12} />
-            History
-          </button>
-          <button onClick={() => setShowReport(true)}
-            className="flex items-center gap-2 px-4 h-9 bg-ink-primary text-white text-[9px] font-black uppercase tracking-widest rounded-pill hover:bg-black transition-all shadow-sm">
-            <FileText size={12} />
-            Report
-          </button>
+        <div className="flex flex-wrap items-center gap-2 no-print">
+          <Button variant="outline" size="icon" className="h-[34px] w-[34px]" aria-label="Previous day" onClick={() => setSelectedDate(d => addDays(d, -1))}><ChevronLeft /></Button>
+          <label className="inline-flex h-[34px] items-center gap-2 rounded-[10px] bg-surface px-3 text-[13px] text-ink shadow-[inset_0_0_0_1px_var(--color-line)] focus-within:shadow-[inset_0_0_0_2px_var(--color-ink)]">
+            <Calendar size={14} className="text-mute" aria-hidden="true" />
+            <input type="date" aria-label="Day" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
+              className="bg-transparent tabular-nums outline-none" />
+          </label>
+          <Button variant="outline" size="icon" className="h-[34px] w-[34px]" aria-label="Next day" disabled={selectedDate >= today}
+            onClick={() => setSelectedDate(d => addDays(d, 1))}><ChevronRight /></Button>
+          {selectedDate !== today && <Button variant="outline" size="sm" onClick={() => setSelectedDate(today)}>Today</Button>}
+          <Button variant="outline" size="sm" onClick={() => setShowHistory(true)}><History /> History</Button>
+          <Button variant="dark" size="sm" onClick={() => setShowReport(true)}><FileText /> Report</Button>
         </div>
       </div>
 
-      {/* ── Date label + status ───────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3">
-        <span className="text-sm font-black text-ink-primary">{displayDate(selectedDate)}</span>
-        {ledger.isLocked && (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full text-[9px] font-black uppercase tracking-widest">
-            <Lock size={10} /> Closed
-          </span>
-        )}
-        {!ledger.hasOpening && !isFuture && (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent-signature/10 text-accent-signature border border-accent-signature/15 rounded-full text-[9px] font-black uppercase tracking-widest">
-            <AlertTriangle size={10} /> Opening not set
-          </span>
-        )}
-        {isFuture && (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-canvas text-muted-foreground border border-black/5 rounded-full text-[9px] font-black uppercase tracking-widest">
-            Future date
-          </span>
-        )}
+      {/* ── Date + status ─────────────────────────────────────────────────── */}
+      <div className="m-rise -mt-1 mb-3.5 flex flex-wrap items-center gap-2.5" style={{ '--i': 1 }}>
+        <b className="font-tight text-[15px] font-semibold">{dayLabel(selectedDate)}</b>
+        {dayPills({ isLocked: ledger.isLocked, hasOpening: ledger.hasOpening, isFuture }).map(p => (
+          <Badge key={p.label} tone={p.tone}>{p.label}</Badge>
+        ))}
       </div>
 
-      {/* ── Balance strip ─────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard label="Opening Balance" cy={cy} value={fmt(ledger.openingBal)}
-          icon={<Banknote size={14} />} color="default" />
-        <KpiCard label="Cash Receipts" cy={cy} value={fmt(ledger.cashIn)}
-          sub={`${ledger.txCount} transactions · bank: ${cy}${fmt(ledger.bankIn)}`}
-          icon={<ArrowUpRight size={14} />} color="green" />
-        <KpiCard label="Cash Payments" cy={cy} value={fmt(ledger.cashOut)}
-          sub={`${ledger.expenseCount} expenses · bank purch: ${cy}${fmt(ledger.bankPurchPaid)}`}
-          icon={<ArrowDownRight size={14} />} color="red" />
-        <KpiCard label="Closing Balance" cy={cy}
-          value={`${isDeficit ? '−' : ''}${fmt(Math.abs(ledger.closingBal))}`}
-          sub={isDeficit ? 'Cash deficit' : ledger.isLocked ? 'Day closed' : 'Estimated'}
-          icon={isDeficit ? <AlertTriangle size={14} /> : <CheckCircle2 size={14} />}
-          color={isDeficit ? 'darkred' : 'dark'} />
-      </div>
+      {/* ── Balance tiles ─────────────────────────────────────────────────── */}
+      <Tiles className="m-rise" style={{ '--i': 2 }}>
+        <Tile label="Opening Balance" value={money(ledger.openingBal, cy)} />
+        <Tile label="Cash Receipts" tone="pos" value={money(ledger.cashIn, cy)}
+          sub={`${ledger.txCount} transactions · bank: ${money(ledger.bankIn, cy)}`} />
+        <Tile label="Cash Payments" tone="neg" value={money(ledger.cashOut, cy)}
+          sub={`${ledger.expenseCount} expenses · bank purch: ${money(ledger.bankPurchPaid, cy)}`} />
+        <Tile label="Closing Balance" tone={isDeficit ? 'deficit' : 'dark'}
+          value={money(ledger.closingBal, cy, { signed: true })}
+          sub={isDeficit ? 'Cash deficit' : ledger.isLocked ? 'Day closed' : 'Estimated'} />
+      </Tiles>
 
-      {/* ── Main content ─────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_330px]">
 
-        {/* ── Transaction log ───────────────────────────────────────────────── */}
-        <div className="lg:col-span-2 bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden">
-
-          {/* Table header */}
-          <div className="px-6 py-4 border-b border-black/5 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Receipt size={14} className="text-accent-signature" />
-              <span className="text-xs font-black text-ink-primary uppercase tracking-widest">
-                Transaction Log
-              </span>
-              <span className="bg-white border border-border shadow-sm text-[9px] font-black text-muted-foreground px-2 py-0.5 rounded-full">
-                {ledger.txCount}
-              </span>
-            </div>
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
-              ledger.cashIn >= ledger.cashOut
-                ? 'bg-emerald-50 text-emerald-600'
-                : 'bg-red-50 text-red-600'
-            }`}>
-              {ledger.cashIn >= ledger.cashOut
-                ? <TrendingUp size={11} />
-                : <TrendingDown size={11} />}
-              Net {cy}{fmt(Math.abs(ledger.cashIn - ledger.cashOut))}
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-canvas/60 border-b border-black/[0.04]">
-                  {['Time', 'Description', 'Type', 'Method', 'In (+)', 'Out (−)', 'Balance'].map(h => (
-                    <th key={h} className="py-3 px-4 text-[9px] font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap last:text-right">
-                      {h}
-                    </th>
-                  ))}
+        {/* ── Transaction log ─────────────────────────────────────────────── */}
+        <Box className="m-rise min-w-0" style={{ '--i': 3 }} title="Transaction Log" flush
+          right={(
+            <>
+              <Badge tone="neutral">{ledger.txCount}</Badge>
+              <span className="flex-1" />
+              {!(isFuture && noRows) && (
+                <Badge tone={net >= 0 ? 'good' : 'bad'}>Net {money(Math.abs(net), cy)}</Badge>
+              )}
+            </>
+          )}>
+          {!(isFuture && noRows) && (
+            <Table wrapperClassName="border-t border-line">
+              <TableHeader className="[&_th]:bg-tile [&_th]:whitespace-nowrap">
+                <tr>
+                  <TableHead>Time</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Method</TableHead>
+                  <TableHead numeric>In (+)</TableHead>
+                  <TableHead numeric>Out (−)</TableHead>
+                  <TableHead numeric>Balance</TableHead>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-black/[0.04]">
-                {ledger.entries.length === 0 && (
-                  <tr>
-                    <td colSpan="7" className="py-16 text-center">
-                      <div className="flex flex-col items-center opacity-20">
-                        <Receipt size={32} strokeWidth={1.5} />
-                        <span className="text-[10px] font-bold uppercase tracking-widest mt-3">
-                          No transactions for this date
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                )}
+              </TableHeader>
+              <TableBody>
                 {ledger.entries.map((tx, i) => {
                   const isCreditSale = tx.type === 'CREDIT_SALE';
-                  const isIncome     = tx.type === 'INCOME';
-                  const catColor = {
-                    Sale:       'bg-emerald-50 text-emerald-600',
-                    Collection: 'bg-blue-50 text-blue-600',
-                    Purchase:   'bg-orange-50 text-orange-600',
-                  }[tx.category] || 'bg-muted text-muted-foreground';
-
+                  const isIncome = tx.type === 'INCOME';
+                  const pill = entryPill(tx);
                   return (
-                    <tr key={tx.id || i}
-                      className={`hover:bg-canvas/30 transition-colors ${isCreditSale ? 'opacity-50' : ''}`}>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-1">
-                          <Clock size={9} className="text-muted-foreground" />
-                          <span className="text-[9px] font-black tabular-nums text-ink-primary">
-                            {new Date(tx.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 max-w-[160px]">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 ${
-                            isIncome ? 'bg-emerald-50 text-emerald-500' : 'bg-red-50 text-red-500'
-                          } ${isCreditSale ? 'opacity-40' : ''}`}>
-                            {isIncome ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-[10px] font-black text-ink-primary leading-none truncate">{tx.title}</p>
-                            {tx.note && <p className="text-[9px] text-muted-foreground mt-0.5 truncate">{tx.note}</p>}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider ${catColor}`}>
-                          {isCreditSale ? 'Credit' : tx.category}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4"><MethodBadge method={tx.method} /></td>
-                      <td className="py-3 px-4">
-                        {isIncome && !isCreditSale
-                          ? <span className="text-[11px] font-black text-emerald-600 tabular-nums">{cy}{fmt(tx.amount)}</span>
+                    <TableRow key={tx.id || i} className={isCreditSale ? '[&>td]:text-mute' : ''}>
+                      <TableCell className="whitespace-nowrap">{timeLabel(tx.createdAt) || '—'}</TableCell>
+                      <TableCell className="max-w-[260px]">
+                        <b className="block truncate font-tight font-semibold">{tx.title}</b>
+                        {tx.note && <small className="block truncate text-[12px] text-mute">{tx.note}</small>}
+                      </TableCell>
+                      <TableCell><Badge tone={pill.tone}>{pill.label}</Badge></TableCell>
+                      <TableCell className="whitespace-nowrap">{methodLabel(tx.method)}</TableCell>
+                      <TableCell numeric className="whitespace-nowrap">
+                        {isIncome
+                          ? <span className="text-good-text">+{money(tx.amount, cy)}</span>
                           : isCreditSale
-                            ? <span className="text-[9px] font-bold text-muted-foreground tabular-nums italic">{cy}{fmt(tx.invoiceAmount ?? tx.amount)}</span>
-                            : <span className="text-gray-200">—</span>}
-                      </td>
-                      <td className="py-3 px-4">
+                            ? <span className="text-faint">{money(tx.invoiceAmount ?? tx.amount, cy)}</span>
+                            : <span className="text-faint">—</span>}
+                      </TableCell>
+                      <TableCell numeric className="whitespace-nowrap">
                         {!isIncome && !isCreditSale
-                          ? <span className="text-[11px] font-black text-red-600 tabular-nums">{cy}{fmt(tx.amount)}</span>
-                          : <span className="text-gray-200">—</span>}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        {isCreditSale
-                          ? <span className="text-gray-200 text-xs">—</span>
-                          : <span className={`text-[11px] font-black tabular-nums ${tx.runningBalance < 0 ? 'text-red-500' : 'text-ink-primary'}`}>
-                              {tx.runningBalance < 0 ? '−' : ''}{cy}{fmt(Math.abs(tx.runningBalance))}
-                            </span>}
-                      </td>
-                    </tr>
+                          ? <span className="text-bad-text">−{money(tx.amount, cy)}</span>
+                          : <span className="text-faint">—</span>}
+                      </TableCell>
+                      <TableCell numeric className="whitespace-nowrap">
+                        <span className={cn(tx.movesCash ? 'font-semibold' : 'text-mute', tx.runningBalance < 0 && 'text-bad-text')}>
+                          {money(tx.runningBalance, cy, { signed: true })}
+                        </span>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Credit sales footnote */}
-          {ledger.creditSales > 0 && (
-            <div className="px-6 py-3 border-t border-black/[0.04] bg-blue-50/40 flex items-center gap-2">
-              <CreditCard size={11} className="text-blue-400" />
-              <span className="text-[9px] font-bold text-blue-500">
-                {cy}{fmt(ledger.creditSales)} in credit sales (receivable — not included in cash flow)
-              </span>
+              </TableBody>
+            </Table>
+          )}
+          {noRows && (
+            <div className="px-5 py-14 text-center">
+              <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-[14px] bg-tile text-mute"><Receipt size={22} strokeWidth={1.8} /></div>
+              <Eyebrow>No transactions for this date</Eyebrow>
             </div>
           )}
-        </div>
+        </Box>
 
-        {/* ── Right sidebar ──────────────────────────────────────────────────── */}
-        <div className="space-y-4">
+        {/* ── Rail ────────────────────────────────────────────────────────── */}
+        <div className="m-rise grid gap-3" style={{ '--i': 4 }}>
+          {failure && (
+            <WriteFailure error={failure.error} noun={failure.noun}
+              onReread={() => { setFailure(null); refetch?.(); }} />
+          )}
 
-          {/* ── Authorize / Opening Balance ───────────────────────────────── */}
-          <div className="bg-white border border-black/5 rounded-2xl shadow-sm p-5">
-            <h2 className="text-[10px] font-black text-ink-primary mb-4 uppercase tracking-widest flex items-center gap-2">
-              <Lock size={12} className="text-accent-signature" /> Opening Balance
-            </h2>
-
-            {/* Equation */}
-            <div className="space-y-2 mb-4 pb-4 border-b border-black/5">
-              {[
-                { label: 'Opening',         val: ledger.openingBal, color: 'text-ink-primary' },
-                { label: '+ Cash Receipts', val: ledger.cashIn,     color: 'text-emerald-600' },
-                { label: '− Cash Payments', val: ledger.cashOut,    color: 'text-red-500'     },
-              ].map(({ label, val, color }) => (
-                <div key={label} className="flex justify-between text-[10px] font-bold text-muted-foreground">
-                  <span>{label}</span>
-                  <span className={`font-black tabular-nums ${color}`}>{cy}{fmt(val)}</span>
-                </div>
-              ))}
-              <div className="flex justify-between text-xs font-black pt-2 border-t border-black/5">
-                <span className="text-ink-primary">= Closing</span>
-                <span className={`tabular-nums ${isDeficit ? 'text-red-600' : 'text-ink-primary'}`}>
-                  {isDeficit ? '−' : ''}{cy}{fmt(Math.abs(ledger.closingBal))}
-                </span>
-              </div>
+          <Box title="Opening Balance" icon={Lock}>
+            <div className="mb-3 border-b border-sep pb-3">
+              <Line label="Opening" value={money(ledger.openingBal, cy)} />
+              <Line label="+ Cash Receipts" tone="good" value={money(ledger.cashIn, cy)} />
+              <Line label="− Cash Payments" tone="bad" value={money(ledger.cashOut, cy)} />
+              <Line label="= Closing" total big value={<span className={isDeficit ? 'text-bad-text' : ''}>{money(ledger.closingBal, cy, { signed: true })}</span>} />
             </div>
 
             {ledger.isLocked ? (
-              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center gap-3">
-                <ShieldCheck size={16} className="text-emerald-500 flex-shrink-0" />
-                <div>
-                  <p className="text-[9px] font-black text-emerald-700 uppercase tracking-widest">Day Closed & Locked</p>
-                  {ledger.closedAt ? (
-                    <p className="text-[9px] font-bold text-emerald-500 mt-0.5 flex items-center gap-1">
-                      <Clock size={9} />
-                      Closed at {new Date(ledger.closedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                    </p>
-                  ) : (
-                    <p className="text-[9px] font-bold text-emerald-500 mt-0.5">No further edits allowed</p>
-                  )}
-                </div>
-              </div>
-            ) : hasPermission('finance', 'edit') ? (
-              <div className="space-y-2">
-                {/* A carried figure must never read as a counted one: only 1 Aug
-                    has a physical count behind it on this tenant, and a variance
-                    measured against a derived number would be meaningless. */}
+              <Banner tone="good">
+                <b className="font-semibold">Day Closed &amp; Locked</b><br />
+                {ledger.closedAt ? `Closed ${closedAtLabel(ledger.closedAt)} · No further edits allowed` : 'No further edits allowed'}
+              </Banner>
+            ) : canEdit ? (
+              <div className="grid gap-2">
+                {/* A carried figure must never read as a counted one. */}
                 {ledger.carried && !ledger.hasOpening && (
-                  <div className="px-3 py-2 rounded-xl bg-amber-50 border border-amber-200">
-                    <div className="text-[9px] font-black uppercase tracking-widest text-amber-700">
-                      Carried forward
-                    </div>
-                    <div className="text-[11px] font-semibold text-amber-900 mt-0.5">
-                      {cy}{fmt(ledger.openingBal)} — from the {ledger.carried.counted ? 'count' : 'closing'} on{' '}
-                      {displayDate(ledger.carried.from)}, plus every day since.
-                    </div>
-                    <div className="text-[10px] text-amber-800 mt-0.5">
-                      Nobody opened this day. Enter the counted amount to make it a real opening.
-                    </div>
-                  </div>
+                  <Banner tone="amber" className="mb-0.5">
+                    <Eyebrow className="text-amber-text">Carried forward</Eyebrow><br />
+                    {money(ledger.openingBal, cy)} — from the {ledger.carried.counted ? 'count' : 'closing'} on {dayLabel(ledger.carried.from)}, plus every day since.<br />
+                    <small className="opacity-85">Nobody opened this day. Enter the counted amount to make it a real opening.</small>
+                  </Banner>
                 )}
-
-                {/* Carry forward button */}
                 {ledger.prevClosing !== null && !ledger.hasOpening && (
-                  <button onClick={handleUseYesterdayClosing} disabled={isSaving}
-                    className="w-full h-10 flex items-center justify-center gap-2 bg-white border border-border shadow-sm rounded-pill text-[9px] font-black uppercase tracking-widest text-ink-secondary hover:bg-black/5 transition-all">
-                    <ChevronRight size={12} />
-                    Use prev. closing ({cy}{fmt(ledger.prevClosing)})
-                  </button>
+                  <Button variant="outline" size="sm" className="w-full" onClick={handleUseYesterdayClosing} disabled={isSaving}>
+                    <ChevronRight /> Use prev. closing ({money(ledger.prevClosing, cy)})
+                  </Button>
                 )}
-                <div className="relative">
-                  <input type="number" placeholder="Enter opening amount"
-                    className="w-full h-11 bg-white border border-border shadow-sm rounded-xl px-4 pr-10 font-black text-sm outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
-                    value={openingInput}
-                    onChange={e => setOpeningInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleSaveOpening()}
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-muted-foreground">{cy}</span>
-                </div>
-                <button onClick={handleSaveOpening} disabled={isSaving || !openingInput}
-                  className="w-full h-11 bg-ink-primary text-white font-black text-[9px] uppercase tracking-widest rounded-pill hover:bg-black transition-all flex items-center justify-center gap-2 disabled:opacity-40">
-                  {isSaving ? <RefreshCcw className="animate-spin" size={13} /> : <Save size={13} />}
-                  Save Opening Balance
-                </button>
+                <AmountField cy={cy} placeholder="Enter opening amount" aria-label="Opening amount"
+                  value={openingInput} onChange={e => setOpeningInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSaveOpening()} />
+                <Button variant="dark" size="sm" className="w-full" onClick={handleSaveOpening} disabled={isSaving || !openingInput}>
+                  {isSaving ? <RefreshCcw className="animate-spin" /> : <Save />} Save Opening Balance
+                </Button>
               </div>
             ) : (
-              <p className="text-[9px] font-bold text-muted-foreground text-center uppercase tracking-widest">View-only</p>
+              <Eyebrow className="block text-center">View-only</Eyebrow>
             )}
-          </div>
+          </Box>
 
-          {/* ── Receipts breakdown ────────────────────────────────────────── */}
-          <div className="bg-white border border-black/5 rounded-2xl shadow-sm p-5">
-            <h3 className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-              <TrendingUp size={11} className="text-emerald-500" /> Receipts Breakdown
-            </h3>
-            <div className="space-y-2.5">
-              {[
-                { label: 'Cash Sales',        val: ledger.cashSales,   icon: <Banknote size={10} />,  color: 'text-emerald-600' },
-                { label: 'Bank / UPI Sales',  val: ledger.bankSales,   icon: <Building2 size={10} />, color: 'text-accent-signature'  },
-                { label: 'Credit Sales',      val: ledger.creditSales, icon: <CreditCard size={10} />,color: 'text-blue-400', muted: true },
-                { label: 'Cash Collections',  val: ledger.cashCollect, icon: <Users size={10} />,     color: 'text-emerald-600' },
-                { label: 'Bank Collections',  val: ledger.bankCollect, icon: <Users size={10} />,     color: 'text-accent-signature'  },
-              ].map(({ label, val, icon, color, muted }) => (
-                <div key={label} className={`flex items-center justify-between ${muted ? 'opacity-50' : ''}`}>
-                  <div className={`flex items-center gap-1.5 text-[9px] font-bold text-muted-foreground ${color}`}>
-                    {icon} <span className="text-muted-foreground">{label}</span>
-                    {muted && <span className="text-[8px] text-muted-foreground">(excl.)</span>}
-                  </div>
-                  <span className={`text-[10px] font-black tabular-nums ${val > 0 ? color : 'text-muted-foreground'}`}>
-                    {cy}{fmt(val)}
-                  </span>
-                </div>
-              ))}
-              <div className="flex justify-between pt-2 border-t border-black/5 text-[10px] font-black">
-                <span className="text-ink-primary">Total Cash In</span>
-                <span className="text-emerald-600 tabular-nums">{cy}{fmt(ledger.cashIn)}</span>
-              </div>
-              {ledger.bankIn > 0 && (
-                <div className="flex justify-between text-[9px] font-bold text-muted-foreground">
-                  <span>+ Bank / UPI In</span>
-                  <span className="tabular-nums text-accent-signature">{cy}{fmt(ledger.bankIn)}</span>
-                </div>
-              )}
-            </div>
-          </div>
+          <Box title="Cash breakdown">
+            <Eyebrow className="mt-0.5 mb-1.5 block">Receipts</Eyebrow>
+            <Line label="Cash Sales" tone={ledger.cashSales > 0 ? 'good' : 'plain'} value={money(ledger.cashSales, cy)} />
+            <Line label="Bank / UPI Sales" tone={ledger.bankSales > 0 ? 'amber' : 'plain'} value={money(ledger.bankSales, cy)} />
+            <Line label="Credit Sales" muted value={<>{money(ledger.creditSales, cy)} <em className="font-sans text-[11px] font-medium not-italic text-mute">(excl.)</em></>} />
+            <Line label="Cash Collections" tone={ledger.cashCollect > 0 ? 'good' : 'plain'} value={money(ledger.cashCollect, cy)} />
+            <Line label="Bank Collections" tone={ledger.bankCollect > 0 ? 'amber' : 'plain'} value={money(ledger.bankCollect, cy)} />
+            <Line label="Total Cash In" total tone="good" value={money(ledger.cashIn, cy)} />
+            <Line label="+ Bank / UPI In" value={money(ledger.bankIn, cy)} />
 
-          {/* ── Payments breakdown ────────────────────────────────────────── */}
-          <div className="bg-white border border-black/5 rounded-2xl shadow-sm p-5">
-            <h3 className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-              <TrendingDown size={11} className="text-red-500" /> Payments Breakdown
-            </h3>
-            <div className="space-y-2.5">
-              {[
-                { label: 'Expenses',          val: ledger.totalExpenses,  icon: <Receipt size={10} />,     color: 'text-red-500' },
-                { label: 'Purchase Payments', val: ledger.totalPurchPaid, icon: <ShoppingCart size={10} />, color: 'text-orange-500' },
-              ].map(({ label, val, icon, color }) => (
-                <div key={label} className="flex items-center justify-between">
-                  <div className={`flex items-center gap-1.5 text-[9px] font-bold ${color}`}>
-                    {icon} <span className="text-muted-foreground">{label}</span>
-                  </div>
-                  <span className={`text-[10px] font-black tabular-nums ${val > 0 ? color : 'text-muted-foreground'}`}>
-                    {cy}{fmt(val)}
-                  </span>
-                </div>
-              ))}
-              <div className="flex justify-between pt-2 border-t border-black/5 text-[10px] font-black">
-                <span className="text-ink-primary">Total Cash Out</span>
-                <span className="text-red-600 tabular-nums">{cy}{fmt(ledger.cashOut)}</span>
-              </div>
-              {ledger.bankPurchPaid > 0 && (
-                <div className="flex justify-between text-[9px] font-bold text-muted-foreground">
-                  <span>+ Bank / UPI Purchases</span>
-                  <span className="tabular-nums text-accent-signature">{cy}{fmt(ledger.bankPurchPaid)}</span>
-                </div>
-              )}
-            </div>
-          </div>
+            <Eyebrow className="mt-3.5 mb-1.5 block">Payments</Eyebrow>
+            <Line label="Expenses" tone={ledger.totalExpenses > 0 ? 'bad' : 'plain'} value={money(ledger.totalExpenses, cy)} />
+            <Line label="Purchase Payments" tone={ledger.totalPurchPaid > 0 ? 'amber' : 'plain'} value={money(ledger.totalPurchPaid, cy)} />
+            <Line label="Total Cash Out" total tone="bad" value={money(ledger.cashOut, cy)} />
+            <Line label="+ Bank / UPI Purchases" value={money(ledger.bankPurchPaid, cy)} />
+          </Box>
 
-          {/* ── Physical cash reconciliation ─────────────────────────────── */}
-          <div className="bg-white border border-black/5 rounded-2xl shadow-sm p-5">
-            <h3 className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Banknote size={11} className="text-accent-signature" /> Cash Reconciliation
-              {ledger.savedVariance != null && (
-                <span className={`ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-bold ${
-                  Math.abs(ledger.savedVariance) < 0.01
-                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                    : ledger.savedVariance > 0
-                      ? 'bg-blue-50 text-blue-600 border border-blue-100'
-                      : 'bg-red-50 text-red-600 border border-red-100'
-                }`}>
-                  <CheckCircle2 size={8} />
-                  Saved
-                </span>
-              )}
-            </h3>
-            <div className="space-y-3">
-              <div className="flex justify-between text-[10px] font-bold text-muted-foreground">
-                <span>Book Balance</span>
-                <span className={`font-black tabular-nums ${isDeficit ? 'text-red-600' : 'text-ink-primary'}`}>
-                  {cy}{fmt(ledger.closingBal)}
-                </span>
-              </div>
-              <div className="relative">
-                <input type="number" placeholder="Enter physical cash count"
-                  className="w-full h-10 bg-white border border-border shadow-sm rounded-xl px-3 pr-8 text-xs font-black outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
-                  value={physicalCash}
-                  onChange={e => setPhysicalCash(e.target.value)}
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-muted-foreground">{cy}</span>
-              </div>
-              {variance !== null && (
-                <div className={`flex items-center justify-between p-3 rounded-xl text-[10px] font-black ${
-                  Math.abs(variance) < 0.01
-                    ? 'bg-emerald-50 border border-emerald-100 text-emerald-700'
-                    : variance > 0
-                      ? 'bg-blue-50 border border-blue-100 text-blue-700'
-                      : 'bg-red-50 border border-red-100 text-red-700'
-                }`}>
-                  <span>{Math.abs(variance) < 0.01 ? '✓ Balanced' : variance > 0 ? 'Cash Over' : 'Cash Short'}</span>
-                  <span className="tabular-nums">
-                    {Math.abs(variance) < 0.01 ? 'Exact match' : `${variance > 0 ? '+' : '−'}${cy}${fmt(Math.abs(variance))}`}
-                  </span>
+          <Box title="Cash Reconciliation" icon={Banknote}
+            right={savedLook && (
+              <><span className="flex-1" /><Badge tone={savedLook.tone} className="px-[7px] py-0.5 text-[10.5px]"><Check size={10} /> Saved</Badge></>
+            )}>
+            <Line label="Book Balance" value={<span className={isDeficit ? 'text-bad-text' : ''}>{money(ledger.closingBal, cy)}</span>} />
+            {ledger.isLocked ? (
+              <>
+                <Line label="Counted" value={ledger.savedPhysicalCash != null ? money(ledger.savedPhysicalCash, cy) : '—'} />
+                <VarianceStrip look={savedLook} value={savedLook && !savedLook.exact ? varWords(savedLook, ledger.savedVariance) : null} />
+              </>
+            ) : (
+              <>
+                <div className="mt-2 flex gap-2">
+                  <AmountField cy={cy} className="min-w-0 flex-1" placeholder="Enter physical cash count" aria-label="Physical cash count"
+                    value={physicalCash} onChange={e => setPhysicalCash(e.target.value)} />
+                  {variance !== null && !isFuture && (
+                    <Button variant="outline" size="sm" className="h-10" onClick={handleSavePhysicalCash}><Save /> Save Count</Button>
+                  )}
                 </div>
-              )}
-              {variance !== null && !isFuture && (
-                <button
-                  onClick={handleSavePhysicalCash}
-                  className="w-full h-9 flex items-center justify-center gap-2 bg-white border border-border shadow-sm rounded-pill text-[9px] font-black uppercase tracking-widest text-ink-secondary hover:bg-black/5 transition-all"
-                >
-                  <Save size={11} /> Save Count
-                </button>
-              )}
-            </div>
-          </div>
+                <VarianceStrip look={countLook} value={varWords(countLook, variance)} />
+              </>
+            )}
+          </Box>
 
-          {/* ── Close Day ────────────────────────────────────────────────── */}
-          {!ledger.isLocked && ledger.hasOpening && hasPermission('finance', 'edit') && !isFuture && (
-            <button onClick={() => setShowCloseModal(true)} disabled={isClosing}
-              className="w-full h-12 flex items-center justify-center gap-2 bg-ink-primary text-white font-black text-[10px] uppercase tracking-widest rounded-pill hover:bg-black transition-all shadow-sm disabled:opacity-40">
-              {isClosing ? <RefreshCcw className="animate-spin" size={14} /> : <Lock size={14} />}
-              Close & Lock Day
-            </button>
+          {!ledger.isLocked && ledger.hasOpening && canEdit && !isFuture && (
+            <Button size="lg" className="w-full" onClick={() => setShowCloseModal(true)} disabled={isClosing}>
+              {isClosing ? <RefreshCcw className="animate-spin" /> : <Lock />} Close &amp; Lock Day
+            </Button>
           )}
           {ledger.isLocked && (
-            <div className="flex items-center justify-center gap-2 p-3 bg-emerald-50 border border-emerald-100 rounded-2xl">
-              <ShieldCheck size={14} className="text-emerald-500" />
-              <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Day Closed</span>
-            </div>
+            <Banner tone="good" className="text-center"><b className="font-semibold">Day Closed</b></Banner>
           )}
-
         </div>
       </div>
 
-      {/* ── Bank Reconciliation ──────────────────────────────────────────── */}
-      <BankReconciliation
+      {/* ── Bank Reconciliation ───────────────────────────────────────────── */}
+      <BankReconciliation className="m-rise mt-4" style={{ '--i': 5 }}
         tenantId={currentTenantId}
         currentUserId={currentUserId}
         selectedDate={selectedDate}
@@ -1038,9 +447,8 @@ const DayBook = () => {
         dayExpenses={ledger.expenses}
       />
 
-      {/* ── Close Day modal ──────────────────────────────────────────────────── */}
       {showCloseModal && (
-        <CloseDayModal
+        <CloseDayDialog open
           date={selectedDate}
           closingBal={ledger.closingBal}
           cy={cy}
@@ -1051,7 +459,6 @@ const DayBook = () => {
         />
       )}
 
-      {/* ── Report modal ─────────────────────────────────────────────────────── */}
       {showReport && (
         <DailyLedgerDetail
           date={selectedDate}
@@ -1063,97 +470,6 @@ const DayBook = () => {
           onClose={() => setShowReport(false)}
         />
       )}
-    </div>
-  );
-};
-
-// ── Close Day Reconciliation Modal ───────────────────────────────────────────
-const CloseDayModal = ({ date, closingBal, cy, initialPhysical, isClosing, onCancel, onConfirm }) => {
-  useDialogClose(onCancel);
-  const [pc,   setPc]   = React.useState(initialPhysical || '');
-  const [note, setNote] = React.useState('');
-  const pcNum   = parseFloat(pc);
-  const v       = !isNaN(pcNum) ? Math.round((pcNum - closingBal) * 100) / 100 : null;
-  const balanced = v != null && Math.abs(v) < 0.01;
-  const surplus  = v != null && v > 0;
-  return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={onCancel}>
-      <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h2 className="text-[15px] font-black text-ink-primary leading-none">Close Day</h2>
-            <p className="text-[10px] font-bold text-muted-foreground mt-0.5 uppercase tracking-widest">{displayDate(date)}</p>
-          </div>
-          <button onClick={onCancel} className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-black/5">
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* Expected */}
-        <div className="bg-canvas rounded-xl p-4 mb-4 flex items-center justify-between">
-          <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Expected Cash</span>
-          <span className="font-black text-lg text-ink-primary tabular-nums">
-            {cy}{fmt(closingBal)}
-          </span>
-        </div>
-
-        {/* Physical count input */}
-        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1 block">
-          Physical Count
-        </label>
-        <div className="relative mb-3">
-          <input
-            type="number" step="0.01" placeholder="Count cash in drawer"
-            className="w-full h-11 border border-border shadow-sm rounded-xl px-3 pr-8 font-black text-sm outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
-            value={pc}
-            onChange={e => setPc(e.target.value)}
-            autoFocus
-          />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-muted-foreground">{cy}</span>
-        </div>
-
-        {/* Variance */}
-        {v != null && (
-          <div className={`flex items-center justify-between px-4 py-3 rounded-xl mb-3 text-[11px] font-black ${
-            balanced  ? 'bg-emerald-50 border border-emerald-100 text-emerald-700' :
-            surplus   ? 'bg-blue-50 border border-blue-100 text-blue-700' :
-                        'bg-red-50 border border-red-100 text-red-700'
-          }`}>
-            <span>{balanced ? '✓ Balanced' : surplus ? 'Cash Surplus' : 'Cash Short'}</span>
-            <span className="tabular-nums">
-              {balanced ? 'Exact match' : `${surplus ? '+' : '−'}${cy}${fmt(Math.abs(v))}`}
-            </span>
-          </div>
-        )}
-        {v != null && !balanced && (
-          <p className="text-[9px] text-muted-foreground mb-3 leading-relaxed">
-            Variance will be recorded as an account adjustment.
-          </p>
-        )}
-
-        {/* Note */}
-        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1 block">Note (optional)</label>
-        <input
-          className="w-full h-9 border border-border rounded-xl px-3 text-xs font-semibold outline-none focus:border-accent-signature/40 mb-4"
-          placeholder="e.g. Handover to office"
-          value={note} onChange={e => setNote(e.target.value)}
-        />
-
-        <div className="flex gap-2">
-          <button onClick={onCancel}
-            className="flex-1 h-11 rounded-pill border border-black/10 text-[12px] font-bold text-muted-foreground hover:bg-black/5 transition-all">
-            Cancel
-          </button>
-          <button
-            disabled={isClosing}
-            onClick={() => onConfirm(isNaN(pcNum) ? null : pcNum, note)}
-            className="flex-[2] h-11 rounded-pill bg-ink-primary text-white text-[12px] font-black hover:bg-black transition-all flex items-center justify-center gap-2 disabled:opacity-40"
-          >
-            {isClosing ? <RefreshCcw className="animate-spin" size={13} /> : <Lock size={13} />}
-            Confirm & Lock Day
-          </button>
-        </div>
-      </div>
     </div>
   );
 };
