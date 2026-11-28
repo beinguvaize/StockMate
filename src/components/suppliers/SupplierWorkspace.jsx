@@ -87,7 +87,7 @@ export default function SupplierWorkspace({
 
   // ── keys ──
   const handlers = useRef({});
-  handlers.current = { shown, cursor, canPay, onOpen, onPay, onLedger, onAdd };
+  useEffect(() => { handlers.current = { shown, cursor, canPay, onOpen, onPay, onLedger, onAdd }; });
   useEffect(() => {
     const onKey = (e) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -131,9 +131,9 @@ export default function SupplierWorkspace({
         <Figure label="Oldest unpaid" value={k.oldest != null ? `${k.oldest} days` : '—'}
           sub={k.oldestName ? `${k.oldestName}${k.oldestDate ? ` · ${shortDay(k.oldestDate)}` : ''}` : 'nothing outstanding'} />
         <Figure label="Paid this month" value={<span className="text-good-text">{rupees(k.paidThisMonth || 0, cur)}</span>}
-          sub={`${k.paymentsRecorded || 0} payments recorded, all time`} />
+          sub={`${k.paymentsRecorded || 0} ${k.paymentsRecorded === 1 ? 'payment' : 'payments'} recorded, all time`} />
         <Figure label="Purchased this month" value={rupees(k.purchasedThisMonth || 0, cur)}
-          sub={`${k.billsThisMonth || 0} bills`} />
+          sub={`${k.billsThisMonth || 0} ${k.billsThisMonth === 1 ? 'bill' : 'bills'}`} />
       </FigureStrip>
 
       <DueBar bands={bands} owedTotal={k.payable || 0} cur={cur} />
@@ -172,7 +172,7 @@ export default function SupplierWorkspace({
                   <th className={th}>Oldest unpaid</th>
                   <th className={cn(th, 'text-right')}>Bills</th>
                   <th className={cn(th, 'text-right text-ink-2')}>You owe</th>
-                  <th className={th}><span className="sr-only">Pay</span></th>
+                  <th className={th}><span className="sr-only">Payment</span></th>
                   <th className={th}><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>

@@ -1,110 +1,80 @@
 import React, { useMemo, useState } from 'react';
-import { useDialogClose } from '../hooks/useDialogClose';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
+import { useNotifications } from '../context/NotificationContext';
 import { usePeople } from '../hooks/usePeople';
 import { usePurchases } from '../hooks/usePurchases';
 import { useInventory } from '../hooks/useInventory';
-import { useAccounts, accountForMethod } from '../hooks/useAccounts';
 import { PageSkeleton } from '../components/ui/States';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { FilterPills } from '../components/ui/Tabs';
+import { FigureStrip, Figure } from '../components/ui/FigureStrip';
 import {
-  ArrowLeft, Phone, Mail, MapPin, Box, Search,
-  ArrowUpRight, CreditCard, ChevronRight, Info, ShieldCheck, User2, Trash2, Pencil } from 'lucide-react';
-import { formatDate } from '../lib/utils';
+  ArrowLeft, Phone, Mail, MapPin, Box, Search, ChevronRight, ChevronDown, Info, User, FileText,
+  Trash2, Pencil, Printer,
+} from 'lucide-react';
+import { formatDate, todayISOInAppTZ, cn } from '../lib/utils';
 import { groupPurchasesIntoBills, buildSupplierLedger } from '../lib/bills';
+import { decorateBills } from './purchases/lib/register';
+import { supplierDue, shortDay } from '../lib/supplierView';
+import PaySupplierDialog from '../components/suppliers/PaySupplierDialog';
+import { EditPaymentDialog, DeletePaymentDialog } from '../components/suppliers/PaymentDialogs';
+import { Pill, BillPill, Eyebrow, EmptyCard, money, rupees, num2 } from '../components/suppliers/parts';
 
+/**
+ * A supplier's ledger (web redesign, approved mockups suppliers-05 … 10).
+ *
+ * Every figure keeps the source it had before the redesign; only the layout
+ * changed. "Amount due" is this page's own figure (credit bills only, no
+ * advances), "Closing balance" is the running ledger's, and they can differ:
+ * the foot says why, as before. Money writes are the existing server
+ * functions, unchanged: settle_supplier_payment, settle_purchase_payment,
+ * edit_supplier_payment, delete_supplier_payment, offset_supplier_credit_note.
+ *
+ * "Print statement" is the same window.print() of this page; the print styles
+ * in index.css (.supplier-ledger-print, .no-print) hide the controls.
+ */
 const SupplierLedger = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
+  const { addNotification } = useNotifications();
   const { suppliers, loading: peoLoading } = usePeople(currentTenantId);
-  const { purchases, purchaseReturns, supplierPayments, paySupplier, payPurchase, offsetCreditNote, deleteSupplierPayment, editSupplierPayment, loading: purLoading } = usePurchases(currentTenantId);
+  const { purchases, purchaseReturns, supplierPayments, paySupplier, payPurchase, offsetCreditNote, deleteSupplierPayment, editSupplierPayment, refetch, loading: purLoading } = usePurchases(currentTenantId);
   const [offsetting, setOffsetting] = useState(null);   // return id in flight
   const [offsetMsg, setOffsetMsg]   = useState(null);
   const { products, loading: invLoading } = useInventory(currentTenantId);
-  const { accounts: ledgerAccounts = [] } = useAccounts(currentTenantId);
-  // The Cash/Bank posting is NOT done here any more.
-  // trg_supplier_payments_post_ledger writes it from the payment row itself, so
-  // every path that records a payment posts exactly once. This is kept as a
-  // no-op rather than deleted at each call site, so a missed caller cannot
-  // silently reintroduce the double posting.
-  const postSupplierOut = async () => {};
+  // The Cash/Bank posting for a supplier payment is done by the database
+  // (trg_supplier_payments_post_ledger), from the payment row itself. Nothing
+  // on this page posts it.
 
   const loading = peoLoading || purLoading || invLoading;
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('ALL'); // ALL | BILL | PAY | RETURN
   const [expandedRow, setExpandedRow] = useState(null);
   // A busy supplier runs ~6 bills a month, so three years is ~400 ledger rows.
-  // Default to a window rather than the whole history; the brought-forward row
-  // below keeps the running balance honest when history is hidden.
   // Opens on this month. Older entries are not lost — the brought-forward
   // row carries their balance in, so the running figures stay true.
   const [range, setRange] = useState('1M');       // 1M | 3M | FY | ALL
   const [newestFirst, setNewestFirst] = useState(false);
 
-  // Pay-supplier modal state
-  // Deleting a payment is irreversible from the user's side, so it asks first
-  // and names the amount -- the ledger is money, and an accidental click here
-  // silently changes what a supplier is owed.
+  // Deleting or changing a payment changes what a supplier is owed, so each
+  // asks first and names the amount.
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState('');
   const [editTarget, setEditTarget] = useState(null);
-  const [editAmount, setEditAmount] = useState('');
-  const [editSaving, setEditSaving] = useState(false);
-  const [editError, setEditError] = useState('');
 
-  const [payOpen, setPayOpen]       = useState(false);
-  useDialogClose(() => { setPayOpen(false); setPayTarget(null); }, { enabled: payOpen });
-  const [payAmount, setPayAmount]   = useState('');
-  const [payMethod, setPayMethod]   = useState('CASH');
-  const [payDate, setPayDate]       = useState(() => new Date().toISOString().slice(0,10));
-  const [payRef, setPayRef]         = useState('');
-  const [payNote, setPayNote]       = useState('');
-  const [paySubmitting, setPaySubmitting] = useState(false);
-  const [payError, setPayError]     = useState(null);
-
-  // payTarget: a specific purchase to pay, or null = pay supplier (auto-allocate).
+  // Pay: payTarget is one purchases row (a bill line) or null = pay the
+  // supplier (the server spreads it over the oldest unpaid credit bills).
+  const [payOpen, setPayOpen] = useState(false);
   const [payTarget, setPayTarget] = useState(null);
+  const [payPrefill, setPayPrefill] = useState('');
   const openPay = (purchase = null, prefill = '') => {
     setPayTarget(purchase);
-    setPayAmount(prefill ? String(Math.round(prefill)) : ''); setPayMethod('CASH'); setPayRef(''); setPayNote('');
-    setPayError(null); setPayOpen(true);
-  };
-
-  const submitPay = async () => {
-    const amt = Number(payAmount);
-    if (!(amt > 0)) { setPayError('Enter a valid amount'); return; }
-    setPaySubmitting(true); setPayError(null);
-    const common = { method: payMethod, date: payDate, referenceNo: payRef, note: payNote };
-
-    // The URL param can be a name/slug for legacy links; the resolved supplier
-    // row is the reliable id source.
-    const sid = supplier?.id || payTarget?.supplier_id || id;
-
-    if (payTarget) {
-      // Pay this one order.
-      const pid = payTarget.id;
-      if (!sid || !pid) { setPaySubmitting(false); setPayError('Could not resolve supplier / order. Reopen and retry.'); return; }
-      const { error } = await payPurchase({ supplierId: sid, purchaseId: pid, amount: amt, ...common });
-      setPaySubmitting(false);
-      if (error) { setPayError(error.message || 'Payment failed'); return; }
-      await postSupplierOut(amt, payMethod, payDate, pid);
-      setPayOpen(false);
-      return;
-    }
-
-    // General payment: settle_supplier_payment auto-allocates FIFO across the
-    // oldest unpaid credit orders (one row per order) and books any leftover as
-    // an on-account advance. Single source of allocation logic — no JS loop.
-    if (!sid) { setPaySubmitting(false); setPayError('Could not resolve supplier. Reopen and retry.'); return; }
-    const { error } = await paySupplier({ supplierId: sid, amount: amt, ...common });
-    setPaySubmitting(false);
-    if (error) { setPayError(error.message || 'Payment failed'); return; }
-    await postSupplierOut(amt, payMethod, payDate, null);
-    setPayOpen(false);
+    setPayPrefill(prefill);
+    setPayOpen(true);
   };
 
   const isCredit = (pt) => ['CREDIT','UDHAAR','POST-CAPITAL'].includes(String(pt || '').toUpperCase());
@@ -231,7 +201,7 @@ const SupplierLedger = () => {
       if (paymentFilter !== 'ALL' && r.kind !== paymentFilter) return false;
       if (!q) return true;
       const hay = [
-        r.bill?.id, r.ret?.id, r.pay?.id, r.pay?.reference_no, r.pay?.note,
+        r.bill?.id, r.bill?.bill_no, r.ret?.id, r.pay?.id, r.pay?.reference_no, r.pay?.note,
         ...(r.bill?.lines || []).map(x => x.id),
         ...(r.bill?.lines || []).map(x => x.notes),
         ...(r.bill?.lines || []).map(x => (products || []).find(pr => pr.id === x.linked_product_id)?.name),
@@ -305,763 +275,440 @@ const SupplierLedger = () => {
     return { total, count, avg, last, payable, cashPaid, creditTotal, totalReturns, net, totalPaid, lineCount };
   }, [supplierPurchases, supplierReturns, payments, bills]);
 
+
+  // Read-only, for the header pill and the line Pay dialog: each bill's due
+  // date and state by the Purchases register's rule.
+  const today = todayISOInAppTZ();
+  const decoratedBills = useMemo(
+    () => (supplier ? decorateBills(bills, { suppliers: [supplier], payments, today }) : []),
+    [bills, supplier, payments, today]);
+  const billById = useMemo(() => new Map(decoratedBills.map(b => [b.id, b])), [decoratedBills]);
+  const due = useMemo(() => supplierDue(decoratedBills), [decoratedBills]);
+  // Unpaid credit bills: the bills "Amount due" above is made of.
+  const unpaidCredit = useMemo(() => bills.filter(b => isCredit(b.payment_type) && b.due > 0.01)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date))), [bills]);
+  const onAccountTotal = onAccountPayments.reduce((s, p) => s + Number(p.amount || 0), 0);
+
   if (loading) return <PageSkeleton cards={3} rows={8} />;
 
   if (!supplier) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] animate-fade-in text-center p-12">
-        <div className="glass-panel !py-12 px-8 max-w-sm rounded-[3rem] border-dashed border-2">
-            <Info size={64} className="mx-auto mb-6 text-muted-foreground opacity-50" />
-            <h2 className="text-3xl font-bold text-ink-primary mb-2">Supplier Not Found</h2>
-            <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-              This supplier record was deleted or is no longer available.
-            </p>
-            <button onClick={() => navigate(-1)} className="btn-signature !px-10 !h-14 !rounded-pill">Back to Suppliers</button>
+      <div className="flex min-h-[60vh] items-center justify-center p-8">
+        <div className="w-full max-w-md">
+          <EmptyCard icon={Info} title="Supplier not found" text="This supplier record was deleted or is no longer available.">
+            <Button onClick={() => navigate(-1)}>Back to Suppliers</Button>
+          </EmptyCard>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="animate-fade-in pb-12">
-      {/* Header & Navigation */}
-      <div className="flex justify-between items-center gap-4 mb-6 mt-1 pb-4 border-b border-black/5">
-        <div className="flex items-center gap-3 min-w-0">
-          <button
-            onClick={() => navigate(-1)}
-            className="no-print w-10 h-10 shrink-0 rounded-xl border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all text-ink-primary group bg-white"
-          >
-            <ArrowLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" />
-          </button>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">
-              Suppliers
-              <ChevronRight size={10} className="opacity-40" />
-              <span className="text-accent-signature">Ledger</span>
-            </div>
-            <h1 className="text-xl font-extrabold text-ink-primary leading-none truncate">{supplier.name}<span className="text-accent-signature">.</span></h1>
-          </div>
-        </div>
+  const canPay = hasPermission('purchases', 'edit') !== false;
+  const ref8 = (id) => `#${(id || '').slice(-8).toUpperCase()}`;
+  const billRef = (b) => b?.bill_no || ref8(b?.id);
+  const lineName = (x) => (products || []).find(pr => pr.id === x?.linked_product_id)?.name || x?.notes || '';
+  const amountWords = (n) => num2(n);
+  const contact = [
+    [User, supplier.contact_person], [Phone, supplier.phone], [Mail, supplier.email],
+    [MapPin, supplier.address], [FileText, supplier.gstin ? `GSTIN ${supplier.gstin}` : null],
+  ].filter(([, v]) => v);
+  const payTargetBill = payTarget ? decoratedBills.find(b => b.lines.some(l => l.id === payTarget.id)) : null;
 
-        <div className="flex items-center gap-3 shrink-0">
-          <span className="hidden lg:block text-[10px] font-semibold text-muted-foreground">
-            As of {new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
-          </span>
-          <button
-            onClick={() => window.print()}
-            className="no-print h-10 px-4 rounded-pill bg-ink-primary text-white text-[11px] font-bold hover:bg-ink-primary/90 transition-all flex items-center gap-2"
-          >
-            Export PDF <ArrowUpRight size={14} className="text-accent-signature/70" />
-          </button>
+  const th = 'px-2.5 py-2.5 text-left font-tight text-[12px] font-semibold text-mute border-b border-line whitespace-nowrap first:pl-4 last:pr-3.5';
+  const td = 'px-2.5 py-[11px] border-b border-sep align-top text-[13px] first:pl-4 last:pr-3.5';
+  // On screen the columns use shop words; the printed statement keeps Debit,
+  // Credit and Balance.
+  const colHead = (screen, print, className) => (
+    <th className={cn(th, className)}><span className="print:hidden">{screen}</span><span className="hidden print:inline">{print}</span></th>
+  );
+  const broughtForward = (
+    <tr className="[&>td]:bg-tile">
+      <td className={cn(td, 'whitespace-nowrap text-[12.5px] text-body')}>{shortDay(rangeStart)}</td>
+      <td colSpan="4" className={cn(td, 'text-[12.5px] text-body')}>
+        <b className="font-tight font-semibold text-ink-2">Balance brought forward</b> · {hiddenBefore} earlier {hiddenBefore === 1 ? 'entry' : 'entries'} not shown
+      </td>
+      <td className={cn(td, 'text-right font-tight font-semibold tabular-nums')}>{amountWords(opening)}</td>
+      <td className={cn(td, 'no-print')} />
+    </tr>
+  );
+
+  return (
+    <div className="flex flex-col pb-16">
+      {/* Header: back, name, pills, As of, Print statement, Record payment */}
+      <div className="m-rise mb-[18px] flex flex-wrap items-center gap-3.5" style={{ '--i': 0 }}>
+        <button type="button" onClick={() => navigate(-1)}
+          className="no-print m-press inline-flex items-center gap-1.5 font-tight text-[13px] font-semibold text-body hover:text-ink">
+          <ArrowLeft size={15} /> Suppliers
+        </button>
+        <h3 className="min-w-0 truncate font-tight text-[20px] font-semibold tracking-[-0.02em]">{supplier.name}</h3>
+        <span className="flex items-center gap-1.5">
+          {due.pill && <BillPill pill={due.pill} />}
+          <Pill>Active supplier</Pill>
+        </span>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="mr-1 text-[12px] text-mute">As of {formatDate(today)}</span>
+          <Button variant="secondary" className="no-print" onClick={() => window.print()}><Printer /> Print statement</Button>
+          {metrics.payable > 0 && canPay && (
+            <Button className="no-print gap-2.5 tabular-nums" onClick={() => openPay()}>
+              Record payment <span>{rupees(metrics.payable, cur)}</span>
+            </Button>
+          )}
         </div>
       </div>
 
-      <div className="supplier-ledger-print grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Supplier Statistics & Profile */}
-        <div className="lg:col-span-4 space-y-5">
-          {/* Profile Card */}
-          <div className="bg-white border border-black/5 rounded-2xl shadow-sm p-5">
-            <div className="flex items-center gap-4 mb-5 pb-5 border-b border-black/5">
-              <div className="w-14 h-14 rounded-2xl bg-accent-signature/10 border border-accent-signature/25 flex items-center justify-center text-accent-signature tabular-nums font-bold text-lg shrink-0">
-                {(supplier.name || '–').trim().split(/\s+/).filter(Boolean).slice(0,2).map(w => w[0]).join('').toUpperCase()}
-              </div>
-              <div className="min-w-0">
-                <h3 className="text-base font-extrabold text-ink-primary leading-tight truncate">{supplier.name}</h3>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <ShieldCheck size={12} className="text-accent-signature" />
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Active supplier</span>
-                </div>
-              </div>
-            </div>
+      <div className="m-rise -mt-2 mb-[18px] flex flex-wrap items-center gap-x-[18px] gap-y-1.5 text-[13px] text-ink-2" style={{ '--i': 0 }}>
+        {contact.length ? contact.map(([Icon, v], i) => (
+          <span key={i} className="inline-flex items-center gap-1.5 tabular-nums"><Icon size={14} strokeWidth={1.8} className="text-mute" />{v}</span>
+        )) : <span className="text-mute">No contact details on file</span>}
+      </div>
 
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 text-[13px]">
-                <Phone size={14} className="text-muted-foreground shrink-0" />
-                <span className="font-semibold text-ink-primary">{supplier.phone || <span className="text-muted-foreground font-normal">No phone</span>}</span>
-              </div>
-              <div className="flex items-center gap-3 text-[13px] min-w-0">
-                <Mail size={14} className="text-muted-foreground shrink-0" />
-                <span className="font-semibold text-ink-primary truncate lowercase">{supplier.email || <span className="text-muted-foreground font-normal normal-case">No email</span>}</span>
-              </div>
-              <div className="flex items-start gap-3 text-[13px]">
-                <MapPin size={14} className="text-muted-foreground shrink-0 mt-0.5" />
-                <span className="font-semibold text-ink-primary leading-snug">{supplier.address || <span className="text-muted-foreground font-normal">No address on file</span>}</span>
-              </div>
-              <div className="flex items-center gap-3 text-[13px] pt-3 border-t border-black/5">
-                <User2 size={14} className="text-muted-foreground shrink-0" />
-                <span className="font-semibold text-ink-primary">{supplier.contact_person || <span className="text-muted-foreground font-normal">No contact person</span>}</span>
-              </div>
-            </div>
+      <div className="supplier-ledger-print">
+        <FigureStrip cols={4} className="m-rise mb-5" style={{ '--i': 1 }}>
+          <Figure label="Amount due" value={<span className={metrics.payable > 0 ? 'text-bad-text' : 'text-good-text'}>{money(metrics.payable, cur)}</span>}
+            sub={metrics.payable > 0
+              ? `${unpaidCredit.length} unpaid credit ${unpaidCredit.length === 1 ? 'bill' : 'bills'}${unpaidCredit[0] ? ` · oldest ${shortDay(unpaidCredit[0].date)}` : ''}`
+              : 'Settled'} />
+          <Figure label="Closing balance" value={money(closing, cur)}
+            sub={Math.abs(closing - metrics.payable) > 0.01
+              ? [metrics.totalReturns > 0.01 ? `less ${money(metrics.totalReturns, cur)} in returns` : null,
+                 onAccountPayments.length > 0 ? `less ${money(onAccountTotal, cur)} on account` : null].filter(Boolean).join(' · ') || 'the running ledger below'
+              : 'the running ledger below'} />
+          <Figure label="Total purchased" value={rupees(metrics.total, cur)}
+            sub={`${metrics.count} ${metrics.count === 1 ? 'bill' : 'bills'}${metrics.lineCount > metrics.count ? ` · ${metrics.lineCount} products` : ''}`} />
+          <Figure label="Payments made" value={<span className="text-good-text">{rupees(metrics.totalPaid, cur)}</span>}
+            sub="all time, not counting cash bills" />
+        </FigureStrip>
+
+        <div className="ledger-panel m-rise overflow-hidden rounded-[14px] border border-line bg-surface" style={{ '--i': 2 }}>
+          <div className="no-print flex flex-wrap items-center gap-2 border-b border-sep px-3.5 py-3">
+            <FilterPills ariaLabel="Period" value={range} onChange={(v) => { setRange(v); setExpandedRow(null); }}
+              items={[{ key: '1M', label: 'Month' }, { key: '3M', label: '3 months' }, { key: 'FY', label: 'This FY' }, { key: 'ALL', label: 'All' }]} />
+            <span className="mx-1 h-5 w-px bg-line" aria-hidden="true" />
+            <FilterPills ariaLabel="Show" value={paymentFilter} onChange={(v) => { setPaymentFilter(v); setExpandedRow(null); }}
+              items={[{ key: 'ALL', label: 'All' }, { key: 'BILL', label: 'Bills' }, { key: 'PAY', label: 'Payments' }, { key: 'RETURN', label: 'Returns' }]} />
+            {/* A shopkeeper wants today at the top; an accountant reading a
+                statement wants it to run forwards. Neither is wrong. */}
+            <button type="button" onClick={() => setNewestFirst(v => !v)}
+              title={newestFirst ? 'Showing newest first' : 'Showing oldest first'}
+              className="m-press inline-flex items-center gap-1.5 whitespace-nowrap rounded-pill px-3 py-1.5 font-tight text-[12.5px] font-semibold text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile">
+              {newestFirst ? 'Newest first' : 'Oldest first'} <ChevronDown size={14} className={newestFirst ? 'rotate-180' : ''} />
+            </button>
+            <label className="relative ml-auto w-[220px] max-w-full">
+              <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-mute" />
+              <Input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Bill no., product or note"
+                aria-label="Search the ledger" className="pl-9" />
+            </label>
           </div>
 
-          {/* Amount Due — primary signal */}
-          <div className={`rounded-2xl border p-5 ${metrics.payable > 0 ? 'bg-red-50 border-red-100' : 'bg-emerald-50/60 border-emerald-100'}`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <span className={`text-[10px] font-bold uppercase tracking-wider ${metrics.payable > 0 ? 'text-red-400' : 'text-emerald-500'}`}>Amount due</span>
-                <div className={` tabular-nums text-2xl font-bold mt-0.5 ${metrics.payable > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                  <span className="text-base opacity-60 mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{metrics.payable.toLocaleString()}
-                </div>
-              </div>
-              <span className={`text-[11px] font-bold rounded-full px-3 py-1 bg-white border ${metrics.payable > 0 ? 'text-red-500 border-red-200' : 'text-emerald-600 border-emerald-200'}`}>
-                {metrics.payable > 0 ? 'Outstanding' : 'Settled'}
-              </span>
-            </div>
-            {metrics.payable > 0 && hasPermission('purchases', 'edit') !== false && (
-              <button
-                onClick={() => openPay()}
-                className="no-print w-full mt-4 flex items-center justify-center gap-2 px-4 py-2.5 rounded-pill bg-ink-primary text-white text-[12px] font-bold hover:bg-ink-primary/90 transition-all"
-              >
-                <CreditCard size={14} className="text-accent-signature/70" /> Record payment
-              </button>
-            )}
-          </div>
+          <div className="overflow-x-auto overflow-y-auto">
+            <table className="w-full border-collapse text-ink">
+              <thead>
+                <tr>
+                  <th className={th}>Date</th>
+                  <th className={th}>Type</th>
+                  <th className={th}>Reference</th>
+                  {colHead('Billed', 'Debit', 'text-right')}
+                  {colHead('Paid or returned', 'Credit', 'text-right')}
+                  {colHead('You owe', 'Balance', 'text-right')}
+                  <th className={cn(th, 'no-print w-16')}><span className="sr-only">Actions</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* Balance carried into the window. Without it every figure in
+                    the balance column would be understated by whatever the
+                    hidden history left behind. */}
+                {hiddenBefore > 0 && !newestFirst && broughtForward}
+                {displayRows.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="px-4 py-20 text-center">
+                      <Box size={40} strokeWidth={1.4} className="mx-auto mb-3 text-faint" />
+                      <h4 className="font-tight text-[16px] font-semibold">No transactions</h4>
+                      <p className="mt-1 text-[13px] text-body">
+                        {ledgerRows.length === 0
+                          ? 'This supplier has no recorded purchases yet.'
+                          : hiddenBefore === ledgerRows.length
+                            ? 'Nothing in this period — try a wider range.'
+                            : 'Nothing matches this filter.'}
+                      </p>
+                    </td>
+                  </tr>
+                ) : displayRows.map((r, i) => {
+                  const key = `${r.kind}-${r.bill?.id || r.ret?.id || r.pay?.id}-${i}`;
+                  const bal = <td className={cn(td, 'text-right font-tight font-semibold tabular-nums whitespace-nowrap', r.balance > 0.01 ? 'text-ink' : 'text-mute')}>{amountWords(r.balance)}</td>;
 
-          {/* Credit notes — money the supplier owes back.
-              Not netted off Amount Due on purpose. MADEENA's Rs 2,100 note is
-              against a cash bill already paid in full, so whether it offsets
-              their next bill or comes back as cash is their call, not the
-              app's. Visible, and applied only when told to. */}
-          {openCredit > 0.01 && (
-            <div className="rounded-2xl border border-blue-100 bg-blue-50/60 p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-400">Credit notes</span>
-                  <div className="tabular-nums text-xl font-bold mt-0.5 text-blue-700">
-                    <span className="text-sm opacity-60 mr-0.5">{cur}</span>{openCredit.toLocaleString('en-IN')}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5">owed to you, not yet applied</div>
-                </div>
-              </div>
+                  // ── Bill ──────────────────────────────────────────────
+                  if (r.kind === 'BILL') {
+                    const b = r.bill;
+                    const multi = b.lines.length > 1;
+                    const expanded = expandedRow === b.id;
+                    const names = b.lines.map(x => (products || []).find(pr => pr.id === x.linked_product_id)?.name).filter(Boolean);
+                    return (
+                      <React.Fragment key={key}>
+                        <tr onClick={() => multi && setExpandedRow(expanded ? null : b.id)}
+                          className={cn('[&>td]:transition-colors [&>td]:duration-(--dur-press)', multi && 'cursor-pointer', expanded ? '[&>td]:bg-amber-soft' : 'hover:[&>td]:bg-tile')}>
+                          <td className={cn(td, 'whitespace-nowrap tabular-nums')}>{shortDay(b.date)}</td>
+                          <td className={td}><Pill>Bill</Pill></td>
+                          <td className={td}>
+                            <span className="inline-flex flex-wrap items-center gap-1.5 font-tight text-[13.5px] font-semibold">
+                              {multi && (
+                                <span className="grid h-5 w-5 place-items-center rounded-md text-mute">
+                                  <ChevronRight size={13} className={cn('transition-transform duration-(--dur-press)', expanded && 'rotate-90')} />
+                                </span>
+                              )}
+                              <span className="tabular-nums">{billRef(b)}</span>
+                              {multi && <span className="rounded-pill bg-well px-[7px] py-px text-[11px] text-ink-2">{b.lines.length} items</span>}
+                              {b.due > 0.01 && <span className="rounded-pill bg-bad-soft px-[7px] py-px text-[11px] tabular-nums text-bad-text">due {Math.round(b.due).toLocaleString('en-IN')}</span>}
+                              {/* Single-product bill: pay it right here. Multi
+                                  product bills pay per line inside the detail,
+                                  since the money lands on different rows. */}
+                              {!multi && b.due > 0.01 && canPay && (
+                                <Button size="xs" variant="dark" className="no-print ml-1 h-6 px-2.5 text-[12px]"
+                                  onClick={(e) => { e.stopPropagation(); openPay(b.lines[0], b.due); }}>Pay</Button>
+                              )}
+                            </span>
+                            {(multi && expanded && b.due > 0.01) ? (
+                              <small className={cn('block text-[12px] text-mute', multi && 'pl-[26px]')}>Pay the lines still open, below</small>
+                            ) : names.length > 0 && (
+                              <small className={cn('block max-w-[320px] truncate text-[12px] text-mute', multi && 'pl-[26px]')}>
+                                {names.slice(0, 3).join(', ')}{names.length > 3 ? ` +${names.length - 3}` : ''}
+                              </small>
+                            )}
+                            {r.atBill > 0.01 && (
+                              <small className={cn('block text-[12px] font-semibold text-good-text', multi && 'pl-[26px]')}>
+                                {money(r.atBill, cur)} paid at bill · {b.payment_type || 'CASH'}
+                              </small>
+                            )}
+                          </td>
+                          <td className={cn(td, 'text-right font-tight tabular-nums whitespace-nowrap')}>{amountWords(r.debit)}</td>
+                          {/* Money handed over at the counter belongs to the
+                              bill, not to a second row that cancels it. */}
+                          <td className={cn(td, 'text-right font-tight tabular-nums whitespace-nowrap')}>
+                            {r.credit > 0.01 ? <span className="text-good-text">{amountWords(r.credit)}</span> : <span className="text-faint">—</span>}
+                          </td>
+                          {bal}
+                          <td className={cn(td, 'no-print')} />
+                        </tr>
 
-              <div className="mt-3 space-y-2">
-                {creditNotes.filter(c => c.open > 0.01).map(c => (
-                  <div key={c.id} className="flex items-center justify-between gap-2 bg-white/70 rounded-xl px-3 py-2">
-                    <div className="min-w-0">
-                      <div className="text-[11px] font-semibold text-ink-primary truncate">
-                        {c.product_name || 'Return'} · {formatDate(c.date)}
-                      </div>
-                      <div className="text-[9px] text-muted-foreground tabular-nums">
-                        #{(c.id || '').slice(-8).toUpperCase()}
-                        {c.used > 0.01 && <> · {cur}{Math.round(c.used).toLocaleString('en-IN')} already applied</>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="tabular-nums text-[12px] font-bold text-blue-700">
-                        {cur}{Math.round(c.open).toLocaleString('en-IN')}
+                        {expanded && b.lines.map(x => {
+                          const lineAmt = Number(x.total_amount ?? x.total_cost ?? 0);
+                          const lineQty = Number(x.quantity ?? 0);
+                          const lineDue = Math.max(0, lineAmt - Number(x.paid_amount || 0));
+                          return (
+                            <tr key={`${key}-${x.id}`} className="bill-detail [&>td]:bg-[#FCFBF9] hover:[&>td]:bg-[#F8F6F2]">
+                              <td className={cn(td, 'py-[7px]')} />
+                              <td colSpan="2" className={cn(td, 'border-l-2 border-l-amber py-[7px]')}>
+                                <span className="block font-medium">{lineName(x) || '—'}</span>
+                                <small className="block text-[12px] tabular-nums text-mute">
+                                  {lineQty} × {cur}{(lineQty > 0 ? lineAmt / lineQty : 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · line {(x.id || '').slice(-6).toUpperCase()}
+                                  {x.notes && lineName(x) !== x.notes ? ` · ${x.notes}` : ''}
+                                </small>
+                              </td>
+                              <td className={cn(td, 'py-[7px] text-right font-tight tabular-nums whitespace-nowrap')}>{amountWords(lineAmt)}</td>
+                              <td colSpan="3" className={cn(td, 'py-[7px] text-right whitespace-nowrap')}>
+                                {lineDue > 0.01 ? (
+                                  <span className="inline-flex items-center gap-1.5">
+                                    <span className="rounded-pill bg-bad-soft px-[7px] py-px font-tight text-[11px] font-semibold tabular-nums text-bad-text">due {Math.round(lineDue).toLocaleString('en-IN')}</span>
+                                    {canPay && (
+                                      <Button size="xs" variant="secondary" className="no-print h-6 px-2.5 text-[12px]"
+                                        onClick={(e) => { e.stopPropagation(); openPay(x, lineDue); }}>Pay</Button>
+                                    )}
+                                  </span>
+                                ) : <Pill tone="good">Settled</Pill>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </React.Fragment>
+                    );
+                  }
+
+                  // ── Payment ───────────────────────────────────────────
+                  if (r.kind === 'PAY') {
+                    // One handover can settle several bills. It is still one
+                    // payment: show the total, and what it covered.
+                    const many = (r.allocations?.length || 0) > 1;
+                    const ref = r.onAccount ? 'On account' : many ? `${r.allocations.length} bills` : billRef(r.bill);
+                    const method = r.pay?.payment_method || 'CASH';
+                    const sub = [r.onAccount ? method : `${method} · settlement`, r.pay?.reference_no ? `ref ${r.pay.reference_no}` : null].filter(Boolean).join(' · ');
+                    return (
+                      <tr key={key} className="group/pay hover:[&>td]:bg-tile [&>td]:transition-colors [&>td]:duration-(--dur-press)">
+                        <td className={cn(td, 'whitespace-nowrap tabular-nums')}>{shortDay(r.date)}</td>
+                        <td className={td}><Pill tone="good">{r.atBill ? 'Paid' : 'Payment'}</Pill></td>
+                        <td className={td}>
+                          <span className="font-tight text-[13.5px] font-semibold tabular-nums">
+                            {ref}
+                            {/* Which line took the money, when it is one bill
+                                of several lines and not the one it is named after. */}
+                            {r.lineRef && <span className="ml-1.5 font-sans text-[12px] font-medium text-mute">· {r.lineRef}</span>}
+                          </span>
+                          {many && (
+                            <small className="block text-[12px] leading-tight text-mute">
+                              {r.allocations.map(a => `#${String(a.purchaseId || '').slice(-6).toUpperCase()} ${money(a.amount, cur)}`).join(' · ')}
+                            </small>
+                          )}
+                          <small className="block text-[12px] text-mute">{sub}</small>
+                        </td>
+                        <td className={cn(td, 'text-right text-faint')} />
+                        <td className={cn(td, 'text-right font-tight tabular-nums whitespace-nowrap text-good-text')}>{amountWords(r.credit)}</td>
+                        {bal}
+                        <td className={cn(td, 'no-print whitespace-nowrap py-2 text-right')}>
+                          {/* Only a real receipt can be changed or removed. Money
+                              paid at the counter belongs to its bill and is undone
+                              by editing that bill, not here. */}
+                          {r.pay?.id && (
+                            <span className="inline-flex gap-0.5 opacity-60 transition-opacity group-hover/pay:opacity-100 focus-within:opacity-100">
+                              <button type="button" title="Edit this payment" aria-label="Edit this payment"
+                                onClick={() => setEditTarget({ id: r.pay.id, amount: r.credit, date: r.date, method })}
+                                className="m-press grid h-[26px] w-[26px] place-items-center rounded-lg text-body hover:bg-tile"><Pencil size={13} /></button>
+                              <button type="button" title="Delete this payment" aria-label="Delete this payment"
+                                onClick={() => setDeleteTarget({ id: r.pay.id, amount: r.credit, date: r.date, method, many: r.allocations?.length || 1, ref: r.onAccount ? null : billRef(r.bill) })}
+                                className="m-press grid h-[26px] w-[26px] place-items-center rounded-lg text-bad-text hover:bg-tile"><Trash2 size={13} /></button>
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  // ── Return / debit note ───────────────────────────────
+                  const ret = r.ret;
+                  const rprod = (products || []).find(pr => pr.id === ret.product_id);
+                  return (
+                    <tr key={key} className="hover:[&>td]:bg-tile [&>td]:transition-colors [&>td]:duration-(--dur-press)">
+                      <td className={cn(td, 'whitespace-nowrap tabular-nums')}>{shortDay(r.date)}</td>
+                      <td className={td}><Pill tone="info">Return</Pill></td>
+                      <td className={td}>
+                        <span className="font-tight text-[13.5px] font-semibold tabular-nums">{ref8(ret.id)}</span>
+                        <small className="block max-w-[320px] truncate text-[12px] text-mute">
+                          {rprod?.name || ret.product_name || 'Debit note'}
+                          {ret.quantity ? ` · ${Number(ret.quantity)} units` : ''}
+                          {ret.reason ? ` · ${ret.reason}` : ''}
+                        </small>
+                      </td>
+                      <td className={cn(td, 'text-right text-faint')} />
+                      <td className={cn(td, 'text-right font-tight tabular-nums whitespace-nowrap text-info-text')}>{amountWords(r.credit)}</td>
+                      {bal}
+                      <td className={cn(td, 'no-print')} />
+                    </tr>
+                  );
+                })}
+                {/* Newest-first puts the oldest line last, so the carried
+                    balance belongs at the foot of the list, not the head. */}
+                {hiddenBefore > 0 && newestFirst && displayRows.length > 0 && broughtForward}
+              </tbody>
+              {ledgerRows.length > 0 && paymentFilter === 'ALL' && !searchTerm.trim() && (
+                <tfoot>
+                  <tr className="font-tight text-[13.5px] font-semibold tabular-nums">
+                    <td colSpan="3" className="border-t border-line px-2.5 py-3 pl-4">
+                      Closing balance
+                      <span className="ml-2 font-sans text-[12.5px] font-medium text-body">
+                        {hiddenBefore > 0 ? `billed and paid cover ${shortDay(rangeStart)} onwards · ` : ''}{filteredRows.length} {filteredRows.length === 1 ? 'row' : 'rows'}
                       </span>
-                      {metrics.payable > 0.01 && hasPermission('purchases', 'edit') !== false && (
-                        <button
-                          onClick={() => runOffset(c.id)}
-                          disabled={offsetting === c.id}
-                          title="Apply this credit against the supplier's open bills"
-                          className="no-print text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-pill bg-ink-primary text-white hover:bg-black disabled:opacity-50 transition-all"
-                        >
-                          {offsetting === c.id ? '…' : 'Offset'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {metrics.payable <= 0.01 && (
-                <div className="text-[10px] text-muted-foreground mt-2">
-                  Nothing outstanding to offset against — collect this as cash or hold it for the next bill.
-                </div>
+                    </td>
+                    <td className="border-t border-line px-2.5 py-3 text-right">{money(ledgerTotals.debit, cur)}</td>
+                    <td className="border-t border-line px-2.5 py-3 text-right">{money(ledgerTotals.credit, cur)}</td>
+                    <td className={cn('border-t border-line px-2.5 py-3 text-right', closing > 0.01 ? 'text-bad-text' : 'text-good-text')}>{money(closing, cur)}</td>
+                    <td className="no-print border-t border-line" />
+                  </tr>
+                  {/* Amount due sums unpaid credit bills only. The ledger also
+                      credits debit notes and on-account money, so the two can
+                      legitimately differ: say why. */}
+                  {Math.abs(closing - metrics.payable) > 0.01 && (
+                    <tr>
+                      <td colSpan="7" className="px-3.5 pb-3 text-right text-[12px] text-body">
+                        Amount due on unpaid bills is {rupees(metrics.payable, cur)}
+                        {metrics.totalReturns > 0.01 && <> · less {rupees(metrics.totalReturns, cur)} in credit notes</>}
+                        {onAccountPayments.length > 0 && <> · less {rupees(onAccountTotal, cur)} paid on account</>}
+                      </td>
+                    </tr>
+                  )}
+                </tfoot>
               )}
-              {offsetMsg && (
-                <div className={`text-[10px] font-semibold mt-2 ${offsetMsg.ok ? 'text-emerald-600' : 'text-red-600'}`}>
-                  {offsetMsg.text}
+              {!(ledgerRows.length > 0 && paymentFilter === 'ALL' && !searchTerm.trim()) && filteredRows.length > 0 && (
+                <tfoot>
+                  <tr><td colSpan="7" className="border-t border-line px-4 py-2.5 text-[12.5px] text-body">{filteredRows.length} {filteredRows.length === 1 ? 'row' : 'rows'} · clear the filter and search to see the closing balance</td></tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </div>
+
+        <div className={cn('mt-4 grid gap-4', openCredit > 0.01 ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]' : '')}>
+          {/* Credit notes: money the supplier owes back. Not netted off Amount
+              due on purpose -- whether it offsets the next bill or comes back
+              as cash is the shopkeeper's call. Applied only when told to. */}
+          {openCredit > 0.01 && (
+            <div className="m-rise rounded-[14px] border border-line bg-surface px-4 py-3.5" style={{ '--i': 3 }}>
+              <Eyebrow>Credit notes</Eyebrow>
+              <div className="mt-1 font-tight text-[22px] font-semibold tracking-[-0.02em] tabular-nums text-info-text">{money(openCredit, cur)}</div>
+              <span className="text-[12px] text-mute">Owed to you, not yet used</span>
+              {creditNotes.filter(c => c.open > 0.01).map(c => (
+                <div key={c.id} className="mt-2 flex items-center gap-2.5 rounded-[10px] bg-info-soft py-[9px] pl-3 pr-2.5">
+                  <div className="min-w-0">
+                    <b className="block truncate font-tight text-[13px] font-semibold">{c.product_name || 'Return'}</b>
+                    <small className="block text-[11.5px] tabular-nums text-body">
+                      {shortDay(c.date)} · #{(c.id || '').slice(-6).toUpperCase()}
+                      {c.used > 0.01 && <> · {rupees(c.used, cur)} already applied</>}
+                    </small>
+                  </div>
+                  <span className="ml-auto font-tight font-semibold tabular-nums text-info-text">{num2(c.open)}</span>
+                  {metrics.payable > 0.01 && canPay && (
+                    <Button size="xs" variant="dark" className="no-print" title="Apply this credit against the supplier's open bills"
+                      onClick={() => runOffset(c.id)} disabled={offsetting === c.id}>
+                      {offsetting === c.id ? '…' : 'Offset'}
+                    </Button>
+                  )}
                 </div>
+              ))}
+              {metrics.payable <= 0.01
+                ? <p className="mt-2 text-[12px] text-mute">Nothing outstanding to offset against — collect this as cash or hold it for the next bill.</p>
+                : <p className="mt-2 text-[12px] text-mute">Offset uses it against the open bills. It is not taken off Amount due until you do.</p>}
+              {offsetMsg && (
+                <p className={cn('mt-2 text-[12px] font-semibold', offsetMsg.ok ? 'text-good-text' : 'text-bad-text')} role={offsetMsg.ok ? 'status' : 'alert'}>{offsetMsg.text}</p>
               )}
             </div>
           )}
 
-          {/* Total purchased — dark hero */}
-          <div className="rounded-2xl bg-ink-primary p-5 relative overflow-hidden">
-            <div className="absolute top-4 right-4 opacity-15 text-accent-signature/70"><Box size={36} strokeWidth={1.5} /></div>
-            <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Total purchased</span>
-            <div className="tabular-nums text-3xl font-bold text-white leading-none mt-1.5">
-              <span className="text-lg text-accent-signature/70 mr-1">{businessProfile?.currencySymbol || '₹'}</span>{metrics.total.toLocaleString()}
-            </div>
-            <span className="inline-block mt-3 text-[10px] font-bold text-accent-signature/70 uppercase tracking-wider">
-              {metrics.count} {metrics.count === 1 ? 'bill' : 'bills'}
-              {metrics.lineCount > metrics.count && <> · {metrics.lineCount} products</>}
-            </span>
-          </div>
-
-          {/* Stat breakdown */}
-          <div className="bg-white border border-black/5 rounded-2xl shadow-sm divide-y divide-black/5">
-            {[
-              ['Average purchase', `${businessProfile?.currencySymbol || '₹'}${Math.round(metrics.avg).toLocaleString()}`, 'text-ink-primary'],
-              ['Last purchase', metrics.last ? formatDate(metrics.last) : 'N/A', 'text-ink-primary'],
-              ['Cash paid', `${businessProfile?.currencySymbol || '₹'}${Math.round(metrics.cashPaid).toLocaleString()}`, 'text-emerald-600'],
-              ['Credit purchases', `${businessProfile?.currencySymbol || '₹'}${Math.round(metrics.creditTotal).toLocaleString()}`, 'text-accent-signature'],
-              ['Payments made', `${businessProfile?.currencySymbol || '₹'}${Math.round(metrics.totalPaid).toLocaleString()}`, 'text-emerald-600'],
-              ...(metrics.totalReturns > 0 ? [
-                ['Returns (debit notes)', `−${businessProfile?.currencySymbol || '₹'}${Math.round(metrics.totalReturns).toLocaleString()}`, 'text-rose-500'],
-                ['Net purchased', `${businessProfile?.currencySymbol || '₹'}${Math.round(metrics.net).toLocaleString()}`, 'text-ink-primary'],
-              ] : []),
-            ].map(([label, val, cls]) => (
-              <div key={label} className="flex justify-between items-center px-4 py-3">
-                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{label}</span>
-                <span className={` tabular-nums text-[13px] font-bold ${cls}`}>{val}</span>
-              </div>
-            ))}
-          </div>
-
-        </div>
-
-        {/* Right Column: Detailed Purchase History */}
-        <div className="lg:col-span-8 flex flex-col min-h-[600px]">
-          <div className="ledger-panel bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden flex flex-col flex-1">
-            {/* Table Header Utility Bar */}
-            <div className="no-print p-4 border-b border-black/5 flex flex-col md:flex-row justify-between items-center gap-3">
-              <div className="relative group flex-1 w-full md:max-w-xs">
-                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-accent-signature transition-colors" />
-                <input
-                  type="text"
-                  placeholder="Search reference or notes…"
-                  className="w-full h-10 pl-10 pr-4 rounded-xl bg-white border border-border text-[12px] font-semibold text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-muted-foreground placeholder:font-normal"
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-              </div>
-
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex gap-1 p-1 bg-black/[0.04] rounded-xl">
-                  {[['1M','Month'],['3M','3 months'],['FY','This FY'],['ALL','All']].map(([val, label]) => (
-                    <button
-                      key={val}
-                      onClick={() => { setRange(val); setExpandedRow(null); }}
-                      className={`px-2.5 h-7 rounded-pill text-[10px] font-bold uppercase tracking-wider transition-all ${
-                        range === val
-                          ? 'bg-ink-primary text-white shadow-sm'
-                          : 'text-muted-foreground hover:text-ink-primary'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
+          <div className="m-rise rounded-[14px] border border-line bg-surface px-4 py-3.5" style={{ '--i': 3 }}>
+            <h4 className="mb-2 flex items-center gap-2 font-tight text-[14px] font-semibold">Purchases<span className="ml-auto text-[12px] font-medium text-mute">All time</span></h4>
+            <div className={cn('grid gap-2', openCredit > 0.01 ? 'grid-cols-3' : 'grid-cols-3 lg:grid-cols-6')}>
+              {[
+                ['Average purchase', rupees(metrics.avg, cur), ''],
+                ['Last purchase', metrics.last ? formatDate(metrics.last) : 'N/A', ''],
+                ['Cash paid', rupees(metrics.cashPaid, cur), 'text-good-text'],
+                ['Credit purchases', rupees(metrics.creditTotal, cur), ''],
+                ...(metrics.totalReturns > 0 ? [
+                  ['Returns', `−${rupees(metrics.totalReturns, cur)}`, 'text-bad-text'],
+                  ['Net purchased', rupees(metrics.net, cur), ''],
+                ] : []),
+              ].map(([label, val, cls]) => (
+                <div key={label} className="rounded-[10px] bg-tile px-3 py-[9px]">
+                  <span className="text-[12px] text-body">{label}</span>
+                  <b className={cn('mt-0.5 block font-tight text-[15px] font-semibold tabular-nums', cls)}>{val}</b>
                 </div>
-                <div className="flex gap-1 p-1 bg-black/[0.04] rounded-xl">
-                  {[['ALL','All'],['BILL','Bills'],['PAY','Payments'],['RETURN','Returns']].map(([val, label]) => (
-                    <button
-                      key={val}
-                      onClick={() => { setPaymentFilter(val); setExpandedRow(null); }}
-                      className={`px-2.5 h-7 rounded-pill text-[10px] font-bold uppercase tracking-wider transition-all ${
-                        paymentFilter === val
-                          ? 'bg-accent-signature text-white shadow-sm'
-                          : 'text-muted-foreground hover:text-ink-primary'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                {/* A shopkeeper wants today at the top; an accountant reading a
-                    statement wants it to run forwards. Neither is wrong. */}
-                <button
-                  onClick={() => setNewestFirst(v => !v)}
-                  title={newestFirst ? 'Showing newest first' : 'Showing oldest first'}
-                  className="h-7 px-2.5 rounded-pill border border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-ink-primary transition-all"
-                >
-                  {newestFirst ? 'Newest ↑' : 'Oldest ↓'}
-                </button>
-                <span className="text-[11px] font-bold text-muted-foreground">
-                  {filteredRows.length} {filteredRows.length === 1 ? 'row' : 'rows'}
-                </span>
-              </div>
+              ))}
             </div>
-
-            {/* Transaction Ledger (expandable rows) */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-canvas/70 sticky top-0 z-10 border-b border-black/5">
-                  <tr>
-                    <th className="py-3.5 px-5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Date</th>
-                    <th className="py-3.5 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Type</th>
-                    <th className="py-3.5 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Reference</th>
-                    <th className="py-3.5 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-right">Debit</th>
-                    <th className="py-3.5 px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-right">Credit</th>
-                    <th className="py-3.5 px-5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-right">Balance</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-black/5">
-                  {/* Balance carried into the window. Without it every figure in
-                      the Balance column would be understated by whatever the
-                      hidden history left behind. */}
-                  {hiddenBefore > 0 && !newestFirst && (
-                    <tr className="bg-canvas/60">
-                      <td className="py-3 px-5 text-[11px] font-bold text-muted-foreground tabular-nums whitespace-nowrap">{formatDate(rangeStart)}</td>
-                      <td colSpan="4" className="py-3 px-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                        Balance brought forward
-                        <span className="ml-2 normal-case font-semibold text-muted-foreground/70">{hiddenBefore} earlier {hiddenBefore === 1 ? 'entry' : 'entries'} not shown</span>
-                      </td>
-                      <td className="py-3 px-5 text-right text-xs font-bold tabular-nums text-ink-primary">
-                        {cur}{opening.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </td>
-                    </tr>
-                  )}
-                  {displayRows.length === 0 ? (
-                    <tr>
-                      <td colSpan="6" className="py-24 text-center">
-                        <div className="opacity-10 mb-4 flex justify-center"><Box size={72} strokeWidth={1} /></div>
-                        <h4 className="text-xl font-bold text-ink-primary mb-1">No transactions</h4>
-                        <p className="text-xs text-muted-foreground">
-                          {ledgerRows.length === 0
-                            ? 'This supplier has no recorded purchases yet.'
-                            : hiddenBefore === ledgerRows.length
-                              ? 'Nothing in this period — try a wider range.'
-                              : 'Nothing matches this filter.'}
-                        </p>
-                      </td>
-                    </tr>
-                  ) : displayRows.map((r, i) => {
-                    const key = `${r.kind}-${r.bill?.id || r.ret?.id || r.pay?.id}-${i}`;
-                    const money = (n) => `${cur}${Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-                    // ── Bill ──────────────────────────────────────────────
-                    if (r.kind === 'BILL') {
-                      const b = r.bill;
-                      const multi = b.lines.length > 1;
-                      const expanded = expandedRow === b.id;
-                      const names = b.lines
-                        .map(x => (products || []).find(pr => pr.id === x.linked_product_id)?.name)
-                        .filter(Boolean);
-                      return (
-                        <React.Fragment key={key}>
-                          <tr
-                            className={`transition-colors ${multi ? 'cursor-pointer' : ''} ${expanded ? 'bg-canvas' : 'hover:bg-canvas/60'}`}
-                            onClick={() => multi && setExpandedRow(expanded ? null : b.id)}
-                          >
-                            <td className="py-3.5 px-5 text-xs font-semibold text-ink-primary tabular-nums whitespace-nowrap">{formatDate(b.date)}</td>
-                            <td className="py-3.5 px-3">
-                              <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-accent-signature/10 text-accent-signature-hover">Bill</span>
-                            </td>
-                            <td className="py-3.5 px-3">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                {multi && (
-                                  <ChevronRight size={12} className={`text-muted-foreground transition-transform ${expanded ? 'rotate-90 text-accent-signature' : ''}`} />
-                                )}
-                                <span className="text-xs tabular-nums font-semibold text-ink-primary">#{(b.id || '').slice(-8).toUpperCase()}</span>
-                                {multi && (
-                                  <span className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold bg-black/[0.05] text-ink-secondary">{b.lines.length} items</span>
-                                )}
-                                {b.due > 0.01 && (
-                                  <span className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold bg-red-50 text-red-600 border border-red-100 tabular-nums">
-                                    due {cur}{Math.round(b.due).toLocaleString('en-IN')}
-                                  </span>
-                                )}
-                                {/* Single-product bill: pay it right here. Multi
-                                    product bills pay per line inside the detail,
-                                    since the money lands on different rows. */}
-                                {!multi && b.due > 0.01 && hasPermission('purchases', 'edit') !== false && (
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); openPay(b.lines[0], b.due); }}
-                                    className="no-print text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-pill bg-ink-primary text-white hover:bg-black transition-all"
-                                  >Pay</button>
-                                )}
-                              </div>
-                              {names.length > 0 && (
-                                <div className={`text-[10px] text-muted-foreground truncate max-w-[260px] ${multi ? 'ml-[18px]' : ''}`}>
-                                  {names.slice(0, 3).join(', ')}{names.length > 3 ? ` +${names.length - 3}` : ''}
-                                </div>
-                              )}
-                              {r.atBill > 0.01 && (
-                                <div className={`text-[10px] text-emerald-600 font-semibold ${multi ? 'ml-[18px]' : ''}`}>
-                                  {money(r.atBill)} paid at bill · {b.payment_type || 'CASH'}
-                                </div>
-                              )}
-                            </td>
-                            <td className="py-3.5 px-3 text-right text-xs font-bold tabular-nums text-ink-primary">{money(r.debit)}</td>
-                            {/* Money handed over at the counter belongs to the
-                                bill, not to a second row that cancels it. */}
-                            <td className="py-3.5 px-3 text-right text-xs tabular-nums">
-                              {r.credit > 0.01
-                                ? <span className="font-bold text-emerald-600">{money(r.credit)}</span>
-                                : <span className="text-muted-foreground">—</span>}
-                            </td>
-                            <td className={`py-3.5 px-5 text-right text-xs font-bold tabular-nums ${r.balance > 0.01 ? 'text-ink-primary' : 'text-muted-foreground'}`}>{money(r.balance)}</td>
-                          </tr>
-
-                          {expanded && (
-                            <tr className="bg-canvas/40">
-                              <td colSpan="6" className="bill-detail px-5 py-4 border-l-[3px] border-accent-signature">
-                                <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
-                                  Products on this bill{b.due > 0.01 ? ' — pay the lines still open' : ''}
-                                </div>
-                                <table className="w-full">
-                                  <tbody className="divide-y divide-black/5">
-                                    {b.lines.map(x => {
-                                      const prod = (products || []).find(pr => pr.id === x.linked_product_id);
-                                      const lineAmt = Number(x.total_amount ?? x.total_cost ?? 0);
-                                      const lineQty = Number(x.quantity ?? 0);
-                                      const lineDue = Math.max(0, lineAmt - Number(x.paid_amount || 0));
-                                      return (
-                                        <tr key={x.id}>
-                                          <td className="py-2 text-xs font-semibold text-ink-primary">{prod?.name || x.notes || '—'}</td>
-                                          <td className="py-2 text-right text-xs tabular-nums text-muted-foreground whitespace-nowrap">
-                                            {lineQty} × {cur}{(lineQty > 0 ? lineAmt / lineQty : 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-                                          </td>
-                                          <td className="py-2 text-right text-xs font-semibold tabular-nums text-ink-primary whitespace-nowrap">{money(lineAmt)}</td>
-                                          <td className="py-2 pl-4 text-right whitespace-nowrap">
-                                            {lineDue > 0.01 ? (
-                                              <span className="inline-flex items-center gap-2">
-                                                <span className="text-[10px] font-bold tabular-nums text-red-600">due {cur}{Math.round(lineDue).toLocaleString('en-IN')}</span>
-                                                {hasPermission('purchases', 'edit') !== false && (
-                                                  <button
-                                                    onClick={(e) => { e.stopPropagation(); openPay(x, lineDue); }}
-                                                    className="no-print text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-pill bg-ink-primary text-white hover:bg-black transition-all"
-                                                  >Pay</button>
-                                                )}
-                                              </span>
-                                            ) : (
-                                              <span className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-700 uppercase tracking-wider">Settled</span>
-                                            )}
-                                          </td>
-                                          <td className="py-2 pl-4 text-right text-[9px] tabular-nums text-muted-foreground whitespace-nowrap">#{(x.id || '').slice(-8).toUpperCase()}</td>
-                                        </tr>
-                                      );
-                                    })}
-                                  </tbody>
-                                </table>
-                                {b.lines.some(x => x.notes) && (
-                                  <div className="mt-3 text-[11px] text-muted-foreground">
-                                    {b.lines.filter(x => x.notes).map(x => x.notes).join(' · ')}
-                                  </div>
-                                )}
-                              </td>
-                            </tr>
-                          )}
-
-                        </React.Fragment>
-                      );
-                    }
-
-                    // ── Payment ───────────────────────────────────────────
-                    if (r.kind === 'PAY') {
-                      // One handover can settle several bills. It is still one
-                      // payment: naming each slice separately read as a
-                      // duplicate. Show the total, and what it covered.
-                      const many = (r.allocations?.length || 0) > 1;
-                      const ref = r.onAccount
-                        ? 'On account'
-                        : many
-                          ? `${r.allocations.length} bills`
-                          : `#${(r.bill?.id || '').slice(-8).toUpperCase()}`;
-                      const sub = r.onAccount
-                        ? (r.pay?.payment_method || 'CASH')
-                        : `${r.pay?.payment_method || 'CASH'} · settlement`;
-                      return (
-                        <tr key={key} className="group/pay hover:bg-emerald-50/30 transition-colors">
-                          <td className="py-3.5 px-5 text-xs font-semibold text-ink-primary tabular-nums whitespace-nowrap">{formatDate(r.date)}</td>
-                          <td className="py-3.5 px-3">
-                            <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700">
-                              {r.atBill ? 'Paid' : 'Payment'}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-3">
-                            <div className="text-xs tabular-nums font-semibold text-ink-primary">
-                              {ref}
-                              {/* Which line took the money, when it is one bill
-                                  of several lines and not the one it is named
-                                  after. */}
-                              {r.lineRef && (
-                                <span className="ml-1.5 font-medium text-muted-foreground">· {r.lineRef}</span>
-                              )}
-                            </div>
-                            {/* What a combined payment was spread across, so
-                                the total stays checkable against the bills. */}
-                            {many && (
-                              <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
-                                {r.allocations.map(a =>
-                                  `#${String(a.purchaseId || '').slice(-6).toUpperCase()} ${money(a.amount)}`
-                                ).join(' · ')}
-                              </div>
-                            )}
-                            <div className="text-[10px] text-muted-foreground lowercase">{sub}</div>
-                          </td>
-                          <td className="py-3.5 px-3 text-right text-xs tabular-nums text-muted-foreground">—</td>
-                          <td className="py-3.5 px-3 text-right text-xs font-bold tabular-nums text-emerald-600">{money(r.credit)}</td>
-                          <td className={`py-3.5 px-5 text-right text-xs font-bold tabular-nums ${r.balance > 0.01 ? 'text-ink-primary' : 'text-muted-foreground'}`}>
-                            <span className="inline-flex items-center gap-2 justify-end">
-                              {money(r.balance)}
-                              {/* Only a real receipt can be removed. Money paid at
-                                  the counter belongs to its bill and is undone by
-                                  editing that bill, not by deleting a row here. */}
-                              {r.pay?.id && (
-                                <button
-                                  onClick={() => {
-                                    setEditAmount(String(Math.round(r.credit)));
-                                    setEditError('');
-                                    setEditTarget({ id: r.pay.id, amount: r.credit, date: r.date });
-                                  }}
-                                  title="Edit this payment"
-                                  className="opacity-0 group-hover/pay:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-accent-signature-hover"
-                                >
-                                  <Pencil size={13} />
-                                </button>
-                              )}
-                              {r.pay?.id && (
-                                <button
-                                  onClick={() => setDeleteTarget({
-                                    id: r.pay.id, amount: r.credit,
-                                    date: r.date, many: r.allocations?.length || 1,
-                                  })}
-                                  title="Delete this payment"
-                                  className="opacity-0 group-hover/pay:opacity-100 focus:opacity-100 transition-opacity text-muted-foreground hover:text-[color:var(--color-neg)]"
-                                >
-                                  <Trash2 size={13} />
-                                </button>
-                              )}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    }
-
-                    // ── Return / debit note ───────────────────────────────
-                    const ret = r.ret;
-                    const rprod = (products || []).find(pr => pr.id === ret.product_id);
-                    return (
-                      <tr key={key} className="hover:bg-rose-50/30 transition-colors">
-                        <td className="py-3.5 px-5 text-xs font-semibold text-ink-primary tabular-nums whitespace-nowrap">{formatDate(r.date)}</td>
-                        <td className="py-3.5 px-3">
-                          <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-100 text-rose-700">Return</span>
-                        </td>
-                        <td className="py-3.5 px-3">
-                          <div className="text-xs tabular-nums font-semibold text-rose-600">#{(ret.id || '').slice(-8).toUpperCase()}</div>
-                          <div className="text-[10px] text-muted-foreground truncate max-w-[260px]">
-                            {rprod?.name || ret.product_name || 'Debit note'}
-                            {ret.quantity ? ` · ${Number(ret.quantity)} units` : ''}
-                            {ret.reason ? ` · ${ret.reason}` : ''}
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-3 text-right text-xs tabular-nums text-muted-foreground">—</td>
-                        <td className="py-3.5 px-3 text-right text-xs font-bold tabular-nums text-rose-600">{money(r.credit)}</td>
-                        <td className={`py-3.5 px-5 text-right text-xs font-bold tabular-nums ${r.balance > 0.01 ? 'text-ink-primary' : 'text-muted-foreground'}`}>{money(r.balance)}</td>
-                      </tr>
-                    );
-                  })}
-                  {/* Newest-first puts the oldest line last, so the carried
-                      balance belongs at the foot of the list, not the head. */}
-                  {hiddenBefore > 0 && newestFirst && displayRows.length > 0 && (
-                    <tr className="bg-canvas/60">
-                      <td className="py-3 px-5 text-[11px] font-bold text-muted-foreground tabular-nums whitespace-nowrap">{formatDate(rangeStart)}</td>
-                      <td colSpan="4" className="py-3 px-3 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                        Balance brought forward
-                        <span className="ml-2 normal-case font-semibold text-muted-foreground/70">{hiddenBefore} earlier {hiddenBefore === 1 ? 'entry' : 'entries'} not shown</span>
-                      </td>
-                      <td className="py-3 px-5 text-right text-xs font-bold tabular-nums text-ink-primary">
-                        {cur}{opening.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-                {ledgerRows.length > 0 && paymentFilter === 'ALL' && !searchTerm.trim() && (
-                  <tfoot>
-                    <tr className="bg-canvas border-t-2 border-black/10">
-                      <td colSpan="3" className="py-3.5 px-5 text-[10px] font-black uppercase tracking-wider text-ink-primary">
-                        Closing balance
-                        {hiddenBefore > 0 && (
-                          <span className="ml-2 normal-case font-semibold text-muted-foreground">
-                            · debit/credit cover {formatDate(rangeStart)} onwards
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-3 text-right text-[11px] font-bold tabular-nums text-muted-foreground">
-                        {cur}{ledgerTotals.debit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </td>
-                      <td className="py-3.5 px-3 text-right text-[11px] font-bold tabular-nums text-muted-foreground">
-                        {cur}{ledgerTotals.credit.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </td>
-                      <td className={`py-3.5 px-5 text-right text-sm font-black tabular-nums ${closing > 0.01 ? 'text-red-600' : 'text-emerald-600'}`}>
-                        {cur}{closing.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </td>
-                    </tr>
-                    {/* The sidebar's Amount Due sums unpaid bills only. The ledger
-                        also credits debit notes and on-account advances, so the two
-                        legitimately differ — say why rather than let a reader find
-                        two numbers on one screen and trust neither. */}
-                    {Math.abs(closing - metrics.payable) > 0.01 && (
-                      <tr className="bg-canvas">
-                        <td colSpan="6" className="px-5 pb-3 text-[10px] text-muted-foreground text-right">
-                          Amount due on unpaid bills is {cur}{Math.round(metrics.payable).toLocaleString('en-IN')}
-                          {metrics.totalReturns > 0.01 && <> · less {cur}{Math.round(metrics.totalReturns).toLocaleString('en-IN')} in debit notes</>}
-                          {onAccountPayments.length > 0 && <> · less {cur}{Math.round(onAccountPayments.reduce((s, p) => s + Number(p.amount || 0), 0)).toLocaleString('en-IN')} paid on account</>}
-                        </td>
-                      </tr>
-                    )}
-                  </tfoot>
-                )}
-              </table>
-            </div>
-
-            {/* The old "Total purchased / Avg" strip lived here. Both figures
-                are already on the dark card and the stat list, and the table
-                now ends in a closing balance — the number this page exists to
-                answer. Three repeats of the same total buried it. */}
           </div>
         </div>
       </div>
 
-      {/* Pay Supplier Modal */}
-      {/* Editing re-allocates the new amount across open bills by the same rule
-          that placed the original, so the ledger cannot drift from the bills. */}
-      {editTarget && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-ink-primary/10 backdrop-blur-md"
-          onClick={() => !editSaving && setEditTarget(null)}>
-          <div onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm bg-white rounded-2xl border border-black/[0.06] shadow-[0_24px_70px_-20px_rgba(0,0,0,0.35)] p-5">
-            <h2 className="text-base font-black text-ink-primary">Edit payment</h2>
-            <p className="text-[12px] text-muted-foreground mt-1">
-              Paid {formatDate(editTarget.date)} · currently {cur}{Math.round(editTarget.amount).toLocaleString('en-IN')}
-            </p>
-            <label className="block text-[10px] font-black text-ink-secondary uppercase tracking-wider mt-4 mb-2">New amount</label>
-            <input type="number" inputMode="decimal" value={editAmount} autoFocus
-              onChange={(e) => setEditAmount(e.target.value)}
-              className="w-full bg-white border border-border shadow-sm rounded-xl px-3.5 py-3 text-sm font-black text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 tabular-nums" />
-            {editError && (
-              <div className="mt-3 text-xs font-bold text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{editError}</div>
-            )}
-            <div className="flex gap-2 mt-4">
-              <button disabled={editSaving || !(Number(editAmount) > 0)}
-                onClick={async () => {
-                  setEditSaving(true); setEditError('');
-                  const res = await editSupplierPayment(editTarget.id, { amount: Number(editAmount) });
-                  setEditSaving(false);
-                  if (res?.success) setEditTarget(null);
-                  else setEditError(res?.error?.message || 'Could not save the change.');
-                }}
-                className="flex-1 h-10 rounded-pill bg-ink-primary text-white text-[13px] font-bold disabled:opacity-60">
-                {editSaving ? 'Saving…' : 'Save'}
-              </button>
-              <button disabled={editSaving} onClick={() => setEditTarget(null)}
-                className="h-10 px-4 rounded-pill border border-black/10 text-[13px] font-bold text-muted-foreground">Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PaySupplierDialog open={payOpen} onClose={() => { setPayOpen(false); setPayTarget(null); }}
+        supplierId={supplier?.id || payTarget?.supplier_id || id} supplierName={supplier.name}
+        target={payTarget} bill={payTargetBill || (payTarget ? billById.get(payTarget.id) : null)}
+        lineName={payTarget ? lineName(payTarget) : ''}
+        owed={{ label: 'Amount due', amount: metrics.payable }} prefill={payPrefill}
+        cur={cur} paySupplier={paySupplier} payPurchase={payPurchase} onRecheck={refetch}
+        onPaid={({ amount, queued }) => addNotification(queued
+          ? `Payment of ${rupees(amount, cur)} saved on this computer; it will sync when you are online.`
+          : `Paid ${rupees(amount, cur)} to ${supplier.name}.`, 'success')} />
 
-      {/* Deleting a payment changes what a supplier is owed, so it states the
-          amount and what it will do before doing it. */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-ink-primary/10 backdrop-blur-md"
-          onClick={() => !deleting && setDeleteTarget(null)}>
-          <div onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm bg-white rounded-2xl border border-black/[0.06] shadow-[0_24px_70px_-20px_rgba(0,0,0,0.35)] p-5">
-            <h2 className="text-base font-black text-ink-primary">Delete this payment?</h2>
-            <p className="text-[13px] text-muted-foreground mt-2 leading-relaxed">
-              {cur}{Math.round(deleteTarget.amount).toLocaleString('en-IN')} paid on {formatDate(deleteTarget.date)} will be removed
-              {deleteTarget.many > 1 ? ` from the ${deleteTarget.many} bills it settled` : ' from the bill it settled'},
-              and {supplier?.name || 'this supplier'} will be owed that much again.
-            </p>
-            {deleteError && (
-              <div className="mt-3 text-xs font-bold text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
-                {deleteError}
-              </div>
-            )}
-            <div className="flex gap-2 mt-4">
-              <button disabled={deleting}
-                onClick={async () => {
-                  setDeleting(true); setDeleteError('');
-                  const res = await deleteSupplierPayment(deleteTarget.id);
-                  setDeleting(false);
-                  if (res?.success) setDeleteTarget(null);
-                  else setDeleteError(res?.error?.message || 'Could not delete the payment.');
-                }}
-                className="flex-1 h-10 rounded-pill bg-[color:var(--color-neg)] text-white text-[13px] font-bold disabled:opacity-60">
-                {deleting ? 'Deleting…' : 'Delete payment'}
-              </button>
-              <button disabled={deleting} onClick={() => setDeleteTarget(null)}
-                className="h-10 px-4 rounded-pill border border-black/10 text-[13px] font-bold text-muted-foreground">
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <EditPaymentDialog open={!!editTarget} target={editTarget} onClose={() => setEditTarget(null)} cur={cur}
+        editSupplierPayment={editSupplierPayment}
+        onSaved={(n) => addNotification(`Payment changed to ${rupees(n, cur)}.`, 'success')} />
 
-      {payOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-ink-primary/10 backdrop-blur-md"
-          onClick={() => { setPayOpen(false); setPayTarget(null); }}>
-          {/* The panel had overflow-hidden and no height cap, inside a centring
-              flex parent. On a short window the form was taller than the
-              viewport, so it was centred and then clipped -- the Save button
-              could not be reached or even seen. Cap the height and let the body
-              scroll; the header and the action stay put. */}
-          <div onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md bg-white rounded-2xl border border-black/[0.06] shadow-[0_24px_70px_-20px_rgba(0,0,0,0.35)] overflow-hidden flex flex-col max-h-[calc(100dvh-2rem)]">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 shrink-0">
-              <div>
-                <h2 className="text-base font-black text-ink-primary leading-none">
-                  {payTarget ? `Pay order #${(payTarget.id || '').slice(-6).toUpperCase()}` : `Pay ${supplier?.name || 'Supplier'}`}
-                </h2>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">
-                  {payTarget
-                    ? `Line due: ${cur}${Math.round(Math.max(0, Number(payTarget.total_amount ?? payTarget.total_cost ?? 0) - Number(payTarget.paid_amount || 0))).toLocaleString('en-IN')}`
-                    : `Outstanding: ${businessProfile?.currencySymbol}${Math.round(metrics.payable).toLocaleString()} · spreads across oldest credit orders`}
-                </p>
-              </div>
-              <button onClick={() => { setPayOpen(false); setPayTarget(null); }} className="text-muted-foreground hover:text-ink-primary text-2xl leading-none">×</button>
-            </div>
-
-            <div className="p-5 space-y-4 overflow-y-auto">
-              <div>
-                <label className="block text-[10px] font-black text-ink-secondary uppercase tracking-wider mb-2">Amount</label>
-                <input type="number" min="0" step="0.01" autoFocus
-                  value={payAmount} onChange={e => setPayAmount(e.target.value)}
-                  placeholder={String(Math.round(metrics.payable))}
-                  className="w-full bg-white border border-border shadow-sm rounded-xl px-3.5 py-3 text-sm font-black text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 tabular-nums" />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-black text-ink-secondary uppercase tracking-wider mb-2">Method</label>
-                <div className="grid grid-cols-5 gap-2">
-                  {['CASH','BANK','UPI','CHEQUE','OTHER'].map(m => (
-                    <button key={m} type="button" onClick={() => setPayMethod(m)}
-                      className={`px-2 py-2 rounded-pill text-[10px] font-black uppercase tracking-wider border transition-all ${
-                        payMethod === m ? 'bg-ink-primary text-white border-ink-primary' : 'bg-white border-border text-muted-foreground hover:border-accent-signature/40'
-                      }`}>{m}</button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-black text-ink-secondary uppercase tracking-wider mb-2">Date</label>
-                  <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)}
-                    className="w-full bg-white border border-border shadow-sm rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10" />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-ink-secondary uppercase tracking-wider mb-2">Reference no.</label>
-                  <input type="text" value={payRef} onChange={e => setPayRef(e.target.value)}
-                    placeholder="UPI / cheque no."
-                    className="w-full bg-white border border-border shadow-sm rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-black text-ink-secondary uppercase tracking-wider mb-2">Note</label>
-                <input type="text" value={payNote} onChange={e => setPayNote(e.target.value)}
-                  placeholder="Optional remarks"
-                  className="w-full bg-white border border-border shadow-sm rounded-xl px-3 py-2.5 text-xs font-medium outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10" />
-              </div>
-
-              {payError && (
-                <div className="text-xs font-bold text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{payError}</div>
-              )}
-
-              <button onClick={submitPay} disabled={paySubmitting || !(Number(payAmount) > 0)}
-                className="w-full py-3 rounded-pill bg-accent-signature text-button-text text-sm font-black disabled:opacity-50 transition-all">
-                {paySubmitting ? 'Saving…' : `Pay ${businessProfile?.currencySymbol}${Number(payAmount || 0).toLocaleString()}`}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeletePaymentDialog open={!!deleteTarget} target={deleteTarget} onClose={() => setDeleteTarget(null)} cur={cur}
+        supplierName={supplier.name} deleteSupplierPayment={deleteSupplierPayment}
+        onDeleted={(t) => addNotification(`Payment of ${rupees(t.amount, cur)} deleted.`, 'success')} />
     </div>
   );
 };
