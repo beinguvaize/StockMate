@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { isCountableSale } from './reportUtils';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import PremiumReportView from './PremiumReportView';
 import { Smartphone, CheckCircle2, Package } from 'lucide-react';
 
@@ -22,15 +23,15 @@ import { Smartphone, CheckCircle2, Package } from 'lucide-react';
  * KPI that claimed to count one was counting a column that did not exist.
  */
 const IMEISerialReport = () => {
-  const { data: serials, loading } = useReportData({
+  const { data: serials, loading, error: rdErr1, refetch: rdRe1 } = useReportData({
     table: 'sale_item_serials',
     select: 'id, serial, created_at, sale_items(sale_id, product_id, product_name)',
   });
-  const { data: products } = useReportData({ table: 'products', select: 'id, name, sku' });
-  const { data: salesRaw } = useReportData({ table: 'sales', select: 'id, "shopId", date, voided_at, status, paymentStatus' });
+  const { data: products, error: rdErr2, refetch: rdRe2 } = useReportData({ table: 'products', select: 'id, name, sku' });
+  const { data: salesRaw, error: rdErr3, refetch: rdRe3 } = useReportData({ table: 'sales', select: 'id, "shopId", date, voided_at, status, paymentStatus' });
   // Voided and cancelled sales are not revenue and were being counted here.
   const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
-  const { data: clients } = useReportData({ table: 'clients', select: 'id, name, phone' });
+  const { data: clients, error: rdErr4, refetch: rdRe4 } = useReportData({ table: 'clients', select: 'id, name, phone' });
 
   const rows = useMemo(() => {
     const prod = Object.fromEntries((products || []).map(p => [p.id, p]));
@@ -80,11 +81,11 @@ const IMEISerialReport = () => {
     loading,
     onExport: exportExcel,
     columns: [
-      { key: 'serial', label: 'IMEI / Serial', sortable: true, width: 200, render: (v) => <span className="tabular-nums text-[11px] font-semibold text-foreground">{v}</span> },
-      { key: '_product', label: 'Product', sortable: true, width: 200, render: (v) => <span className="font-semibold text-ink-secondary">{v}</span> },
-      { key: '_saleRef', label: 'Sale', width: 100, render: (v) => <span className="tabular-nums text-[11px] text-muted-foreground">{v}</span> },
-      { key: '_date', label: 'Date', width: 110, render: (v) => <span className="text-xs font-semibold text-muted-foreground">{v}</span> },
-      { key: '_buyer', label: 'Buyer', width: 200, render: (v) => <span className="text-xs font-semibold text-ink-secondary">{v}</span> },
+      { key: 'serial', label: 'IMEI / Serial', sortable: true, width: 200, render: (v) => <span className="tabular-nums text-[12px] font-semibold text-ink">{v}</span> },
+      { key: '_product', label: 'Product', sortable: true, width: 200, render: (v) => <span className="font-semibold text-ink-2">{v}</span> },
+      { key: '_saleRef', label: 'Sale', width: 100, render: (v) => <span className="tabular-nums text-[12px] text-body">{v}</span> },
+      { key: '_date', label: 'Date', width: 110, render: (v) => <span className="text-xs font-semibold text-body">{v}</span> },
+      { key: '_buyer', label: 'Buyer', width: 200, render: (v) => <span className="text-xs font-semibold text-ink-2">{v}</span> },
     ],
     kpis: [
       // One honest count. "Sold" and "In Stock" both read a `status` column
@@ -93,7 +94,7 @@ const IMEISerialReport = () => {
     ],
   };
 
-  return <PremiumReportView title="IMEI / Serial Numbers" tabs={[tab]} />;
+  return <PremiumReportView error={loadError(rdErr1, rdErr2, rdErr3, rdErr4)} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); rdRe4(); }} title="IMEI / Serial Numbers" tabs={[tab]} />;
 };
 
 export default IMEISerialReport;

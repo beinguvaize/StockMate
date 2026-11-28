@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import PremiumReportView from './PremiumReportView';
 import { parseLocalDate } from '../../lib/utils';
 import {
@@ -47,13 +48,13 @@ const isCreditPurchase = (p) => {
 };
 
 const APAgingReport = () => {
-  const { data: purchases, loading: pLoading } = useReportData({
+  const { data: purchases, loading: pLoading, error: rdErr1, refetch: rdRe1 } = useReportData({
     table: 'purchases',
     select: '*',
     dateColumn: 'date',
   });
 
-  const { data: suppliers, loading: sLoading } = useReportData({
+  const { data: suppliers, loading: sLoading, error: rdErr2, refetch: rdRe2 } = useReportData({
     table: 'suppliers',
     select: '*',
   });
@@ -248,7 +249,7 @@ const APAgingReport = () => {
     width: 130,
     render: (val) => {
       const c = AGING_BUCKET_COLORS[bucket];
-      if (!val || val <= 0) return <span className="text-muted-foreground">—</span>;
+      if (!val || val <= 0) return <span className="text-body">—</span>;
       return <span className={`font-semibold ${c.text}`}>{formatINR(val)}</span>;
     },
   });
@@ -269,11 +270,11 @@ const APAgingReport = () => {
     columns: [
       {
         key: 'supplier_name', label: 'Supplier', sortable: true, width: 240,
-        render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>,
+        render: (val) => <span className="font-semibold text-ink uppercase tracking-tight">{val}</span>,
       },
       {
         key: 'phone', label: 'Contact', width: 140,
-        render: (val) => <span className="text-[10px] font-semibold text-muted-foreground">{val || '—'}</span>,
+        render: (val) => <span className="text-[11.5px] font-semibold text-body">{val || '—'}</span>,
       },
       bucketColumn('CURRENT'),
       bucketColumn('1-30'),
@@ -283,7 +284,7 @@ const APAgingReport = () => {
       bucketColumn('120+'),
       {
         key: 'total', label: 'Total Owed', type: 'currency', align: 'right', sortable: true, width: 160,
-        render: (val) => <span className="font-semibold text-foreground">{formatINR(val)}</span>,
+        render: (val) => <span className="font-semibold text-ink">{formatINR(val)}</span>,
       },
     ],
     kpis,
@@ -321,7 +322,7 @@ const APAgingReport = () => {
       {
         key: 'bill_ref', label: 'Bill Ref', sortable: true, width: 130,
         render: (val) => (
-          <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 uppercase font-semibold">
+          <span className="tabular-nums text-[11.5px] bg-tile px-2 py-0.5 rounded border border-line uppercase font-semibold">
             {val}
           </span>
         ),
@@ -329,14 +330,14 @@ const APAgingReport = () => {
       {
         key: 'supplier_name', label: 'Supplier', sortable: true, width: 240,
         render: (val) => (
-          <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>
+          <span className="font-semibold text-ink uppercase tracking-tight">{val}</span>
         ),
       },
       { key: 'date', label: 'Bill Date', type: 'date', sortable: true, width: 130 },
       {
         key: 'due_date', label: 'Due Date', type: 'date', sortable: true, width: 130,
         render: (val) => (
-          <span className="text-[10px] font-semibold text-muted-foreground">
+          <span className="text-[11.5px] font-semibold text-body">
             {val || '—'}
           </span>
         ),
@@ -345,10 +346,10 @@ const APAgingReport = () => {
         key: 'days_overdue', label: 'Days Overdue', align: 'right', sortable: true, width: 120,
         render: (val) => {
           if (!val || val <= 0) {
-            return <span className="text-[10px] font-semibold text-emerald-500">WITHIN TERMS</span>;
+            return <span className="text-[11.5px] font-semibold text-good-text">WITHIN TERMS</span>;
           }
           return (
-            <span className={`text-[10px] font-semibold ${val > 90 ? 'text-red-600' : val > 60 ? 'text-orange-500' : 'text-accent-signature'}`}>
+            <span className={`text-[11.5px] font-semibold ${val > 90 ? 'text-bad-text' : val > 60 ? 'text-orange-500' : 'text-amber-text'}`}>
               {val} DAYS
             </span>
           );
@@ -359,7 +360,7 @@ const APAgingReport = () => {
         render: (val) => {
           const c = AGING_BUCKET_COLORS[val];
           return (
-            <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-semibold uppercase ${c.bg} ${c.text}`}>
+            <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[12px] font-semibold uppercase ${c.bg} ${c.text}`}>
               <div className="w-1 h-1 rounded-full" style={{ backgroundColor: c.chart }} />
               {val}
             </div>
@@ -398,15 +399,15 @@ const APAgingReport = () => {
   return (
     <div className="flex flex-col gap-4">
       {/* Payment-terms banner */}
-      <div className="no-print flex items-center gap-2 px-3 py-2 rounded-2xl bg-accent-signature/5 border border-border/60 shadow-sm">
-        <Clock size={12} className="text-accent-signature" />
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-accent-signature-hover">
+      <div className="no-print flex items-center gap-2 px-3 py-2 rounded-2xl bg-accent-signature/5 border border-line">
+        <Clock size={12} className="text-amber-text" />
+        <span className="text-[11.5px] font-semibold uppercase tracking-[0.07em] text-amber-text">
           Aging computed from bill date + net-{DEFAULT_PAYMENT_TERMS_DAYS} terms.
           Add per-supplier <code className="tabular-nums">payment_terms_days</code> column later to override.
         </span>
       </div>
 
-      <PremiumReportView title="Supplier Aging" tabs={tabs} />
+      <PremiumReportView error={loadError(rdErr1, rdErr2)} onRetry={() => { rdRe1(); rdRe2(); }} title="Supplier Aging" tabs={tabs} />
     </div>
   );
 };

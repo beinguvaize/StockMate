@@ -19,28 +19,28 @@ const ReportFilterRow = ({
   const active = (search && search.trim() !== '') || selects.some((s) => s.value && s.value !== 'ALL');
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="no-print mb-3.5 flex flex-wrap items-center gap-2.5">
       {onSearch && (
-        <div className="relative">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+        <label className="relative">
+          <Search size={14} strokeWidth={2} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-mute" aria-hidden="true" />
           <input
             type="text"
             value={search}
             onChange={(e) => onSearch(e.target.value)}
             placeholder={searchPlaceholder}
-            className="bg-card border border-border rounded-lg pl-8 pr-3 py-1.5 text-xs text-foreground
-                       placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring w-56"
+            aria-label={searchPlaceholder}
+            className="h-[34px] w-[260px] rounded-pill bg-well pl-9 pr-3 text-[13px] text-ink outline-none placeholder:text-mute transition-shadow duration-(--dur-press) focus:shadow-[inset_0_0_0_2px_var(--color-ink)]"
           />
-        </div>
+        </label>
       )}
 
       {selects.map((s) => (
         <select
           key={s.key}
           value={s.value}
+          aria-label={s.label}
           onChange={(e) => s.onChange(e.target.value)}
-          className="bg-card border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground
-                     outline-none focus:ring-1 focus:ring-ring max-w-[190px]"
+          className="h-[34px] max-w-[200px] cursor-pointer rounded-pill bg-surface pl-3.5 pr-2 font-tight text-[13px] font-semibold text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)] outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--color-amber)]"
         >
           <option value="ALL">{s.label}</option>
           {s.options.map((o) => (
@@ -51,16 +51,16 @@ const ReportFilterRow = ({
 
       {active && onClear && (
         <button
+          type="button"
           onClick={onClear}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium
-                     text-muted-foreground hover:text-foreground transition-colors"
+          className="m-press inline-flex items-center gap-1 rounded-pill px-2 py-1.5 font-tight text-[13px] font-semibold text-amber-text hover:underline"
         >
-          <X size={12} /> Clear
+          <X size={13} aria-hidden="true" /> Clear
         </button>
       )}
 
       {resultCount != null && totalCount != null && (
-        <span className="text-[11px] text-muted-foreground ml-auto tabular-nums">
+        <span className="ml-auto text-[12.5px] text-mute tabular-nums">
           {active ? `${resultCount} of ${totalCount}` : `${totalCount}`} sale{totalCount === 1 ? '' : 's'}
         </span>
       )}

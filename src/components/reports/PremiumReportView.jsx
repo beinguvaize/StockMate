@@ -1,121 +1,60 @@
 /**
- * PremiumReportView — drop-in replacement for ReportShell.
+ * PremiumReportView: the shared report page most reports render through
+ * (web redesign, reports-08 is the full drawing of it): title and subtitle,
+ * period presets, view tabs, the Export menu (Excel, PDF / Print, CSV), KPI
+ * cards, one chart, then the searchable, paged table with a totals row.
  *
- * Renders the same `tabs` config in the premium BusinessReport visual
- * language: clean header, pill tab switcher, KPI cards with sparklines,
- * a single recharts visual, and the premium ReportTable.
- *
- * Accepts the EXACT same `tabs` prop shape ReportShell consumes:
- *   [{ id, label, icon, permission, data, loading, totals,
+ * Tab shape, unchanged:
+ *   [{ id, label, icon, permission, data, loading, error, totals,
  *      columns, kpis, chartConfig, detailFields, onExportCSV }]
  *
- * Data logic stays in the report components — this only changes the chrome.
+ * `error` (on the page or on a tab) replaces the figures with the error
+ * state, so a failed load never shows as ₹0. Data logic stays in the report
+ * components; this only draws.
  */
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
-  ResponsiveContainer, AreaChart, Area, BarChart, Bar, LineChart, Line,
+  ResponsiveContainer, BarChart, Bar, LineChart, Line,
   PieChart, Pie, Cell, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
 } from 'recharts';
-import { TrendingUp, TrendingDown, Minus, Download, BarChart3, FileSpreadsheet, Printer, FileText, ChevronDown } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { PRESETS } from './reportUtils';
 import { useTenant } from '../../context/TenantContext';
 import ReportTable from './ReportTable';
 import { exportToCSV, exportExcel, printReport, letterheadFrom, safeFilename } from '../../lib/reportExport';
 import { formatCurrency, todayISOInAppTZ } from '../../lib/utils';
+import { kpiDisplay } from '../../lib/reportsView';
+import { Tabs } from '../ui/Tabs';
+import {
+  ReportTitle, Seg, ExportMenu, Figures, KpiCard, ReportBox, EmptyBlock, ErrorBlock,
+} from './frame';
 
-/* ─── Colour tokens ───────────────────────────────────────────────────────── */
-const COLOR_HEX = {
-  indigo: 'var(--color-accent-signature)', emerald: '#10b981', amber: '#f59e0b', rose: '#ef4444',
-  orange: '#f97316', sky: '#0ea5e9', violet: '#8b5cf6', blue: '#3b82f6',
-  slate: 'var(--color-ink-tertiary)',
+/* ─── Chart colours: ink, amber, then quiet supporting hues ──────────────── */
+const INK2 = 'var(--color-ink-2)';
+const PIE_COLORS = ['var(--color-ink-2)', 'var(--color-amber)', '#8A9099', '#12803B', '#B45309', '#1D4ED8', '#B7BCC2', '#B91C1C'];
+const SERIES_COLOR = {
+  // Reports name their series by the old palette; map each to the new one.
+  indigo: INK2, emerald: '#12803B', amber: 'var(--color-amber)', rose: '#B91C1C',
+  orange: 'var(--color-amber)', sky: '#1D4ED8', violet: '#8A9099', blue: '#1D4ED8', slate: '#8A9099',
 };
-const PIE_COLORS = ['var(--color-accent-signature)', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
-
-/* ─── Value formatting ────────────────────────────────────────────────────── */
-const MONEY_RE = /value|revenue|profit|capital|payroll|disburs|outstanding|magnitude|burn|salary|\brev\b|balance|amount|spend|yield|cost/i;
-
-const formatCompact = (val) => {
-  if (val >= 10000000) return `₹${(val / 10000000).toFixed(2)}Cr`;
-  if (val >= 100000)   return `₹${(val / 100000).toFixed(2)}L`;
-  return formatCurrency(val);
-};
-
-const kpiDisplay = (label, value) => {
-  if (typeof value !== 'number') return value;
-  return MONEY_RE.test(label || '') ? formatCompact(value) : value.toLocaleString('en-IN');
+const seriesColor = (c, i) => {
+  if (!c) return i === 1 ? 'var(--color-amber)' : INK2;
+  if (SERIES_COLOR[c]) return SERIES_COLOR[c];
+  if (String(c).includes('accent-signature')) return INK2;
+  return c;
 };
 
-/* ─── Mini sparkline ──────────────────────────────────────────────────────── */
-const Spark = ({ data = [], color = 'var(--color-accent-signature)' }) => {
-  if (!data || data.length < 2) return <div className="h-9" />;
-  const id = `prk_${color.replace('#', '')}`;
-  return (
-    <ResponsiveContainer width="100%" height={36}>
-      <AreaChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
-        <defs>
-          <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity={0.25} />
-            <stop offset="100%" stopColor={color} stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <Area type="monotone" dataKey="value" stroke={color} strokeWidth={1.5}
-          fill={`url(#${id})`} dot={false} isAnimationActive={false} />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-};
-
-/* ─── KPI card ────────────────────────────────────────────────────────────── */
-const KPI = ({ card, loading }) => {
-  const color = COLOR_HEX[card.color] || COLOR_HEX.indigo;
-  const dir   = card.trendDir;
-  const TrendIcon = dir === 'up' ? TrendingUp : dir === 'down' ? TrendingDown : Minus;
-  const trendCls = dir === 'up' ? 'text-emerald-500' : dir === 'down' ? 'text-red-400' : 'text-muted-foreground';
-  return (
-    <div className="bg-card rounded-[10px] border border-border/60 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `color-mix(in srgb, ${color} 10%, transparent)` }}>
-          <span className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
-        </div>
-        {dir && (
-          <span className={`text-[10px] font-semibold flex items-center gap-0.5 ${trendCls}`}>
-            <TrendIcon size={11} />
-            {dir !== 'none' ? `${Math.abs(Number(card.trend) || 0)}%` : '—'}
-          </span>
-        )}
-      </div>
-      {loading
-        ? <div className="h-7 w-24 bg-canvas animate-pulse rounded-lg" />
-        : <div className={`tabular-nums font-semibold text-foreground leading-none ${String(kpiDisplay(card.label, card.value)).length > 10 ? 'text-[14px] sm:text-2xl' : 'text-2xl truncate'}`}>
-            {kpiDisplay(card.label, card.value)}
-          </div>
-      }
-      <div className="text-[11px] font-medium text-muted-foreground">{card.label}</div>
-      <Spark data={card.chartData} color={color} />
-    </div>
-  );
-};
-
-/* ─── Section header ──────────────────────────────────────────────────────── */
-const SectionHead = ({ title, sub }) => (
-  <div className="flex items-baseline gap-3">
-    <h2 className="text-base font-semibold text-foreground">{title}</h2>
-    {sub && <span className="text-[11px] font-medium text-muted-foreground">{sub}</span>}
-  </div>
-);
-
-/* ─── Chart tooltip ───────────────────────────────────────────────────────── */
 const ChartTip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-card border border-black/8 rounded-xl px-3 py-2 shadow-lg text-xs">
-      <div className="font-semibold text-ink-secondary mb-1">{label || payload[0]?.payload?.name}</div>
+    <div className="rounded-[10px] bg-surface px-3 py-2 text-[12px] shadow-[0_0_0_1px_rgba(17,20,24,.06),0_12px_28px_-12px_rgba(17,20,24,.35)]">
+      <div className="mb-1 font-tight font-semibold text-ink">{label || payload[0]?.payload?.name}</div>
       {payload.map((p, i) => (
         <div key={i} className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
-          <span className="text-muted-foreground">{p.name}:</span>
-          <span className="font-semibold text-foreground tabular-nums">
+          <span className="h-2 w-2 rounded-[3px]" style={{ background: p.color }} />
+          <span className="text-body">{p.name}:</span>
+          <span className="font-tight font-semibold text-ink tabular-nums">
             {typeof p.value === 'number' ? p.value.toLocaleString('en-IN') : p.value}
           </span>
         </div>
@@ -124,153 +63,124 @@ const ChartTip = ({ active, payload, label }) => {
   );
 };
 
-/* ─── Chart panel ─────────────────────────────────────────────────────────── */
 const ChartPanel = ({ config, loading }) => {
   if (!config) return null;
   const { title, type = 'bar', data = [], series } = config;
-  const ser = series && series.length ? series : [{ key: 'value', name: 'Value', color: 'var(--color-accent-signature)' }];
+  const ser = (series && series.length ? series : [{ key: 'value', name: 'Value' }])
+    .map((s, i) => ({ ...s, color: seriesColor(s.color, i) }));
 
-  const axisTick = { fontSize: 10, fill: '#9ca3af', fontWeight: 600 };
-  const yFmt = v => (v >= 100000 ? `₹${(v/100000).toFixed(1)}L` : v >= 1000 ? `₹${(v/1000).toFixed(0)}k` : v);
+  const axisTick = { fontSize: 10.5, fill: 'var(--color-mute)', fontWeight: 600, fontFamily: 'Inter Tight, sans-serif' };
+  const yFmt = (v) => (v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : v >= 1000 ? `₹${(v / 1000).toFixed(0)}k` : v);
 
   let chart;
   if (loading) {
-    chart = <div className="h-[280px] bg-canvas animate-pulse rounded-xl" />;
+    chart = <div className="h-[260px] animate-pulse rounded-xl bg-tile" />;
   } else if (!data.length) {
-    chart = (
-      <div className="h-[280px] flex flex-col items-center justify-center gap-3 text-muted-foreground">
-        <BarChart3 size={40} strokeWidth={1.5} />
-        <span className="text-[10px] font-semibold uppercase tracking-widest">No data for this view</span>
-      </div>
-    );
+    chart = <EmptyBlock text="No data for this view" />;
   } else if (type === 'pie') {
     chart = (
-      <ResponsiveContainer width="100%" height={300}>
+      <ResponsiveContainer width="100%" height={280}>
         <PieChart>
-          <Pie data={data} cx="50%" cy="50%" innerRadius={70} outerRadius={110}
-            paddingAngle={4} dataKey="value" stroke="none" isAnimationActive={false}>
+          <Pie data={data} cx="50%" cy="50%" innerRadius={70} outerRadius={105}
+            paddingAngle={3} dataKey="value" stroke="none" isAnimationActive={false}>
             {data.map((e, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
           </Pie>
           <Tooltip content={<ChartTip />} />
-          <Legend verticalAlign="bottom" height={32} iconType="circle"
-            wrapperStyle={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }} />
+          <Legend verticalAlign="bottom" height={32} iconType="square" iconSize={9}
+            wrapperStyle={{ fontSize: '12px', color: 'var(--color-body)' }} />
         </PieChart>
       </ResponsiveContainer>
     );
   } else if (type === 'line') {
     chart = (
-      <ResponsiveContainer width="100%" height={300}>
+      <ResponsiveContainer width="100%" height={260}>
         <LineChart data={data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+          <CartesianGrid stroke="var(--color-sep)" vertical={false} />
           <XAxis dataKey="name" tick={axisTick} axisLine={false} tickLine={false} />
           <YAxis tick={axisTick} axisLine={false} tickLine={false} tickFormatter={yFmt} />
           <Tooltip content={<ChartTip />} />
-          {ser.map(s => (
+          {ser.map((s) => (
             <Line key={s.key} type="monotone" dataKey={s.key} name={s.name} stroke={s.color}
-              strokeWidth={2.5} dot={{ r: 3, strokeWidth: 0, fill: s.color }}
-              activeDot={{ r: 5 }} isAnimationActive={false} />
+              strokeWidth={2} dot={false} activeDot={{ r: 4 }} isAnimationActive={false} />
           ))}
+          {ser.length > 1 && <Legend iconType="square" iconSize={9} wrapperStyle={{ fontSize: '12px' }} />}
         </LineChart>
       </ResponsiveContainer>
     );
   } else {
     chart = (
-      <ResponsiveContainer width="100%" height={300}>
+      <ResponsiveContainer width="100%" height={260}>
         <BarChart data={data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+          <CartesianGrid stroke="var(--color-sep)" vertical={false} />
           <XAxis dataKey="name" tick={axisTick} axisLine={false} tickLine={false} />
           <YAxis tick={axisTick} axisLine={false} tickLine={false} tickFormatter={yFmt} />
-          <Tooltip content={<ChartTip />} cursor={{ fill: 'rgba(0,0,0,0.03)' }} />
-          {ser.map(s => (
+          <Tooltip content={<ChartTip />} cursor={{ fill: 'rgba(17,20,24,0.03)' }} />
+          {ser.map((s) => (
             <Bar key={s.key} dataKey={s.key} name={s.name} fill={s.color}
-              radius={[6, 6, 0, 0]} maxBarSize={40} isAnimationActive={false}>
-              {ser.length === 1 && data.map((e, i) => (
-                <Cell key={i} fill={s.color || PIE_COLORS[i % PIE_COLORS.length]} />
-              ))}
-            </Bar>
+              radius={[6, 6, 2, 2]} maxBarSize={34} isAnimationActive={false} />
           ))}
+          {ser.length > 1 && <Legend iconType="square" iconSize={9} wrapperStyle={{ fontSize: '12px' }} />}
         </BarChart>
       </ResponsiveContainer>
     );
   }
 
-  return (
-    <div className="bg-card rounded-[10px] border border-border/60 p-6 shadow-sm">
-      <div className="mb-4"><SectionHead title={title || 'Analysis'} sub="visual" /></div>
-      {chart}
-    </div>
-  );
+  return <ReportBox title={title || 'Analysis'} sub="visual">{chart}</ReportBox>;
 };
 
-/* ════════════════════════════════════════════════════════════════════════════
-   MAIN
-   ════════════════════════════════════════════════════════════════════════════ */
-const PremiumReportView = ({ tabs = [], title = 'Report', subtitle, dateWindow = null, initialTabId = null }) => {
+const PremiumReportView = ({
+  tabs = [], title = 'Report', subtitle, dateWindow = null, initialTabId = null,
+  error = null, onRetry = null, actions = null,
+}) => {
   const { hasPermission } = useAuth();
   const { businessProfile, currentTenant } = useTenant();
-  const [exportOpen, setExportOpen] = useState(false);
-  const exportMenuRef = useRef(null);
-  useEffect(() => {
-    const h = (e) => { if (exportMenuRef.current && !exportMenuRef.current.contains(e.target)) setExportOpen(false); };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, []);
 
   const allowedTabs = useMemo(
-    () => tabs.filter(t => !t.permission || hasPermission(t.permission, 'view')),
-    [tabs, hasPermission]
+    () => tabs.filter((t) => !t.permission || hasPermission(t.permission, 'view')),
+    [tabs, hasPermission],
   );
 
   const [activeId, setActiveId] = useState(
     allowedTabs.some((t) => t.id === initialTabId) ? initialTabId : allowedTabs[0]?.id);
   const activeTab = useMemo(
-    () => allowedTabs.find(t => t.id === activeId) || allowedTabs[0],
-    [activeId, allowedTabs]
+    () => allowedTabs.find((t) => t.id === activeId) || allowedTabs[0],
+    [activeId, allowedTabs],
   );
 
   if (!activeTab) {
-    return (
-      <div className="flex flex-col items-center justify-center py-32 text-muted-foreground">
-        <BarChart3 size={56} strokeWidth={1} />
-        <p className="text-sm font-semibold uppercase mt-5 tracking-widest">Access Denied</p>
-      </div>
-    );
+    return <EmptyBlock icon={Lock} title="Access denied" text="You do not have permission to view this report." />;
   }
 
-  const kpis    = activeTab.kpis || [];
+  const kpis = activeTab.kpis || [];
   const loading = !!activeTab.loading;
+  const failed = error || activeTab.error || null;
 
-  // Data columns for export (skip UI-only synthetic columns prefixed '_').
-  const exportCols = (activeTab.columns || []).filter(c => c.key && !String(c.key).startsWith('_'));
+  const exportCols = (activeTab.columns || []).filter((c) => c.key && !String(c.key).startsWith('_'));
   const fname = safeFilename(`${activeTab.label}_${todayISOInAppTZ()}`);
   const lh = letterheadFrom(businessProfile || {}, currentTenant || {});
-  const fmtCell = (col, v) => (col.type === 'currency' && v != null && v !== '')
+  const fmtCell = (col, v) => ((col.type === 'currency' && v != null && v !== '')
     ? Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : (v ?? '');
+    : (v ?? ''));
 
   const doCSV = () => {
-    setExportOpen(false);
     if (activeTab.onExportCSV) { activeTab.onExportCSV(); return; }
     exportToCSV({ filename: fname, columns: exportCols, data: activeTab.data || [], totals: activeTab.totals || null });
   };
   const doExcel = () => {
-    setExportOpen(false);
     exportExcel({ filename: fname, sheets: [{
       name: activeTab.label,
-      columns: exportCols.map(c => ({ key: c.key, label: c.label || c.key, width: c.width ? c.width / 8 : undefined })),
-      rows: (activeTab.data || []).map(r => {
-        const o = {}; exportCols.forEach(c => { o[c.key] = fmtCell(c, r[c.key]); }); return o;
+      columns: exportCols.map((c) => ({ key: c.key, label: c.label || c.key, width: c.width ? c.width / 8 : undefined })),
+      rows: (activeTab.data || []).map((r) => {
+        const o = {}; exportCols.forEach((c) => { o[c.key] = fmtCell(c, r[c.key]); }); return o;
       }),
       total: activeTab.totals || null,
     }] });
   };
   const doPDF = () => {
-    setExportOpen(false);
-    // Build a clean enterprise table (avoids cloning styled app DOM).
-    const align = (c) => c.align === 'right' || c.type === 'currency' ? ' align="right"' : '';
-    const head = `<tr>${exportCols.map(c => `<th${align(c)}>${c.label || c.key}</th>`).join('')}</tr>`;
-    const body = (activeTab.data || []).map(r =>
-      `<tr>${exportCols.map(c => `<td${align(c)}>${fmtCell(c, r[c.key])}</td>`).join('')}</tr>`
+    const align = (c) => (c.align === 'right' || c.type === 'currency' ? ' align="right"' : '');
+    const head = `<tr>${exportCols.map((c) => `<th${align(c)}>${c.label || c.key}</th>`).join('')}</tr>`;
+    const body = (activeTab.data || []).map((r) =>
+      `<tr>${exportCols.map((c) => `<td${align(c)}>${fmtCell(c, r[c.key])}</td>`).join('')}</tr>`,
     ).join('');
     const totalRow = activeTab.totals
       ? `<tr class="total-row">${exportCols.map((c, i) => `<td${align(c)}>${i === 0 ? 'TOTAL' : fmtCell(c, activeTab.totals[c.key])}</td>`).join('')}</tr>`
@@ -284,101 +194,54 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle, dateWindow =
   };
 
   return (
-    <div className="space-y-8 pb-16 animate-fade-in">
-
-      {/* ── HEADER ─────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <div>
-          <h1 className="text-base font-semibold text-foreground tracking-tight">
-            {title}
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {subtitle || `${activeTab.label} — ${businessProfile?.name || 'Business intelligence'}`}
-          </p>
-        </div>
-        <div className="flex-1" />
-
-        {/* Optional date window (useDateWindow). Reports that pass this were
-            previously unfiltered — they read whole tables on every load. */}
-        {dateWindow && (
-          <div className="flex items-center bg-muted rounded-lg p-0.5 flex-wrap">
-            {PRESETS.map(p => (
-              <button key={p.id} onClick={() => dateWindow.headerProps.onPreset(p.id)}
-                className={`px-3 py-1.5 rounded-pill text-[11px] transition-colors ${
-                  dateWindow.preset === p.id
-                    ? 'bg-card text-foreground font-semibold shadow-sm'
-                    : 'text-muted-foreground font-medium hover:text-foreground'}`}>
-                {p.label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Tab pills */}
-        {allowedTabs.length > 1 && (
-          <div className="flex items-center bg-muted rounded-lg p-0.5 flex-wrap">
-            {allowedTabs.map(t => (
-              <button key={t.id} onClick={() => setActiveId(t.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-[11px] transition-colors ${
-                  activeTab.id === t.id
-                    ? 'bg-card text-foreground font-semibold shadow-sm'
-                    : 'text-muted-foreground font-medium hover:text-foreground'
-                }`}>
-                {t.icon}{t.label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className="relative no-print" ref={exportMenuRef}>
-          <button onClick={() => setExportOpen(o => !o)}
-            className="flex items-center gap-2 px-4 py-2 rounded-pill bg-accent-signature text-white text-xs font-semibold hover:bg-accent-signature-hover shadow-md transition-all">
-            <Download size={13} /> Export <ChevronDown size={12} className={`transition-transform ${exportOpen ? 'rotate-180' : ''}`} />
-          </button>
-          {exportOpen && (
-            <div className="absolute right-0 mt-2 w-44 rounded-xl bg-card border border-black/10 shadow-xl overflow-hidden z-40 py-1">
-              <button onClick={doExcel} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-foreground hover:bg-accent-signature/10 transition-colors">
-                <FileSpreadsheet size={15} className="text-emerald-600" /> Excel (.xlsx)
-              </button>
-              <button onClick={doPDF} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-foreground hover:bg-accent-signature/10 transition-colors">
-                <Printer size={15} className="text-accent-signature" /> PDF / Print
-              </button>
-              <button onClick={doCSV} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-foreground hover:bg-accent-signature/10 transition-colors">
-                <FileText size={15} className="text-muted-foreground" /> CSV
-              </button>
-            </div>
+    <div className="pb-16">
+      <ReportTitle
+        title={title}
+        subtitle={subtitle || `${activeTab.label} — ${businessProfile?.name || 'Business intelligence'}`}
+        actions={<>
+          {dateWindow && (
+            <Seg ariaLabel="Period" value={dateWindow.preset}
+              items={PRESETS.map((p) => ({ id: p.id, label: p.label }))}
+              onChange={(id) => dateWindow.headerProps.onPreset(id)} />
           )}
-        </div>
-      </div>
+          {actions}
+          {!failed && <ExportMenu onExcel={doExcel} onPDF={doPDF} onCSV={doCSV} />}
+        </>}
+      />
 
-      {/* ── KPI ROW ────────────────────────────────────────────────────── */}
-      {kpis.length > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {kpis.map((c, i) => <KPI key={c.id || i} card={c} loading={loading} />)}
-        </div>
+      {allowedTabs.length > 1 && (
+        <Tabs ariaLabel={`${title} views`} className="no-print -mt-1 mb-4 overflow-x-auto"
+          items={allowedTabs.map((t) => ({ key: t.id, label: t.label }))}
+          value={activeTab.id} onChange={setActiveId} />
       )}
 
-      {/* ── CHART ──────────────────────────────────────────────────────── */}
-      <ChartPanel config={activeTab.chartConfig} loading={loading} />
+      {failed ? (
+        <ErrorBlock title={`${title} could not load`} message={String(failed)} onRetry={onRetry || activeTab.onRetry || null} />
+      ) : (
+        <>
+          {kpis.length > 0 && (
+            <Figures cols={4}>
+              {kpis.map((c, i) => (
+                <KpiCard key={c.id || i} label={c.label} value={kpiDisplay(c.label, c.value, formatCurrency)}
+                  trend={c.trend} trendDir={c.trendDir} chartData={c.chartData} loading={loading} />
+              ))}
+            </Figures>
+          )}
 
-      {/* ── DATA TABLE ─────────────────────────────────────────────────── */}
-      <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-        <div className="px-6 pt-6 pb-4 border-b border-border/60">
-          <SectionHead title={activeTab.label} sub={`${(activeTab.data || []).length} records`} />
-        </div>
-        <div className="p-4">
-          {/* key: columns, sort and paging belong to a tab. Without it the table
-              kept the first tab's column list and lost the second tab's. */}
-          <ReportTable
-            key={activeTab.id}
-            columns={activeTab.columns || []}
-            data={activeTab.data || []}
-            loading={loading}
-            totalsRow={activeTab.totals || null}
-          />
-        </div>
-      </div>
+          <ChartPanel config={activeTab.chartConfig} loading={loading} />
 
+          <ReportBox flush title={activeTab.label} sub={`${(activeTab.data || []).length} records`}>
+            {/* key: columns, sort and paging belong to a tab. */}
+            <ReportTable
+              key={activeTab.id}
+              columns={activeTab.columns || []}
+              data={activeTab.data || []}
+              loading={loading}
+              totalsRow={activeTab.totals || null}
+            />
+          </ReportBox>
+        </>
+      )}
     </div>
   );
 };

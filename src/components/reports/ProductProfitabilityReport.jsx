@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { isCountableSale } from './reportUtils';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import useDateWindow from './useDateWindow';
 import { useLinkedRange } from '../../lib/linkedRange';
 import PLTieOut from './PLTieOut';
@@ -48,14 +49,14 @@ const ProductProfitabilityReport = () => {
   // ?from=&to= (an Ask answer's link) opens on the answer's own dates.
   const linked = useLinkedRange();
   const win = useDateWindow('YEAR', linked);
-  const { data: products, loading: productsLoading } = useReportData({
+  const { data: products, loading: productsLoading, error: rdErr1, refetch: rdRe1 } = useReportData({
     table: 'products',
     select: '*',
     // Dimension table: never date-windowed. Products created before the
     // window still have sales inside it, and would lose their cost basis.
   });
 
-  const { data: salesRaw, loading: salesLoading } = useReportData({
+  const { data: salesRaw, loading: salesLoading, error: rdErr2, refetch: rdRe2 } = useReportData({
     table: 'sales',
     select: 'id, date, items, status, voided_at, paymentStatus',
     dateColumn: 'date', filters: win.filters,
@@ -66,7 +67,7 @@ const ProductProfitabilityReport = () => {
   // FIFO truth: what each sale actually consumed, at the batch cost of that
   // moment. Using today's costPrice as COGS misstated every margin whenever
   // a product's cost moved (and costs did move — the July batch reconciles).
-  const { data: consumption } = useReportData({
+  const { data: consumption, error: rdErr3, refetch: rdRe3 } = useReportData({
     table: 'sale_batch_consumption',
     select: 'sale_id, product_id, qty_taken, unit_cost',
   });
@@ -271,15 +272,15 @@ const ProductProfitabilityReport = () => {
   // --- Margin tier cell renderer ---
   const renderTier = (label) => {
     const tierConfig = {
-      HIGH:       { bg: 'bg-emerald-50', text: 'text-emerald-600', dot: '#10b981' },
-      HEALTHY:    { bg: 'bg-sky-50',     text: 'text-sky-600',     dot: '#0ea5e9' },
-      THIN:       { bg: 'bg-accent-signature/10',   text: 'text-accent-signature',   dot: '#f59e0b' },
+      HIGH:       { bg: 'bg-good-soft', text: 'text-good-text', dot: '#10b981' },
+      HEALTHY:    { bg: 'bg-info-soft',     text: 'text-info-text',     dot: '#0ea5e9' },
+      THIN:       { bg: 'bg-accent-signature/10',   text: 'text-amber-text',   dot: '#f59e0b' },
       'BREAK-EVEN': { bg: 'bg-orange-50', text: 'text-orange-600', dot: '#f97316' },
-      LOSS:       { bg: 'bg-rose-50',    text: 'text-rose-600',    dot: '#ef4444' },
+      LOSS:       { bg: 'bg-bad-soft',    text: 'text-bad-text',    dot: '#ef4444' },
     };
     const c = tierConfig[label] || tierConfig.THIN;
     return (
-      <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-semibold uppercase ${c.bg} ${c.text}`}>
+      <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[12px] font-semibold uppercase ${c.bg} ${c.text}`}>
         <div className="w-1 h-1 rounded-full" style={{ backgroundColor: c.dot }} />
         {label}
       </div>
@@ -307,8 +308,8 @@ const ProductProfitabilityReport = () => {
         width: 240,
         render: (val, row) => (
           <div className="flex flex-col gap-0.5">
-            <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>
-            <span className="text-[9px] text-muted-foreground tabular-nums">{row.sku}</span>
+            <span className="font-semibold text-ink uppercase tracking-tight">{val}</span>
+            <span className="text-[12px] text-body tabular-nums">{row.sku}</span>
           </div>
         ),
       },
@@ -317,7 +318,7 @@ const ProductProfitabilityReport = () => {
         label: 'Category',
         sortable: true,
         width: 140,
-        render: (val) => <span className="text-[10px] font-semibold text-muted-foreground uppercase">{val}</span>,
+        render: (val) => <span className="text-[11.5px] font-semibold text-body uppercase">{val}</span>,
       },
       {
         key: 'units_sold',
@@ -333,7 +334,7 @@ const ProductProfitabilityReport = () => {
         align: 'right',
         sortable: true,
         width: 120,
-        render: (val) => <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">{formatINR(val)}</span>,
+        render: (val) => <span className="text-[11.5px] font-semibold text-body tabular-nums">{formatINR(val)}</span>,
       },
       {
         key: 'cost_price',
@@ -341,7 +342,7 @@ const ProductProfitabilityReport = () => {
         align: 'right',
         sortable: true,
         width: 110,
-        render: (val) => <span className="text-[10px] text-muted-foreground tabular-nums">{formatINR(val)}</span>,
+        render: (val) => <span className="text-[11.5px] text-body tabular-nums">{formatINR(val)}</span>,
       },
       {
         key: 'revenue',
@@ -350,7 +351,7 @@ const ProductProfitabilityReport = () => {
         align: 'right',
         sortable: true,
         width: 140,
-        render: (val) => <span className="font-semibold text-foreground tabular-nums">{formatINR(val)}</span>,
+        render: (val) => <span className="font-semibold text-ink tabular-nums">{formatINR(val)}</span>,
       },
       {
         key: 'cogs',
@@ -359,7 +360,7 @@ const ProductProfitabilityReport = () => {
         align: 'right',
         sortable: true,
         width: 130,
-        render: (val) => <span className="text-muted-foreground tabular-nums">{formatINR(val)}</span>,
+        render: (val) => <span className="text-body tabular-nums">{formatINR(val)}</span>,
       },
       {
         key: 'gross_profit',
@@ -369,7 +370,7 @@ const ProductProfitabilityReport = () => {
         sortable: true,
         width: 140,
         render: (val) => (
-          <span className={`font-semibold tabular-nums ${val >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+          <span className={`font-semibold tabular-nums ${val >= 0 ? 'text-good-text' : 'text-bad-text'}`}>
             {formatINR(val)}
           </span>
         ),
@@ -381,7 +382,7 @@ const ProductProfitabilityReport = () => {
         sortable: true,
         width: 100,
         render: (val) => (
-          <span className={`font-semibold tabular-nums ${val >= 20 ? 'text-emerald-600' : val >= 5 ? 'text-accent-signature' : 'text-rose-600'}`}>
+          <span className={`font-semibold tabular-nums ${val >= 20 ? 'text-good-text' : val >= 5 ? 'text-amber-text' : 'text-bad-text'}`}>
             {PCT(val)}
           </span>
         ),
@@ -439,8 +440,8 @@ const ProductProfitabilityReport = () => {
         width: 260,
         render: (val, row) => (
           <div className="flex flex-col gap-0.5">
-            <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>
-            <span className="text-[9px] text-muted-foreground tabular-nums">{row.sku}</span>
+            <span className="font-semibold text-ink uppercase tracking-tight">{val}</span>
+            <span className="text-[12px] text-body tabular-nums">{row.sku}</span>
           </div>
         ),
       },
@@ -454,7 +455,7 @@ const ProductProfitabilityReport = () => {
         sortable: true,
         width: 160,
         render: (_, row) => (
-          <span className="font-semibold text-rose-600 tabular-nums">
+          <span className="font-semibold text-bad-text tabular-nums">
             {formatINR(row.stock * row.cost_price)}
           </span>
         ),
@@ -466,7 +467,7 @@ const ProductProfitabilityReport = () => {
         align: 'right',
         sortable: true,
         width: 120,
-        render: (v) => <span className="text-muted-foreground tabular-nums">{formatINR(v)}</span>,
+        render: (v) => <span className="text-body tabular-nums">{formatINR(v)}</span>,
       },
     ],
     kpis: [
@@ -510,7 +511,7 @@ const ProductProfitabilityReport = () => {
 
   return (
     <div>
-      <PremiumReportView dateWindow={win} title="Product Profitability" subtitle={linked ? win.subtitle : undefined} tabs={tabs} />
+      <PremiumReportView error={loadError(rdErr1, rdErr2, rdErr3)} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); }} dateWindow={win} title="Product Profitability" subtitle={linked ? win.subtitle : undefined} tabs={tabs} />
       {/* all-time report — reconcile against the P&L over all time */}
       <PLTieOut from="2000-01-01" to="2100-01-01" revenue={totals.revenue} cogs={totals.cogs}
         note="SKU rows are pre-discount — small differences are bill discounts and returns." />

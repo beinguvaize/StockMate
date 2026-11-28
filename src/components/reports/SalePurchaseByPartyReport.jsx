@@ -6,6 +6,7 @@ import {
   Users, Truck, TrendingUp, ShoppingBag,
 } from 'lucide-react';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import ReportHeader from './ReportHeader';
 import { KPI, SectionHead } from './ReportBits';
 import { isCountableSale, presetRange } from './reportUtils';
@@ -14,53 +15,53 @@ import { useLinkedRange } from '../../lib/linkedRange';
 
 const ShareBar = ({ share, color }) => (
   <div className="flex items-center gap-2 mt-1">
-    <div className="w-20 h-1 rounded-full bg-canvas overflow-hidden">
+    <div className="w-20 h-1 rounded-full bg-tile overflow-hidden">
       <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(100, share)}%`, background: color }} />
     </div>
-    <span className="text-[9px] font-semibold" style={{ color }}>{share.toFixed(1)}%</span>
+    <span className="text-[12px] font-semibold" style={{ color }}>{share.toFixed(1)}%</span>
   </div>
 );
 
 const PartyTable = ({ title, icon: Icon, rows, totalAmount, totalLabel, colorAccent, amountLabel, loading, emptyMsg, rankColors }) => (
-  <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden flex-1 min-w-0">
-    <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
+  <div className="bg-surface rounded-[14px] border border-line overflow-hidden flex-1 min-w-0">
+    <div className="px-4 pt-3.5 pb-3 border-b border-line flex items-center justify-between">
       <SectionHead title={title} sub={`${rows.length} ${totalLabel}`} />
       <div className="text-right">
-        <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{amountLabel}</div>
-        <div className="text-base font-semibold text-foreground tabular-nums">{formatCurrency(totalAmount)}</div>
+        <div className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{amountLabel}</div>
+        <div className="text-base font-semibold text-ink tabular-nums">{formatCurrency(totalAmount)}</div>
       </div>
     </div>
 
     {loading ? (
-      <div className="p-6 space-y-3">
-        {[...Array(5)].map((_, i) => <div key={i} className="h-12 bg-canvas animate-pulse rounded-xl" />)}
+      <div className="p-4 space-y-3">
+        {[...Array(5)].map((_, i) => <div key={i} className="h-12 bg-tile animate-pulse rounded-xl" />)}
       </div>
     ) : rows.length === 0 ? (
-      <div className="py-16 text-center text-sm text-muted-foreground">{emptyMsg}</div>
+      <div className="py-16 text-center text-sm text-body">{emptyMsg}</div>
     ) : (
       <div>
-        <div className="grid grid-cols-[36px_1fr_80px_130px] gap-3 px-6 py-2 bg-canvas/50 border-b border-border/60">
+        <div className="grid grid-cols-[36px_1fr_80px_130px] gap-3 px-4 py-2 bg-tile border-b border-line">
           {['#','Name','Orders','Amount'].map(h => (
-            <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
+            <span key={h} className="font-tight text-[12px] font-semibold text-mute">{h}</span>
           ))}
         </div>
         {rows.map((row, i) => (
-          <div key={row.name} className="grid grid-cols-[36px_1fr_80px_130px] gap-3 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
+          <div key={row.name} className="grid grid-cols-[36px_1fr_80px_130px] gap-3 px-4 py-3.5 items-center border-b border-line last:border-0 hover:bg-tile/40 transition-colors">
             <span className={`text-sm font-semibold ${rankColors[i] || 'text-ink-tertiary'}`}>{i + 1}</span>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
                   style={{ background: `color-mix(in srgb, ${colorAccent} 10%, transparent)` }}>
-                  <span className="text-[10px] font-semibold" style={{ color: colorAccent }}>
+                  <span className="text-[11.5px] font-semibold" style={{ color: colorAccent }}>
                     {(row.name?.[0] || '?').toUpperCase()}
                   </span>
                 </div>
-                <span className="text-sm font-semibold text-foreground truncate">{row.name}</span>
+                <span className="text-sm font-semibold text-ink truncate">{row.name}</span>
               </div>
               <ShareBar share={row.share} color={colorAccent} />
             </div>
-            <span className="text-sm tabular-nums text-ink-secondary tabular-nums">{row.orders}</span>
-            <span className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(row.amount)}</span>
+            <span className="text-sm tabular-nums text-ink-2 tabular-nums">{row.orders}</span>
+            <span className="text-sm font-semibold text-ink tabular-nums">{formatCurrency(row.amount)}</span>
           </div>
         ))}
       </div>
@@ -68,7 +69,7 @@ const PartyTable = ({ title, icon: Icon, rows, totalAmount, totalLabel, colorAcc
   </div>
 );
 
-const RANK_COLORS = ['text-accent-signature', 'text-muted-foreground', 'text-accent-signature-hover'];
+const RANK_COLORS = ['text-amber-text', 'text-body', 'text-amber-text'];
 
 const SalePurchaseByPartyReport = () => {
   // ?from=&to= (an Ask answer's link) opens on the answer's own dates.
@@ -81,9 +82,9 @@ const SalePurchaseByPartyReport = () => {
 
   const filters = useMemo(() => ({ dateRange: range }), [range]);
 
-  const { data: salesRaw,     loading: sLoading } = useReportData({ table: 'sales',     select: 'id, totalAmount, customerInfo, shopId, status, paymentStatus, voided_at', dateColumn: 'date', filters });
+  const { data: salesRaw,     loading: sLoading, error: rdErr1, refetch: rdRe1 } = useReportData({ table: 'sales',     select: 'id, totalAmount, customerInfo, shopId, status, paymentStatus, voided_at', dateColumn: 'date', filters });
   const sales = useMemo(() => salesRaw.filter(isCountableSale), [salesRaw]);
-  const { data: purchases, loading: pLoading } = useReportData({ table: 'purchases', select: 'id, total_amount, supplier_name',       dateColumn: 'date', filters });
+  const { data: purchases, loading: pLoading, error: rdErr2, refetch: rdRe2 } = useReportData({ table: 'purchases', select: 'id, total_amount, supplier_name',       dateColumn: 'date', filters });
 
   const loading = sLoading || pLoading;
 
@@ -142,7 +143,7 @@ const SalePurchaseByPartyReport = () => {
 
   return (
     <div className="space-y-4 pb-16">
-      <ReportHeader
+      <ReportHeader error={loadError(rdErr1, rdErr2)} onRetry={() => { rdRe1(); rdRe2(); }}
         title="Sales & Purchases by Party"
         subtitle={range.start === range.end ? range.start : `${range.start} → ${range.end}`}
         preset={preset}
@@ -158,7 +159,7 @@ const SalePurchaseByPartyReport = () => {
       />
 
       {/* Summary KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KPI label="Total Sales"          loading={loading} value={formatCurrency(totalSales)}      icon={TrendingUp}  color="var(--color-accent-signature)" />
         <KPI label="Customers"            loading={loading} value={salesByCustomer.length}          icon={Users}       color="#10b981" />
         <KPI label="Total Purchases"      loading={loading} value={formatCurrency(totalPurchases)}  icon={ShoppingBag} color="#f59e0b" />

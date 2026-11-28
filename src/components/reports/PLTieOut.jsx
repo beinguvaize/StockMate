@@ -33,8 +33,8 @@ const PLTieOut = ({ from, to, revenue, cogs = null, note }) => {
 
   // Slim text line, not a banner — the check should be present, not loud.
   return (
-    <div className={`mt-3 text-[11px] flex flex-wrap items-center gap-x-3 gap-y-0.5 ${
-      ok ? 'text-emerald-700' : 'text-accent-signature-hover'}`}>
+    <div className={`mt-3 text-[12px] flex flex-wrap items-center gap-x-3 gap-y-0.5 ${
+      ok ? 'text-good-text' : 'text-amber-text'}`}>
       <span className="font-medium">{ok ? '✓ Ties to P&L for this period' : '△ Differs from P&L'}</span>
       {!ok && Math.abs(dRev) >= 1 && (
         <span>revenue {dRev > 0 ? '+' : '−'}{formatCurrency(Math.abs(dRev))}</span>
@@ -42,7 +42,7 @@ const PLTieOut = ({ from, to, revenue, cogs = null, note }) => {
       {!ok && cogs != null && Math.abs(dCogs) >= 1 && (
         <span>COGS {dCogs > 0 ? '+' : '−'}{formatCurrency(Math.abs(dCogs))}</span>
       )}
-      {!ok && note && <span className="text-muted-foreground">{note}</span>}
+      {!ok && note && <span className="text-body">{note}</span>}
     </div>
   );
 };

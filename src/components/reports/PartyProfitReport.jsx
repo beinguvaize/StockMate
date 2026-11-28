@@ -8,6 +8,7 @@ import {
   TrendingUp, DollarSign, Users, BarChart3,
 } from 'lucide-react';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import ReportHeader from './ReportHeader';
 import { KPI, SectionHead } from './ReportBits';
 import PLTieOut from './PLTieOut';
@@ -34,11 +35,11 @@ const PartyProfitReport = () => {
 
   const filters = useMemo(() => ({ dateRange: range }), [range]);
 
-  const { data: salesRaw,       loading: sLoading } = useReportData({ table: 'sales',    select: '*', dateColumn: 'date', filters });
+  const { data: salesRaw,       loading: sLoading, error: rdErr1, refetch: rdRe1 } = useReportData({ table: 'sales',    select: '*', dateColumn: 'date', filters });
   const sales = useMemo(() => salesRaw.filter(isCountableSale), [salesRaw]);
-  const { data: clients,     loading: cLoading } = useReportData({ table: 'clients',  select: 'id, name' });
-  const { data: products }                        = useReportData({ table: 'products', select: 'id, costPrice' });
-  const { data: consumption }                     = useReportData({ table: 'sale_batch_consumption', select: 'sale_id, qty_taken, unit_cost' });
+  const { data: clients,     loading: cLoading, error: rdErr2, refetch: rdRe2 } = useReportData({ table: 'clients',  select: 'id, name' });
+  const { data: products, error: rdErr3, refetch: rdRe3 } = useReportData({ table: 'products', select: 'id, costPrice' });
+  const { data: consumption, error: rdErr4, refetch: rdRe4 } = useReportData({ table: 'sale_batch_consumption', select: 'sale_id, qty_taken, unit_cost' });
 
   const loading = sLoading || cLoading;
 
@@ -138,7 +139,7 @@ const PartyProfitReport = () => {
 
   return (
     <div className="space-y-4 pb-16">
-      <ReportHeader
+      <ReportHeader error={loadError(rdErr1, rdErr2, rdErr3, rdErr4)} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); rdRe4(); }}
         title="Party Profit & Loss"
         subtitle={range.start === range.end ? range.start : `${range.start} → ${range.end}`}
         preset={preset}
@@ -154,7 +155,7 @@ const PartyProfitReport = () => {
       />
 
       {/* KPI Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KPI label="Total Revenue"   loading={loading} value={formatCurrency(kpis.totalRevenue)}   icon={TrendingUp}  color="var(--color-accent-signature)" />
         <KPI label="Total Profit"    loading={loading} value={formatCurrency(kpis.totalProfit)}    icon={DollarSign}  color="#10b981" />
         <KPI label="Blended Margin"  loading={loading} value={`${kpis.blendedMargin.toFixed(1)}%`} icon={BarChart3}   color="#f59e0b" />
@@ -162,50 +163,50 @@ const PartyProfitReport = () => {
       </div>
 
       {/* Table */}
-      <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-        <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
+      <div className="bg-surface rounded-[14px] border border-line overflow-hidden">
+        <div className="px-4 pt-3.5 pb-3 border-b border-line flex items-center justify-between">
           <SectionHead title="Customer P&L" sub="ranked by profit" />
           {!loading && (
-            <span className="text-[10px] font-semibold text-muted-foreground bg-canvas px-2 py-1 rounded-full">
+            <span className="text-[11.5px] font-semibold text-body bg-tile px-2 py-1 rounded-full">
               {rows.length} parties
             </span>
           )}
         </div>
 
         {loading ? (
-          <div className="p-6 space-y-3">
-            {[...Array(6)].map((_, i) => <div key={i} className="h-10 bg-canvas animate-pulse rounded-xl" />)}
+          <div className="p-4 space-y-3">
+            {[...Array(6)].map((_, i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}
           </div>
         ) : rows.length === 0 ? (
-          <div className="py-16 text-center text-sm text-muted-foreground">No sales data for selected period</div>
+          <div className="py-16 text-center text-sm text-body">No sales data for selected period</div>
         ) : (
           <div>
-            <div className="grid grid-cols-[36px_1fr_120px_120px_120px_90px_100px] gap-4 px-6 py-2 bg-canvas/50 border-b border-border/60">
+            <div className="grid grid-cols-[36px_1fr_120px_120px_120px_90px_100px] gap-4 px-4 py-2 bg-tile border-b border-line">
               {['#', 'Customer', 'Revenue', 'Cost', 'Profit', 'Margin', 'Orders'].map(h => (
-                <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
+                <span key={h} className="font-tight text-[12px] font-semibold text-mute">{h}</span>
               ))}
             </div>
             {rows.map((row, i) => (
               <div key={row.name}
-                className={`grid grid-cols-[36px_1fr_120px_120px_120px_90px_100px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors`}>
-                <span className={`text-sm font-semibold tabular-nums ${i===0?'text-accent-signature':i===1?'text-muted-foreground':i===2?'text-accent-signature-hover':'text-ink-tertiary'}`}>
+                className={`grid grid-cols-[36px_1fr_120px_120px_120px_90px_100px] gap-4 px-4 py-3.5 items-center border-b border-line last:border-0 hover:bg-tile/40 transition-colors`}>
+                <span className={`text-sm font-semibold tabular-nums ${i===0?'text-amber-text':i===1?'text-body':i===2?'text-amber-text':'text-ink-tertiary'}`}>
                   {i + 1}
                 </span>
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="w-7 h-7 rounded-full bg-accent-signature/10 flex items-center justify-center shrink-0">
-                    <span className="text-[9px] font-semibold text-accent-signature">{(row.name[0]||'?').toUpperCase()}</span>
+                    <span className="text-[12px] font-semibold text-amber-text">{(row.name[0]||'?').toUpperCase()}</span>
                   </div>
-                  <span className="text-sm font-semibold text-foreground truncate">{row.name}</span>
+                  <span className="text-sm font-semibold text-ink truncate">{row.name}</span>
                 </div>
-                <span className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(row.revenue)}</span>
-                <span className="text-sm font-semibold text-ink-secondary tabular-nums">{formatCurrency(row.cost)}</span>
-                <span className={`text-sm font-semibold tabular-nums ${row.profit < 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                <span className="text-sm font-semibold text-ink tabular-nums">{formatCurrency(row.revenue)}</span>
+                <span className="text-sm font-semibold text-ink-2 tabular-nums">{formatCurrency(row.cost)}</span>
+                <span className={`text-sm font-semibold tabular-nums ${row.profit < 0 ? 'text-bad-text' : 'text-good-text'}`}>
                   {formatCurrency(row.profit)}
                 </span>
-                <span className={`text-sm font-semibold tabular-nums ${row.margin < 0 ? 'text-red-500' : row.margin < 10 ? 'text-accent-signature' : 'text-emerald-600'}`}>
+                <span className={`text-sm font-semibold tabular-nums ${row.margin < 0 ? 'text-bad-text' : row.margin < 10 ? 'text-amber-text' : 'text-good-text'}`}>
                   {row.margin.toFixed(1)}%
                 </span>
-                <span className="text-sm font-semibold text-ink-secondary tabular-nums">{row.orders}</span>
+                <span className="text-sm font-semibold text-ink-2 tabular-nums">{row.orders}</span>
               </div>
             ))}
           </div>

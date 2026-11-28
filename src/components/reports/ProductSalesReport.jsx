@@ -10,6 +10,7 @@ import {
   Package, Search, TrendingUp, Hash, DollarSign, UserCircle,
 } from 'lucide-react';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import ReportHeader from './ReportHeader';
 import { SectionHead } from './ReportBits'; // local KPI variant kept (truncate)
 import { presetRange, isCountableSale } from './reportUtils';
@@ -17,15 +18,15 @@ import { formatCurrency } from '../../lib/utils';
 import { useLinkedRange } from '../../lib/linkedRange';
 
 const KPI = ({ label, value, icon: Icon, color = 'var(--color-accent-signature)', loading }) => (
-  <div className="bg-card rounded-[10px] border border-border/60 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
+  <div className="bg-surface rounded-[14px] border border-line p-5 flex flex-col gap-3">
     <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `color-mix(in srgb, ${color} 10%, transparent)` }}>
       <Icon size={16} style={{ color }} />
     </div>
     {loading
-      ? <div className="h-7 w-24 bg-canvas animate-pulse rounded-lg" />
-      : <div className="text-2xl font-semibold text-foreground tabular-nums leading-none truncate">{value}</div>
+      ? <div className="h-7 w-24 bg-tile animate-pulse rounded-lg" />
+      : <div className="text-2xl font-semibold text-ink tabular-nums leading-none truncate">{value}</div>
     }
-    <div className="text-[11px] font-medium text-muted-foreground">{label}</div>
+    <div className="text-[12px] font-medium text-body">{label}</div>
   </div>
 );
 
@@ -41,17 +42,17 @@ const ProductSalesReport = () => {
 
   const dateFilters = useMemo(() => ({ dateRange: range }), [range]);
 
-  const { data: products, loading: prodLoading } = useReportData({
+  const { data: products, loading: prodLoading, error: rdErr1, refetch: rdRe1 } = useReportData({
     table: 'products', select: 'id, name, sku, unit, sellingPrice, costPrice',
   });
-  const { data: salesRaw, loading: salesLoading } = useReportData({
+  const { data: salesRaw, loading: salesLoading, error: rdErr2, refetch: rdRe2 } = useReportData({
     table: 'sales',
     select: 'id, date, items, status, customerInfo, shopId, totalAmount, voided_at, paymentStatus',
     dateColumn: 'date', filters: dateFilters,
   });
   // Voided and cancelled sales are not revenue and were being counted here.
   const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
-  const { data: clients } = useReportData({
+  const { data: clients, error: rdErr3, refetch: rdRe3 } = useReportData({
     table: 'clients', select: 'id, name',
   });
 
@@ -149,7 +150,7 @@ const ProductSalesReport = () => {
 
   return (
     <div className="space-y-4 pb-16">
-      <ReportHeader
+      <ReportHeader error={loadError(rdErr1, rdErr2, rdErr3)} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); }}
         title="Product Sales"
         subtitle={range.start === range.end ? range.start : `${range.start} → ${range.end}`}
         preset={preset}
@@ -165,37 +166,37 @@ const ProductSalesReport = () => {
       />
 
       {/* Product Picker */}
-      <div className="bg-card rounded-[10px] border border-border/60 shadow-sm p-6">
+      <div className="bg-surface rounded-[14px] border border-line p-4">
         <SectionHead title="Select Product" sub="search by name or SKU" />
         <div className="relative max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-body" />
           <input
             type="text"
             placeholder="Search products..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-card border border-border shadow-sm rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full pl-9 pr-4 py-2.5 bg-surface border border-border rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-accent-signature/20"
           />
         </div>
         {!selectedProduct && (
-          <div className="mt-2 bg-card border border-border shadow-sm rounded-xl max-h-64 overflow-y-auto">
+          <div className="mt-2 bg-surface border border-border rounded-xl max-h-64 overflow-y-auto">
             {prodLoading
-              ? <div className="p-4 text-xs text-muted-foreground">Loading...</div>
+              ? <div className="p-4 text-xs text-body">Loading...</div>
               : products.length === 0
-              ? <div className="p-4 text-xs text-muted-foreground">No products yet</div>
+              ? <div className="p-4 text-xs text-body">No products yet</div>
               : filteredProducts.length === 0
-              ? <div className="p-4 text-xs text-muted-foreground">No products match "{search}"</div>
+              ? <div className="p-4 text-xs text-body">No products match "{search}"</div>
               : filteredProducts.map(p => (
                 <button key={p.id} onClick={() => { setProductId(p.id); setSearch(''); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-canvas/60 transition-colors text-left border-b border-border/60 last:border-0`}>
+                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-tile/60 transition-colors text-left border-b border-line last:border-0`}>
                   <div className="w-8 h-8 rounded-lg bg-accent-signature/10 flex items-center justify-center shrink-0">
-                    <Package size={14} className="text-accent-signature" />
+                    <Package size={14} className="text-amber-text" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-foreground truncate">{p.name}</div>
-                    <div className="text-[10px] text-muted-foreground tabular-nums">{p.sku || '—'}</div>
+                    <div className="text-sm font-semibold text-ink truncate">{p.name}</div>
+                    <div className="text-[11.5px] text-body tabular-nums">{p.sku || '—'}</div>
                   </div>
-                  <div className="text-xs font-semibold text-foreground tabular-nums">
+                  <div className="text-xs font-semibold text-ink tabular-nums">
                     {formatCurrency(p.sellingPrice || 0)}
                   </div>
                 </button>
@@ -206,14 +207,14 @@ const ProductSalesReport = () => {
         {selectedProduct && (
           <div className="mt-3 flex items-center gap-3 p-3 bg-accent-signature/5 rounded-xl border border-accent-signature/10">
             <div className="w-9 h-9 rounded-lg bg-accent-signature/15 flex items-center justify-center shrink-0">
-              <Package size={16} className="text-accent-signature" />
+              <Package size={16} className="text-amber-text" />
             </div>
             <div className="flex-1">
-              <div className="text-sm font-semibold text-foreground">{selectedProduct.name}</div>
-              <div className="text-[10px] text-muted-foreground tabular-nums">{selectedProduct.sku || '—'} · list {formatCurrency(selectedProduct.sellingPrice || 0)}</div>
+              <div className="text-sm font-semibold text-ink">{selectedProduct.name}</div>
+              <div className="text-[11.5px] text-body tabular-nums">{selectedProduct.sku || '—'} · list {formatCurrency(selectedProduct.sellingPrice || 0)}</div>
             </div>
             <button onClick={() => setProductId('')}
-              className="text-[10px] font-semibold text-muted-foreground hover:text-red-500 transition-colors px-2 py-1 rounded-pill hover:bg-red-50">
+              className="text-[11.5px] font-semibold text-body hover:text-bad-text transition-colors px-2 py-1 rounded-pill hover:bg-bad-soft">
               Change
             </button>
           </div>
@@ -232,14 +233,14 @@ const ProductSalesReport = () => {
 
           {/* Top buyers */}
           {topBuyers.length > 0 && (
-            <div className="bg-card rounded-[10px] border border-border/60 shadow-sm p-6">
+            <div className="bg-surface rounded-[14px] border border-line p-4">
               <SectionHead title="Top Buyers" sub={`${topBuyers.length} clients`} />
               <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                 {topBuyers.map((b, i) => (
-                  <div key={i} className="bg-canvas/40 rounded-xl border border-border/60 p-3">
-                    <div className="text-[11px] font-medium text-muted-foreground mb-1 truncate">{b.name}</div>
-                    <div className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(b.revenue)}</div>
-                    <div className="text-[10px] font-semibold text-muted-foreground mt-0.5">{b.qty} {selectedProduct.unit || 'units'}</div>
+                  <div key={i} className="bg-tile/40 rounded-xl border border-line p-3">
+                    <div className="text-[12px] font-medium text-body mb-1 truncate">{b.name}</div>
+                    <div className="text-sm font-semibold text-ink tabular-nums">{formatCurrency(b.revenue)}</div>
+                    <div className="text-[11.5px] font-semibold text-body mt-0.5">{b.qty} {selectedProduct.unit || 'units'}</div>
                   </div>
                 ))}
               </div>
@@ -247,37 +248,37 @@ const ProductSalesReport = () => {
           )}
 
           {/* Lines Table */}
-          <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-            <div className="px-6 pt-6 pb-4 border-b border-border/60">
+          <div className="bg-surface rounded-[14px] border border-line overflow-hidden">
+            <div className="px-4 pt-3.5 pb-3 border-b border-line">
               <SectionHead title={`${selectedProduct.name} — Sale Lines`} sub={`${lines.length} entries`} />
             </div>
 
             {loading ? (
-              <div className="p-6 space-y-3">
-                {[...Array(6)].map((_, i) => <div key={i} className="h-10 bg-canvas animate-pulse rounded-xl" />)}
+              <div className="p-4 space-y-3">
+                {[...Array(6)].map((_, i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}
               </div>
             ) : lines.length === 0 ? (
-              <div className="py-16 text-center text-sm text-muted-foreground">No sales of this product in the selected period</div>
+              <div className="py-16 text-center text-sm text-body">No sales of this product in the selected period</div>
             ) : (
               <div>
-                <div className="grid grid-cols-[100px_180px_1fr_90px_110px_120px] gap-4 px-6 py-2 bg-canvas/50 border-b border-border/60">
+                <div className="grid grid-cols-[100px_180px_1fr_90px_110px_120px] gap-4 px-4 py-2 bg-tile border-b border-line">
                   {['Date','Sale Ref','Client','Qty','Rate','Total'].map(h => (
-                    <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
+                    <span key={h} className="font-tight text-[12px] font-semibold text-mute">{h}</span>
                   ))}
                 </div>
                 {lines.map((r, i) => (
-                  <div key={i} className="grid grid-cols-[100px_180px_1fr_90px_110px_120px] gap-4 px-6 py-3 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
-                    <span className="text-xs font-semibold text-ink-secondary tabular-nums">{r.date}</span>
-                    <span className="text-xs tabular-nums text-muted-foreground truncate">{String(r.saleId).toUpperCase()}</span>
-                    <span className="text-xs font-semibold text-foreground truncate">{r.client}</span>
-                    <span className="text-xs font-semibold text-foreground tabular-nums">{r.qty}</span>
-                    <span className="text-xs text-muted-foreground tabular-nums">{formatCurrency(r.rate)}</span>
-                    <span className="text-xs font-semibold text-emerald-600 tabular-nums">{formatCurrency(r.total)}</span>
+                  <div key={i} className="grid grid-cols-[100px_180px_1fr_90px_110px_120px] gap-4 px-4 py-3 items-center border-b border-line last:border-0 hover:bg-tile/40 transition-colors">
+                    <span className="text-xs font-semibold text-ink-2 tabular-nums">{r.date}</span>
+                    <span className="text-xs tabular-nums text-body truncate">{String(r.saleId).toUpperCase()}</span>
+                    <span className="text-xs font-semibold text-ink truncate">{r.client}</span>
+                    <span className="text-xs font-semibold text-ink tabular-nums">{r.qty}</span>
+                    <span className="text-xs text-body tabular-nums">{formatCurrency(r.rate)}</span>
+                    <span className="text-xs font-semibold text-good-text tabular-nums">{formatCurrency(r.total)}</span>
                   </div>
                 ))}
-                <div className="flex justify-end gap-8 px-6 py-3.5 border-t border-border/60 bg-canvas/30">
-                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Total Revenue</span>
-                  <span className="text-sm font-semibold text-emerald-600 tabular-nums">{formatCurrency(kpis.revenue)}</span>
+                <div className="flex justify-end gap-8 px-4 py-3.5 border-t border-line bg-tile/30">
+                  <span className="text-[11.5px] font-semibold text-body uppercase tracking-[0.07em]">Total Revenue</span>
+                  <span className="text-sm font-semibold text-good-text tabular-nums">{formatCurrency(kpis.revenue)}</span>
                 </div>
               </div>
             )}
@@ -286,8 +287,8 @@ const ProductSalesReport = () => {
       )}
 
       {!selectedProduct && !prodLoading && (
-        <div className="py-20 text-center text-sm text-muted-foreground bg-card rounded-[10px] border border-border/60 shadow-sm">
-          <Package size={32} className="mx-auto mb-3 text-muted-foreground" />
+        <div className="py-20 text-center text-sm text-body bg-surface rounded-[14px] border border-line">
+          <Package size={32} className="mx-auto mb-3 text-body" />
           Select a product above to view its sale ledger
         </div>
       )}

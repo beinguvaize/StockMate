@@ -1,9 +1,13 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { isCountableSale } from './reportUtils';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import { useTenant } from '../../context/TenantContext';
 import useDateWindow from './useDateWindow';
 import PremiumReportView from './PremiumReportView';
+import { ReportButton } from './frame';
+import { Eyebrow } from '../ui/FigureStrip';
+import { Badge } from '../ui/badge';
 import {
   TrendingUp, Calendar, Copy, Sparkles, Wallet,
   CheckCircle2, AlertTriangle, Edit3, Cloud,
@@ -65,11 +69,11 @@ const STATUS_LABELS = {
 };
 
 const BADGE_CLS = {
-  emerald: 'bg-emerald-50 text-emerald-600 border-emerald-200',
-  rose:    'bg-rose-50 text-rose-600 border-rose-200',
-  amber:   'bg-accent-signature/10 text-accent-signature border-accent-signature/25',
-  indigo:  'bg-accent-signature/10 text-accent-signature border-accent-signature/25',
-  gray:    'bg-muted text-muted-foreground border-border',
+  emerald: 'bg-good-soft text-good-text border-good-soft',
+  rose:    'bg-bad-soft text-bad-text border-bad-soft',
+  amber:   'bg-accent-signature/10 text-amber-text border-accent-signature/25',
+  indigo:  'bg-accent-signature/10 text-amber-text border-accent-signature/25',
+  gray:    'bg-muted text-body border-border',
 };
 
 const BudgetVsActualReport = () => {
@@ -82,15 +86,15 @@ const BudgetVsActualReport = () => {
   const [migrated, setMigrated] = useState(false);
 
   // --- Pull actuals ---
-  const { data: salesRaw,    loading: l1 } = useReportData({ table: 'sales',    select: 'totalAmount, date, voided_at, status, paymentStatus',      dateColumn: 'date', filters: win.filters });
+  const { data: salesRaw,    loading: l1, error: rdErr1, refetch: rdRe1 } = useReportData({ table: 'sales',    select: 'totalAmount, date, voided_at, status, paymentStatus',      dateColumn: 'date', filters: win.filters });
   // Voided and cancelled sales are not revenue and were being counted here.
   const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
-  const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: 'amount, category, date', dateColumn: 'date', filters: win.filters });
-  const { data: payroll,  loading: l3 } = useReportData({ table: 'payroll',  select: 'amount, processed_at',   dateColumn: 'processed_at', filters: win.filters });
+  const { data: expenses, loading: l2, error: rdErr2, refetch: rdRe2 } = useReportData({ table: 'expenses', select: 'amount, category, date', dateColumn: 'date', filters: win.filters });
+  const { data: payroll,  loading: l3, error: rdErr3, refetch: rdRe3 } = useReportData({ table: 'payroll',  select: 'amount, processed_at',   dateColumn: 'processed_at', filters: win.filters });
 
   // --- Pull budget rows straight from Supabase with realtime subscription.
   // useReportData handles tenant RLS and the realtime channel for us.
-  const { data: budgetRows, loading: l4, refetch: refetchBudgets } = useReportData({
+  const { data: budgetRows, loading: l4, refetch: refetchBudgets, error: rdErr4 } = useReportData({
     table: 'budgets',
     select: 'id, period, category, amount, type',
   });
@@ -306,7 +310,7 @@ const BudgetVsActualReport = () => {
 
     return (
       <div className="flex items-center justify-end gap-1">
-        <span className="text-[10px] text-muted-foreground">₹</span>
+        <span className="text-[11.5px] text-body">₹</span>
         <input
           type="number"
           inputMode="decimal"
@@ -325,7 +329,7 @@ const BudgetVsActualReport = () => {
           }}
           onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
           placeholder="—"
-          className={`w-28 px-2 py-1 text-right text-[11px] font-semibold text-foreground bg-card/70 border border-black/10 rounded-md focus:outline-none focus:border-accent-signature focus:bg-card transition-all ${saving ? 'opacity-50' : ''}`}
+          className={`w-28 px-2 py-1 text-right text-[12px] font-semibold text-ink bg-surface/70 border border-black/10 rounded-md focus:outline-none focus:border-accent-signature focus:bg-surface transition-all ${saving ? 'opacity-50' : ''}`}
         />
       </div>
     );
@@ -335,7 +339,7 @@ const BudgetVsActualReport = () => {
     {
       key: 'category', label: 'Category', width: 220, sortable: true,
       render: (val) => (
-        <span className="font-semibold text-foreground uppercase tracking-tight text-[11px]">
+        <span className="font-semibold text-ink uppercase tracking-tight text-[12px]">
           {val}
         </span>
       ),
@@ -346,13 +350,13 @@ const BudgetVsActualReport = () => {
     },
     {
       key: 'actual', label: 'Actual', type: 'currency', align: 'right', sortable: true, width: 160,
-      render: (val) => <span className="font-semibold text-foreground">{formatINR(val)}</span>,
+      render: (val) => <span className="font-semibold text-ink">{formatINR(val)}</span>,
     },
     {
       key: 'variance', label: 'Variance', type: 'currency', align: 'right', sortable: true, width: 160,
       render: (val, row) => {
         const good = (row.type === 'EXPENSE' && val <= 0) || (row.type === 'REVENUE' && val >= 0);
-        const cls = row.budget === 0 ? 'text-muted-foreground' : good ? 'text-emerald-600' : 'text-rose-500';
+        const cls = row.budget === 0 ? 'text-body' : good ? 'text-good-text' : 'text-bad-text';
         const prefix = val > 0 ? '+' : '';
         return <span className={`font-semibold ${cls}`}>{prefix}{formatINR(val)}</span>;
       },
@@ -360,10 +364,10 @@ const BudgetVsActualReport = () => {
     {
       key: 'variancePct', label: 'Δ %', align: 'right', sortable: true, width: 100,
       render: (val, row) => {
-        if (!row.budget) return <span className="text-muted-foreground">—</span>;
-        if (val == null) return <span className="text-muted-foreground">—</span>;
+        if (!row.budget) return <span className="text-body">—</span>;
+        if (val == null) return <span className="text-body">—</span>;
         const good = (row.type === 'EXPENSE' && val <= 0) || (row.type === 'REVENUE' && val >= 0);
-        const cls = good ? 'text-emerald-600' : 'text-rose-500';
+        const cls = good ? 'text-good-text' : 'text-bad-text';
         const prefix = val > 0 ? '+' : '';
         return <span className={`font-semibold ${cls}`}>{prefix}{(val ?? 0).toFixed(1)}%</span>;
       },
@@ -371,7 +375,7 @@ const BudgetVsActualReport = () => {
     {
       key: 'status', label: 'Status', width: 150,
       render: (val, row) => (
-        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-semibold uppercase tracking-wider border ${BADGE_CLS[row.statusColor] || BADGE_CLS.gray}`}>
+        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold uppercase tracking-[0.07em] border ${BADGE_CLS[row.statusColor] || BADGE_CLS.gray}`}>
           {val === 'OVER' || val === 'BEHIND' ? <AlertTriangle size={10} /> :
            val === 'ON_TRACK' || val === 'UNDER' || val === 'AHEAD' ? <CheckCircle2 size={10} /> : null}
           {STATUS_LABELS[val] || val}
@@ -445,76 +449,42 @@ const BudgetVsActualReport = () => {
     ],
   };
 
+  const stat = (label, value, cls = 'text-ink') => (
+    <span className="ml-2.5 text-right">
+      <small className="block font-tight text-[10.5px] font-semibold uppercase tracking-[0.06em] text-mute">{label}</small>
+      <b className={`font-tight text-[14px] font-semibold tabular-nums ${cls}`}>{value}</b>
+    </span>
+  );
   return (
-    <div className="flex flex-col gap-4">
-      {/* Period + Quick Actions */}
-      <div className="no-print flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-card/60 backdrop-blur-md border border-border/60">
-        <div className="flex items-center gap-2">
-          <Calendar size={14} className="text-accent-signature" />
-          <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Period</span>
-        </div>
+    <div>
+      {/* Period + quick actions (reports-18) */}
+      <div className="no-print mb-4 flex flex-wrap items-center gap-2.5 rounded-[14px] border border-line bg-tile px-3.5 py-2.5">
+        <Eyebrow>Period</Eyebrow>
         <select
           value={period}
           onChange={(e) => setPeriod(e.target.value)}
-          className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-foreground bg-card border border-black/10 rounded-md focus:outline-none focus:border-accent-signature"
+          aria-label="Budget period"
+          className="h-[34px] cursor-pointer rounded-pill bg-surface pl-3.5 pr-2 font-tight text-[13px] font-semibold text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)] outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--color-amber)]"
         >
           {periods.map((p) => (
             <option key={p} value={p}>{periodLabel(p)}</option>
           ))}
         </select>
-
-        <div className="h-6 w-px bg-black/10 mx-1" />
-
-        <button
-          onClick={handleCopyLastMonth}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink-secondary hover:text-foreground bg-card border border-black/10 hover:border-accent-signature rounded-pill transition-all"
-        >
-          <Copy size={12} /> Copy Last Month
-        </button>
-        <button
-          onClick={handleSuggestAvg}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-accent-signature hover:text-white hover:bg-accent-signature bg-accent-signature/10 border border-accent-signature/25 rounded-pill transition-all"
-        >
-          <Sparkles size={12} /> Suggest from 3-mo Avg
-        </button>
-
+        <ReportButton tone="ghost" icon={Copy} onClick={handleCopyLastMonth}>Copy Last Month</ReportButton>
+        <ReportButton tone="ghost" icon={Sparkles} onClick={handleSuggestAvg}>Suggest from 3-mo Avg</ReportButton>
         <div className="flex-1" />
-
-        {/* Cloud indicator */}
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-100">
-          <Cloud size={10} className="text-emerald-600" />
-          <span className="text-[9px] font-semibold uppercase tracking-widest text-emerald-700">Cloud-synced</span>
-        </div>
-
-        {/* Summary strip */}
-        <div className="flex items-center gap-5">
-          <div className="text-right">
-            <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Planned Profit</div>
-            <div className="text-sm font-semibold text-accent-signature">{formatINR(totals.plannedProfit)}</div>
-          </div>
-          <div className="text-right">
-            <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Actual Profit</div>
-            <div className={`text-sm font-semibold ${totals.actualProfit >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
-              {formatINR(totals.actualProfit)}
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">On-Track</div>
-            <div className="text-sm font-semibold text-foreground">
-              {totals.onTrack}/{totals.totalLines || 0}
-            </div>
-          </div>
-        </div>
+        <Badge tone="good"><Cloud size={11} aria-hidden="true" /> Cloud-synced</Badge>
+        {stat('Planned Profit', formatINR(totals.plannedProfit))}
+        {stat('Actual Profit', formatINR(totals.actualProfit), totals.actualProfit >= 0 ? 'text-good-text' : 'text-bad-text')}
+        {stat('On-Track', `${totals.onTrack}/${totals.totalLines || 0}`)}
       </div>
 
-      <div className="no-print flex items-center gap-2 px-3 py-2 rounded-2xl bg-accent-signature/5 border border-border/60 shadow-sm">
-        <Edit3 size={12} className="text-accent-signature" />
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-accent-signature-hover">
-          Tip: Click any Budget cell to edit. Changes sync across all devices in real-time.
-        </span>
-      </div>
+      <p className="no-print -mt-2 mb-3.5 flex items-center gap-1.5 text-[12.5px] text-body">
+        <Edit3 size={12} className="text-amber-text" aria-hidden="true" />
+        Tip: Click any Budget cell to edit. Changes sync across all devices in real-time.
+      </p>
 
-      <PremiumReportView dateWindow={win} title="Budget vs Actual" tabs={[expenseTab, revenueTab]} />
+      <PremiumReportView error={loadError(rdErr1, rdErr2, rdErr3, rdErr4)} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); refetchBudgets(); }} dateWindow={win} title="Budget vs Actual" tabs={[expenseTab, revenueTab]} />
     </div>
   );
 };

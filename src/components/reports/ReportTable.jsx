@@ -1,285 +1,172 @@
-/**
- * ⚠️ STRICT VISUAL LOCK: PREMIUM TABULAR CORE
- * -------------------------------------------
- * This component's high-density layout, typography, and sorting 
- * interaction models are LOCKED. Preserving Strict Visual Integrity.
- */
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { 
-  ChevronUp, ChevronDown, MoreVertical, Columns, Search, 
-  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, 
-  ArrowUpDown, Filter, Download, Info, AlertTriangle, User,
-  Share2, Copy, ExternalLink
+import {
+  ChevronUp, ChevronDown, Columns, Search,
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
+  ArrowUpDown, Share2, Copy, ExternalLink,
 } from 'lucide-react';
+import { cn } from '../../lib/utils';
+import { filterRows, sortRows, nextSort, pageRows, pageCount, recordsLine } from '../../lib/reportsView';
+import { ReportButton, EmptyBlock, LoadingRows } from './frame';
 
 /**
- * Premium ReportTable Component
- * 
- * Props:
- * @param {Array} columns - [{ key, label, width, sortable, render, align, type }]
- * @param {Array} data - The raw data array
- * @param {Boolean} loading - Shimmer skeleton state
- * @param {Object} totalsRow - Summary data for the bottom row
- * @param {Function} onRowClick - Click handler for side panel
+ * The report table (web redesign, reports-08 and on): search, column toggle,
+ * sortable and resizable heads, right-click menu, totals row and paging, as
+ * before. Search / sort / paging live in lib/reportsView, moved unchanged.
+ *
+ * @param {Array} columns - [{ key, label, width, sortable, render, align, type, defaultHidden }]
+ * @param {Array} data
+ * @param {Boolean} loading
+ * @param {Object} totalsRow
+ * @param {Function} onRowClick
  * @param {Object} defaultSort - { key, dir }
- * @param {String} searchTerm - External search term for highlighting
+ * @param {String} searchTerm - external search term
  */
-
-const ReportTable = ({ 
-  columns = [], 
-  data = [], 
-  loading = false, 
-  totalsRow = null, 
-  onRowClick = () => {}, 
+const ReportTable = ({
+  columns = [],
+  data = [],
+  loading = false,
+  totalsRow = null,
+  onRowClick = () => {},
   defaultSort = { key: '', dir: 'asc' },
-  searchTerm: externalSearchTerm = ''
+  searchTerm: externalSearchTerm = '',
 }) => {
-  // State
-  const [sortKey, setSortKey] = useState(defaultSort.key);
-  const [sortDir, setSortDir] = useState(defaultSort.dir);
+  const [sort, setSort] = useState({ key: defaultSort.key, dir: defaultSort.dir });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [localSearch, setLocalSearch] = useState('');
-  const [visibleColumns, setVisibleColumns] = useState(columns.filter(c => !c.defaultHidden).map(c => c.key));
+  const [visibleColumns, setVisibleColumns] = useState(columns.filter((c) => !c.defaultHidden).map((c) => c.key));
   const [columnWidths, setColumnWidths] = useState(
-    columns.reduce((acc, col) => ({ ...acc, [col.key]: col.width || 150 }), {})
+    columns.reduce((acc, col) => ({ ...acc, [col.key]: col.width || 150 }), {}),
   );
   const [showColumnToggle, setShowColumnToggle] = useState(false);
   const [contextMenu, setContextMenu] = useState({ show: false, x: 0, y: 0, row: null });
-
-  const tableRef = useRef(null);
   const resizerRef = useRef({ key: null, startX: 0, startWidth: 0 });
 
-  // Sync internal search with external if provided
   useEffect(() => {
-    if (externalSearchTerm !== undefined) {
-      setLocalSearch(externalSearchTerm);
-    }
+    if (externalSearchTerm !== undefined) setLocalSearch(externalSearchTerm);
   }, [externalSearchTerm]);
 
-  // Handle Outside Click for Column Toggle
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (showColumnToggle && !e.target.closest('.column-toggle-container')) {
-        setShowColumnToggle(false);
-      }
-      if (contextMenu.show) {
-        setContextMenu({ show: false, x: 0, y: 0, row: null });
-      }
+      if (showColumnToggle && !e.target.closest('.column-toggle-container')) setShowColumnToggle(false);
+      if (contextMenu.show && !e.target.closest('.report-row-menu')) setContextMenu({ show: false, x: 0, y: 0, row: null });
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showColumnToggle, contextMenu.show]);
 
-  // Formatting Helpers (Rule 3)
+  // Formatting, as before: zero / empty reads as a dash.
   const formatCurrency = (val) => {
     if (val === 0 || val === null || val === undefined) return '—';
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 2
-    }).format(val);
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(val);
   };
-
   const formatDate = (dateStr) => {
     if (!dateStr) return '—';
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return dateStr;
-    return date.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    }); // Result: 15 Mar 2026
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   };
-
   const formatNumber = (val) => {
     if (val === 0 || val === null || val === undefined) return '—';
     return new Intl.NumberFormat('en-IN').format(val);
   };
 
-  // Sorting Logic
   const handleSort = (key) => {
-    if (!columns.find(c => c.key === key)?.sortable) return;
-    if (sortKey === key) {
-      setSortDir(sortKey === key && sortDir === 'asc' ? 'desc' : sortDir === 'desc' ? null : 'asc');
-      if (sortDir === 'desc') setSortKey('');
-    } else {
-      setSortKey(key);
-      setSortDir('asc');
-    }
+    if (!columns.find((c) => c.key === key)?.sortable) return;
+    setSort((s) => nextSort(s, key));
   };
 
-  // Filter, Sort, Paginate (Rule 10)
-  const filteredData = useMemo(() => {
-    if (!localSearch) return data;
-    const lowerSearch = localSearch.toLowerCase();
-    return data.filter(row => 
-      Object.values(row).some(val => 
-        String(val).toLowerCase().includes(lowerSearch)
-      )
-    );
-  }, [data, localSearch]);
-
-  const sortedData = useMemo(() => {
-    if (!sortKey || !sortDir) return filteredData;
-    return [...filteredData].sort((a, b) => {
-      const aVal = a[sortKey];
-      const bVal = b[sortKey];
-      if (aVal === bVal) return 0;
-      const res = aVal > bVal ? 1 : -1;
-      return sortDir === 'asc' ? res : -res;
-    });
-  }, [filteredData, sortKey, sortDir]);
-
-  const paginatedData = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return sortedData.slice(start, start + pageSize);
-  }, [sortedData, page, pageSize]);
-
-  const totalPages = Math.ceil(sortedData.length / pageSize);
-
-  // Column Resizing Logic
-  const onResizeStart = (e, key) => {
-    e.preventDefault();
-    resizerRef.current = {
-      key,
-      startX: e.clientX,
-      startWidth: columnWidths[key]
-    };
-    document.addEventListener('mousemove', onResizeMove);
-    document.addEventListener('mouseup', onResizeEnd);
-  };
+  const filteredData = useMemo(() => filterRows(data, localSearch), [data, localSearch]);
+  const sortedData = useMemo(() => sortRows(filteredData, sort.key, sort.dir), [filteredData, sort]);
+  const paginatedData = useMemo(() => pageRows(sortedData, page, pageSize), [sortedData, page, pageSize]);
+  const totalPages = pageCount(sortedData.length, pageSize);
 
   const onResizeMove = (e) => {
     const { key, startX, startWidth } = resizerRef.current;
     if (!key) return;
-    const diff = e.clientX - startX;
-    const newWidth = Math.max(80, startWidth + diff);
-    setColumnWidths(prev => ({ ...prev, [key]: newWidth }));
+    setColumnWidths((prev) => ({ ...prev, [key]: Math.max(80, startWidth + (e.clientX - startX)) }));
   };
-
   const onResizeEnd = () => {
     resizerRef.current = { key: null, startX: 0, startWidth: 0 };
     document.removeEventListener('mousemove', onResizeMove);
     document.removeEventListener('mouseup', onResizeEnd);
   };
+  const onResizeStart = (e, key) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizerRef.current = { key, startX: e.clientX, startWidth: columnWidths[key] };
+    document.addEventListener('mousemove', onResizeMove);
+    document.addEventListener('mouseup', onResizeEnd);
+  };
 
-  // Highlight helper for Search (Rule 10)
+  // Search highlight, as before (the search text is used as a pattern).
   const highlightMatch = (text) => {
     if (!localSearch || !text) return text;
     const parts = String(text).split(new RegExp(`(${localSearch})`, 'gi'));
-    return parts.map((part, i) => 
-      part.toLowerCase() === localSearch.toLowerCase() 
-        ? <span key={i} className="bg-accent-signature/30 font-semibold">{part}</span> 
-        : part
-    );
-  };
-
-  // Right-Click Context Menu
-  const handleContextMenu = (e, row) => {
-    e.preventDefault();
-    setContextMenu({
-      show: true,
-      x: e.clientX,
-      y: e.clientY,
-      row
-    });
+    return parts.map((part, i) => (part.toLowerCase() === localSearch.toLowerCase()
+      ? <mark key={i} className="rounded-[3px] bg-amber-soft px-px text-ink">{part}</mark>
+      : part));
   };
 
   const copyRowAsCSV = (row) => {
-    const csv = visibleColumns.map(key => `"${String(row[key] || '').replace(/"/g, '""')}"`).join(',');
+    const csv = visibleColumns.map((key) => `"${String(row[key] || '').replace(/"/g, '""')}"`).join(',');
     navigator.clipboard.writeText(csv);
   };
 
-  // Render Cell content based on type.
-  // If a column declares a render() *and* a type (e.g. currency), and the
-  // render returns a bare number, we still run it through the type formatter
-  // so callers like InventoryReport that compute derived numeric values via
-  // render don't ship raw "12593.600000000002" strings to the UI.
+  // A render() that returns a bare number still goes through the type's
+  // formatter, so derived values never show as 12593.600000000002.
   const renderCell = (row, col) => {
     if (col.render) {
       const out = col.render(row[col.key], row);
       if (typeof out === 'number') {
         if (col.type === 'currency') return formatCurrency(out);
-        if (col.type === 'number')   return formatNumber(out);
+        if (col.type === 'number') return formatNumber(out);
       }
       return out;
     }
     const val = row[col.key];
-
     if (col.type === 'currency') return formatCurrency(val);
     if (col.type === 'date') return formatDate(val);
     if (col.type === 'number') return formatNumber(val);
-
     return highlightMatch(val);
   };
 
-  if (loading) {
-    return (
-      <div className="w-full bg-card rounded-[10px] border border-border overflow-hidden shadow-sm animate-pulse">
-        <div className="h-12 bg-muted/40 border-b border-border" />
-        {[...Array(8)].map((_, i) => (
-          <div key={i} className="h-16 border-b border-border flex items-center px-6 gap-4">
-            <div className="h-4 w-24 bg-muted/40 rounded" />
-            <div className="h-4 flex-1 bg-muted/40 rounded" />
-            <div className="h-4 w-32 bg-muted/40 rounded" />
-            <div className="h-4 w-12 bg-muted/40 rounded" />
-          </div>
-        ))}
-      </div>
-    );
-  }
+  if (loading) return <LoadingRows rows={8} />;
+
+  const shown = columns.filter((c) => visibleColumns.includes(c.key));
+  const right = (col) => col.align === 'right';
+  const from = sortedData.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, sortedData.length);
+  const pgBtn = 'm-press grid h-[30px] w-[30px] place-items-center rounded-pill text-ink-2 hover:bg-tile disabled:opacity-30 disabled:pointer-events-none';
 
   return (
-    <div className="flex flex-col gap-4 w-full h-full">
-      {/* Table Controls (Search + Column Toggle) */}
-      <div className="flex justify-between items-center no-print">
-        <div className="relative group w-full max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-accent-signature transition-colors" size={16} />
-          <input 
-            type="text" 
-            placeholder={`Search across ${sortedData.length} records...`}
-            className="w-full bg-card border border-border rounded-xl py-3 pl-12 pr-4 text-xs font-semibold focus:ring-4 focus:ring-accent-signature/10 transition-all outline-none"
-            value={localSearch}
-            onChange={(e) => setLocalSearch(e.target.value)}
-          />
-          {localSearch && (
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-muted-foreground pointer-events-none uppercase">
-              {sortedData.length} Results
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-3 relative column-toggle-container">
-          <button 
-            onClick={() => setShowColumnToggle(!showColumnToggle)}
-            className="flex items-center gap-2 px-6 py-3 bg-card border border-border rounded-pill text-xs font-semibold text-foreground hover:bg-muted/50 transition-all shadow-sm"
-          >
-            <Columns size={14} className="text-accent-signature" />
-            COLUMNS
-          </button>
-
+    <div className="flex w-full flex-col">
+      {/* Search + columns */}
+      <div className="no-print flex flex-wrap items-center gap-2.5 border-b border-line px-3.5 py-3">
+        <label className="relative w-full max-w-[300px]">
+          <Search size={14} strokeWidth={2} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-mute" aria-hidden="true" />
+          <input type="text" value={localSearch} onChange={(e) => setLocalSearch(e.target.value)}
+            placeholder={`Search across ${sortedData.length} records…`}
+            className="h-[34px] w-full rounded-pill bg-well pl-9 pr-3 text-[13px] text-ink outline-none placeholder:text-mute transition-shadow duration-(--dur-press) focus:shadow-[inset_0_0_0_2px_var(--color-ink)]" />
+        </label>
+        {localSearch && <span className="text-[12px] text-mute tabular-nums">{sortedData.length} results</span>}
+        <div className="flex-1" />
+        <div className="column-toggle-container relative">
+          <ReportButton tone="ghost" icon={Columns} aria-expanded={showColumnToggle} onClick={() => setShowColumnToggle((v) => !v)}>
+            Toggle columns
+          </ReportButton>
           {showColumnToggle && (
-            <div className="absolute top-full right-0 mt-2 w-56 bg-card rounded-[10px] border border-border shadow-md z-[100] p-4 animate-in fade-in zoom-in-95 duration-200">
-              <h4 className="text-[10px] font-semibold uppercase text-muted-foreground mb-3 tracking-widest">Toggle Columns</h4>
-              <div className="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
-                {columns.map(col => (
-                  <label key={col.key} className="flex items-center gap-3 cursor-pointer group">
-                    <input 
-                      type="checkbox" 
-                      className="w-4 h-4 rounded border-border text-foreground focus:ring-accent-signature"
+            <div className="menu-pop absolute right-0 top-full z-[60] mt-2 w-60 rounded-[14px] bg-surface p-3 shadow-[0_0_0_1px_rgba(17,20,24,.06),0_18px_40px_-14px_rgba(17,20,24,.35)]">
+              <p className="px-1 pb-2 font-tight text-[10.5px] font-semibold uppercase tracking-[0.07em] text-mute">Columns</p>
+              <div className="max-h-64 space-y-0.5 overflow-y-auto">
+                {columns.map((col) => (
+                  <label key={col.key} className="flex cursor-pointer items-center gap-2.5 rounded-[8px] px-1.5 py-1.5 text-[13px] text-ink hover:bg-tile">
+                    <input type="checkbox" className="h-4 w-4 accent-[var(--color-ink)]"
                       checked={visibleColumns.includes(col.key)}
-                      onChange={() => {
-                        if (visibleColumns.includes(col.key)) {
-                          setVisibleColumns(visibleColumns.filter(k => k !== col.key));
-                        } else {
-                          setVisibleColumns([...visibleColumns, col.key]);
-                        }
-                      }}
-                    />
-                    <span className="text-xs font-semibold text-foreground group-hover:text-foreground transition-colors uppercase tracking-tight">
-                      {col.label}
-                    </span>
+                      onChange={() => setVisibleColumns(visibleColumns.includes(col.key)
+                        ? visibleColumns.filter((k) => k !== col.key)
+                        : [...visibleColumns, col.key])} />
+                    {col.label}
                   </label>
                 ))}
               </div>
@@ -288,103 +175,63 @@ const ReportTable = ({
         </div>
       </div>
 
-      {/* Main Table Container */}
-      <div 
-        ref={tableRef}
-        className="relative flex-1 bg-card rounded-[2rem] border border-border shadow-sm overflow-auto custom-scrollbar group/table"
-      >
-        <table className="report-table w-full border-separate border-spacing-0 text-left min-w-full">
-          {/* Sticky Header */}
-          <thead className="sticky top-0 z-30 bg-card/80 backdrop-blur-3xl shadow-sm border-b border-border">
+      <div className="relative w-full overflow-auto">
+        <table className="report-table w-full min-w-full border-collapse text-left text-[13.5px] text-ink">
+          <thead className="sticky top-0 z-20">
             <tr>
-              {columns.filter(c => visibleColumns.includes(c.key)).map((col, i) => (
-                <th 
-                  key={col.key}
-                  className={`
-                    group px-6 py-5 text-[10px] font-semibold uppercase text-muted-foreground tracking-wider cursor-default relative select-none
-                    ${i === 0 ? 'sticky left-0 z-40 bg-card/95 border-r border-border/60' : ''}
-                    ${col.sortable ? 'cursor-pointer hover:text-foreground' : ''}
-                  `}
-                  style={{ width: columnWidths[col.key], minWidth: columnWidths[col.key] }}
-                  onClick={() => handleSort(col.key)}
-                >
-                  <div className={`flex items-center gap-2 ${col.align === 'right' ? 'justify-end' : ''}`}>
-                    {col.label}
-                    {col.sortable && (
-                      <div className={`transition-all ${sortKey === col.key ? 'text-accent-signature scale-110' : 'opacity-0 group-hover:opacity-100 text-slate-300'}`}>
-                        {sortKey === col.key ? (
-                          sortDir === 'asc' ? <ChevronUp size={14} /> : sortDir === 'desc' ? <ChevronDown size={14} /> : <ArrowUpDown size={12} />
-                        ) : (
-                          <ArrowUpDown size={12} />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Column Resizer */}
-                  <div 
-                    onMouseDown={(e) => onResizeStart(e, col.key)}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1/2 cursor-col-resize hover:bg-accent-signature/50 transition-colors z-50 border-r border-border"
-                  />
-                </th>
-              ))}
+              {shown.map((col, i) => {
+                const sorted = sort.key === col.key && sort.dir;
+                return (
+                  <th key={col.key}
+                    aria-sort={sorted ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}
+                    className={cn('group relative select-none whitespace-nowrap border-b border-line bg-tile px-3.5 py-2.5 font-tight text-[12px] font-semibold text-mute',
+                      i === 0 && 'sticky left-0 z-30',
+                      col.sortable && 'cursor-pointer hover:text-ink',
+                      right(col) && 'text-right')}
+                    style={{ width: columnWidths[col.key], minWidth: columnWidths[col.key] }}
+                    onClick={() => handleSort(col.key)}>
+                    <span className={cn('inline-flex items-center gap-1', right(col) && 'flex-row-reverse')}>
+                      {col.label}
+                      {col.sortable && (
+                        <span className={cn('transition-opacity duration-(--dur-hover)', sorted ? 'text-amber' : 'opacity-0 group-hover:opacity-100 text-faint')} aria-hidden="true">
+                          {sorted ? (sort.dir === 'asc' ? <ChevronUp size={13} /> : <ChevronDown size={13} />) : <ArrowUpDown size={11} />}
+                        </span>
+                      )}
+                    </span>
+                    <span onMouseDown={(e) => onResizeStart(e, col.key)} aria-hidden="true"
+                      className="absolute right-0 top-1/2 h-1/2 w-1.5 -translate-y-1/2 cursor-col-resize border-r border-line hover:bg-amber/40" />
+                  </th>
+                );
+              })}
             </tr>
           </thead>
-
-          {/* Table Body */}
-          <tbody className="divide-y divide-black/[0.03]">
+          <tbody>
             {paginatedData.length === 0 ? (
-              <tr>
-                <td colSpan={visibleColumns.length} className="py-32 text-center">
-                  <div className="flex flex-col items-center justify-center opacity-20 group-hover:opacity-40 transition-opacity">
-                    <Info size={48} strokeWidth={1.5} className="mb-4" />
-                    <p className="text-sm font-semibold uppercase tracking-widest">No matching records found</p>
-                  </div>
-                </td>
+              <tr><td colSpan={shown.length || 1}><EmptyBlock compact text="No matching records found" /></td></tr>
+            ) : paginatedData.map((row, rowIndex) => (
+              <tr key={rowIndex}
+                onContextMenu={(e) => { e.preventDefault(); setContextMenu({ show: true, x: e.clientX, y: e.clientY, row }); }}
+                onClick={() => onRowClick(row)}
+                className="group/row cursor-pointer [&>td]:transition-colors [&>td]:duration-(--dur-press) hover:[&>td]:bg-tile">
+                {shown.map((col, colIndex) => (
+                  <td key={col.key}
+                    className={cn('whitespace-nowrap border-b border-sep bg-surface px-3.5 py-[11px] align-middle tabular-nums',
+                      colIndex === 0 && 'sticky left-0 z-10 font-tight font-semibold',
+                      right(col) && 'text-right font-tight font-medium')}>
+                    {renderCell(row, col)}
+                  </td>
+                ))}
               </tr>
-            ) : (
-              paginatedData.map((row, rowIndex) => (
-                <tr 
-                  key={rowIndex}
-                  onContextMenu={(e) => handleContextMenu(e, row)}
-                  onClick={() => onRowClick(row)}
-                  className={`
-                    group/row transition-all cursor-pointer select-none
-                    ${rowIndex % 2 === 1 ? 'bg-muted/40/40' : 'bg-transparent'}
-                    hover:bg-accent-signature/[0.04] active:bg-accent-signature/[0.08]
-                  `}
-                >
-                  {columns.filter(c => visibleColumns.includes(c.key)).map((col, colIndex) => (
-                    <td 
-                      key={col.key}
-                      className={`
-                        px-6 py-4.5 text-[12px] font-semibold text-foreground whitespace-nowrap border-x border-transparent
-                        ${colIndex === 0 ? 'sticky left-0 z-20 bg-card group-hover/row:bg-[#FAF9F5] transition-colors border-r border-border/60' : ''}
-                        ${col.align === 'right' ? 'text-right tabular-nums' : ''}
-                      `}
-                    >
-                      {renderCell(row, col)}
-                    </td>
-                  ))}
-                </tr>
-              ))
-            )}
+            ))}
           </tbody>
-
-          {/* Totals Row */}
           {totalsRow && sortedData.length > 0 && (
-            <tfoot className="sticky bottom-0 z-30 bg-ink-primary text-white shadow-[0_-4px_10px_rgba(0,0,0,0.1)]">
+            <tfoot className="sticky bottom-0 z-20">
               <tr>
-                {columns.filter(c => visibleColumns.includes(c.key)).map((col, i) => (
-                  <td 
-                    key={col.key}
-                    className={`
-                      px-6 py-5 text-[12px] font-semibold uppercase tracking-tight
-                      ${i === 0 ? 'sticky left-0 z-40 bg-ink-primary' : ''}
-                      ${col.align === 'right' ? 'text-right tabular-nums' : ''}
-                    `}
-                  >
-                    {i === 0 ? 'TOTALS' : renderCell(totalsRow, col)}
+                {shown.map((col, i) => (
+                  <td key={col.key}
+                    className={cn('whitespace-nowrap border-t border-line bg-tile px-3.5 py-[11px] font-tight text-[13.5px] font-semibold text-ink tabular-nums',
+                      i === 0 && 'sticky left-0 z-30', right(col) && 'text-right')}>
+                    {i === 0 ? 'Total' : renderCell(totalsRow, col)}
                   </td>
                 ))}
               </tr>
@@ -392,108 +239,48 @@ const ReportTable = ({
           )}
         </table>
 
-        {/* Context Menu */}
         {contextMenu.show && (
-          <div 
-            className="fixed bg-ink-primary text-white rounded-2xl shadow-2xl z-[1000] p-1.5 w-48 border border-white/10 animate-in fade-in zoom-in-95 duration-150"
-            style={{ top: contextMenu.y, left: contextMenu.x }}
-          >
-            <button 
-              onClick={() => {
-                onRowClick(contextMenu.row);
-                setContextMenu({ ...contextMenu, show: false });
-              }}
-              className="flex items-center gap-3 w-full px-4 py-2.5 rounded-pill text-[10px] font-semibold hover:bg-white/10 transition-colors uppercase"
-            >
-              <ExternalLink size={14} className="text-accent-signature" />
-              View Details
-            </button>
-            <button 
-              onClick={() => {
-                copyRowAsCSV(contextMenu.row);
-                setContextMenu({ ...contextMenu, show: false });
-              }}
-              className="flex items-center gap-3 w-full px-4 py-2.5 rounded-pill text-[10px] font-semibold hover:bg-white/10 transition-colors uppercase"
-            >
-              <Copy size={14} className="text-blue-400" />
-              Copy row as CSV
-            </button>
-            <div className="h-px bg-white/10 my-1 mx-2" />
-            <button 
-              className="flex items-center gap-3 w-full px-4 py-2.5 rounded-pill text-[10px] font-semibold hover:bg-white/10 transition-colors uppercase"
-            >
-              <Share2 size={14} className="text-purple-400" />
-              Share Link
-            </button>
+          <div role="menu" className="report-row-menu menu-pop fixed z-[1000] w-52 rounded-[14px] bg-surface p-1.5 shadow-[0_0_0_1px_rgba(17,20,24,.06),0_18px_40px_-14px_rgba(17,20,24,.35)]"
+            style={{ top: contextMenu.y, left: contextMenu.x, '--menu-origin': 'top left' }}>
+            {[
+              { label: 'View details', icon: ExternalLink, run: () => onRowClick(contextMenu.row) },
+              { label: 'Copy row as CSV', icon: Copy, run: () => copyRowAsCSV(contextMenu.row) },
+              { label: 'Share link', icon: Share2, run: () => {} },
+            ].map(({ label, icon: Icon, run }) => (
+              <button data-card key={label} type="button" role="menuitem"
+                onClick={() => { run(); setContextMenu({ show: false, x: 0, y: 0, row: null }); }}
+                className="flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-[9px] text-left font-tight text-[13px] font-semibold text-ink hover:bg-tile">
+                <Icon size={15} strokeWidth={1.9} className="text-ink-2" aria-hidden="true" />{label}
+              </button>
+            ))}
           </div>
         )}
       </div>
 
-      {/* Pagination */}
-      <div className="flex flex-col md:flex-row justify-between items-center bg-card px-8 py-5 rounded-[2rem] border border-border shadow-sm no-print gap-4">
-        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-          Showing <span className="text-foreground">{(page - 1) * pageSize + 1}</span>–<span className="text-foreground">{Math.min(page * pageSize, sortedData.length)}</span> of <span className="text-foreground">{sortedData.length}</span> records
-        </div>
-        
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-semibold text-muted-foreground uppercase">Rows:</span>
-            <select 
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
-                setPage(1);
-              }}
-              className="bg-card border border-border shadow-sm rounded-lg px-2 py-1 text-[10px] font-semibold text-foreground outline-none cursor-pointer"
-            >
-              {[25, 50, 100].map(size => <option key={size} value={size}>{size}</option>)}
+      {/* Paging */}
+      <div className="no-print flex flex-wrap items-center justify-between gap-3 border-t border-line px-3.5 py-3 text-[13px] text-body">
+        <span className="tabular-nums">
+          {sortedData.length > 0 ? `${from}–${to} · ` : ''}{recordsLine(paginatedData.length, sortedData.length)}
+        </span>
+        <div className="flex items-center gap-1.5">
+          <label className="mr-1.5 inline-flex items-center gap-1.5 rounded-pill px-3 py-1 font-tight text-[13px] font-semibold text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)]">
+            <em className="not-italic font-medium text-mute">Rows</em>
+            <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+              className="cursor-pointer bg-transparent outline-none tabular-nums">
+              {[25, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}
             </select>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <button 
-              disabled={page === 1}
-              onClick={() => setPage(1)}
-              className="p-2 rounded-pill hover:bg-muted/50 disabled:opacity-20 transition-all text-foreground"
-            >
-              <ChevronsLeft size={16} />
-            </button>
-            <button 
-              disabled={page === 1}
-              onClick={() => setPage(page - 1)}
-              className="p-2 rounded-pill hover:bg-muted/50 disabled:opacity-20 transition-all text-foreground"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            
-            <div className="flex items-center gap-2">
-              <input 
-                type="number"
-                value={page}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  if (val >= 1 && val <= totalPages) setPage(val);
-                }}
-                className="w-10 text-center bg-card border border-border shadow-sm rounded-lg py-1.5 text-[10px] font-semibold text-foreground outline-none tabular-nums"
-              />
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase whitespace-nowrap">of {totalPages || 1}</span>
-            </div>
-
-            <button 
-              disabled={page === totalPages || totalPages === 0}
-              onClick={() => setPage(page + 1)}
-              className="p-2 rounded-pill hover:bg-muted/50 disabled:opacity-20 transition-all text-foreground"
-            >
-              <ChevronRight size={16} />
-            </button>
-            <button 
-              disabled={page === totalPages || totalPages === 0}
-              onClick={() => setPage(totalPages)}
-              className="p-2 rounded-pill hover:bg-muted/50 disabled:opacity-20 transition-all text-foreground"
-            >
-              <ChevronsRight size={16} />
-            </button>
-          </div>
+          </label>
+          <button type="button" aria-label="First page" disabled={page === 1} onClick={() => setPage(1)} className={pgBtn}><ChevronsLeft size={16} /></button>
+          <button type="button" aria-label="Previous page" disabled={page === 1} onClick={() => setPage(page - 1)} className={pgBtn}><ChevronLeft size={16} /></button>
+          <span className="mx-1 inline-flex items-center gap-1.5 tabular-nums">
+            Page
+            <input type="number" aria-label="Page" value={page}
+              onChange={(e) => { const v = Number(e.target.value); if (v >= 1 && v <= totalPages) setPage(v); }}
+              className="h-[30px] w-11 rounded-[8px] bg-surface text-center text-[13px] text-ink shadow-[inset_0_0_0_1px_var(--color-line)] outline-none" />
+            of {totalPages || 1}
+          </span>
+          <button type="button" aria-label="Next page" disabled={page === totalPages || totalPages === 0} onClick={() => setPage(page + 1)} className={pgBtn}><ChevronRight size={16} /></button>
+          <button type="button" aria-label="Last page" disabled={page === totalPages || totalPages === 0} onClick={() => setPage(totalPages)} className={pgBtn}><ChevronsRight size={16} /></button>
         </div>
       </div>
     </div>

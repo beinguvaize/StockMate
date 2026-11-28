@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useLinkedRange } from '../../lib/linkedRange';
+import { Seg, DateField } from './frame';
 
 // Shared report period selector — preset pills (This Month / Last Month /
 // This FY / This Year / All Time) + a from/to date range. Lifted from the
@@ -42,22 +43,15 @@ export const useReportPeriod = (defaultPreset = 'THIS_MONTH') => {
   return { presets, preset, setPreset, range, setRange, applyPreset };
 };
 
+// Drawn as on reports-19 to 28: preset pills left, from → to dates right.
 const ReportPeriodBar = ({ presets, preset, range, setRange, setPreset, applyPreset }) => (
-  <div className="flex flex-wrap items-center gap-2 no-print">
-    <div className="flex gap-1 bg-canvas p-1 rounded-pill">
-      {presets.map((pr) => (
-        <button key={pr.id} onClick={() => applyPreset(pr.id)}
-          className={`px-3 py-1.5 rounded-pill text-[11px] font-semibold transition-colors ${
-            preset === pr.id ? 'bg-accent-signature text-button-text shadow-sm' : 'text-muted-foreground hover:text-foreground'
-          }`}>{pr.label}</button>
-      ))}
-    </div>
-    <div className="flex items-center gap-1.5 ml-auto">
-      <input type="date" value={range.from} onChange={(e) => { setPreset(''); setRange((r) => ({ ...r, from: e.target.value })); }}
-        className="bg-card border border-black/10 rounded-lg px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-accent-signature/40" />
-      <span className="text-xs text-muted-foreground">→</span>
-      <input type="date" value={range.to} onChange={(e) => { setPreset(''); setRange((r) => ({ ...r, to: e.target.value })); }}
-        className="bg-card border border-black/10 rounded-lg px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-accent-signature/40" />
+  <div className="no-print mb-3.5 flex flex-wrap items-center gap-2.5">
+    <Seg ariaLabel="Period" value={preset} onChange={applyPreset}
+      items={presets.map((pr) => ({ id: pr.id, label: pr.label }))} />
+    <div className="ml-auto flex items-center gap-2">
+      <DateField label="From" value={range.from} onChange={(v) => { setPreset(''); setRange((r) => ({ ...r, from: v })); }} />
+      <span className="text-[13px] text-mute">→</span>
+      <DateField label="To" value={range.to} onChange={(v) => { setPreset(''); setRange((r) => ({ ...r, to: v })); }} />
     </div>
   </div>
 );

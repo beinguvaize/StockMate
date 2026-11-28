@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import ReportShell from '../components/reports/ReportShell';
 import BusinessReport from '../components/reports/BusinessReport';
 import InventoryReport from '../components/reports/InventoryReport';
 import ClientOutstandingReport from '../components/reports/ClientOutstandingReport';
@@ -42,203 +41,200 @@ import ProductSalesReport from '../components/reports/ProductSalesReport';
 import PurchasesReport from '../components/reports/PurchasesReport';
 import ProductMovementReport from '../components/reports/ProductMovementReport';
 
+import { BarChart3, ChevronDown, Search, LayoutGrid } from 'lucide-react';
+import { cn } from '../lib/utils';
 import {
-  TrendingUp, Package, UserCircle, Truck,
-  DollarSign, Briefcase, Activity, Layers,
-  Globe, Landmark, BarChart3, Scale, BookOpen, Droplets, FileWarning,
-  FileText, FileCheck, Target, CalendarRange, Receipt, Tag,
-  BookMarked, BarChart2, AlertTriangle, Users,
-  PieChart, ArrowLeftRight, GitFork,
-  Search, ChevronDown, ShoppingBag, ShieldAlert,
-} from 'lucide-react';
+  REPORT_CATALOGUE, visibleReports, groupReports, groupChips, groupLabel,
+  matchReports, searchCatalogue, findReport,
+} from '../lib/reportsView';
+import { FilterPills } from '../components/ui/Tabs';
 
+// Each report's page. The list of reports, their groups, labels and
+// permissions is lib/reportsView REPORT_CATALOGUE.
+const PAGES = {
+  BUSINESS: BusinessReport, DAILY_SALES: DailySalesReport, INVENTORY: InventoryReport,
+  PROFITABILITY: ProductProfitabilityReport, LOGISTICS: LogisticsReport, HR: HRReport,
+  CLIENTS: ClientOutstandingReport, EXPENSES: ExpensesReport, CLIENT_STATEMENT: ClientStatementReport,
+  BILL_PROFIT: BillWiseProfitReport, LOW_STOCK: LowStockReport, EXPIRY: ExpiryReport,
+  UNVERIFIED_COST: UnverifiedCostReport, IMEI_SERIAL: IMEISerialReport, SALES_BY_PARTY: SalePurchaseByPartyReport,
+  PARTY_PROFIT: PartyProfitReport, CATEGORY_PROFIT: CategoryProfitReport, ALL_TRANSACTIONS: AllTransactionsReport,
+  ITEM_PARTY: ItemPartyReport, PRODUCT_SALES: ProductSalesReport, PRODUCT_MOVEMENT: ProductMovementReport,
+  PURCHASES: PurchasesReport,
+  BALANCE_SHEET: BalanceSheetReport, TRIAL_BALANCE: TrialBalanceReport, GENERAL_LEDGER: GeneralLedgerReport,
+  CASH_FLOW: CashFlowReport, AR_AGING: ARAgingReport, AP_AGING: APAgingReport,
+  BUDGET_ACTUAL: BudgetVsActualReport, YOY: YoYComparisonReport, FINANCIALS: FinancialReport,
+  GSTR1: GSTR1Report, GSTR3B: GSTR3BReport, PURCHASE_REGISTER: PurchaseRegisterReport, GSTR2B_RECON: GSTR2BReconReport,
+};
+
+const ReportIcon = () => (
+  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-[8px] bg-amber-soft text-amber-text" aria-hidden="true">
+    <BarChart3 size={14} strokeWidth={2} />
+  </span>
+);
+
+/** The searchable report picker (reports-01, 02): reports of the open group. */
+function ReportPicker({ reports, current, onPick }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const down = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const key = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', down);
+    document.addEventListener('keydown', key);
+    return () => { document.removeEventListener('mousedown', down); document.removeEventListener('keydown', key); };
+  }, [open]);
+  const list = matchReports(reports, q);
+  return (
+    <div className="relative w-full sm:w-auto" ref={ref}>
+      <button type="button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((o) => !o)}
+        className={cn('m-press flex w-full min-w-[300px] items-center gap-2.5 rounded-pill bg-surface py-[7px] pl-2 pr-3.5 font-tight text-[13.5px] font-semibold text-ink',
+          open ? 'shadow-[inset_0_0_0_2px_var(--color-ink)]' : 'shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile')}>
+        <ReportIcon />
+        <b className="flex-1 truncate text-left font-semibold">{current?.label || 'Select report'}</b>
+        <ChevronDown size={15} strokeWidth={2} className={cn('chevron-turn text-mute', open && 'rotate-180')} aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="menu-pop absolute right-0 z-50 mt-2 w-full rounded-[14px] bg-surface p-1.5 shadow-[0_0_0_1px_rgba(17,20,24,.06),0_18px_40px_-14px_rgba(17,20,24,.35)] sm:w-[360px]">
+          <label className="mx-0.5 mt-0.5 mb-1.5 flex items-center gap-2 rounded-[10px] bg-well px-2.5 py-2">
+            <Search size={14} strokeWidth={2} className="text-mute" aria-hidden="true" />
+            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search reports…"
+              aria-label="Search reports" className="w-full bg-transparent text-[13px] text-ink outline-none placeholder:text-mute" />
+          </label>
+          <div role="listbox" className="max-h-80 overflow-y-auto">
+            {list.length === 0 && <p className="px-2.5 py-[22px] text-center text-[13px] text-mute">No report matches "{q}"</p>}
+            {list.map((r) => (
+              <button data-card key={r.id} type="button" role="option" aria-selected={r.id === current?.id}
+                onClick={() => { onPick(r.id); setOpen(false); setQ(''); }}
+                className={cn('flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-[9px] text-left font-tight text-[13px] font-semibold text-ink transition-colors duration-(--dur-press) hover:bg-tile',
+                  r.id === current?.id && 'bg-tile')}>
+                <BarChart3 size={16} strokeWidth={1.9} className="shrink-0 text-ink-2" aria-hidden="true" />{r.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Every report in one place (reports-03). */
+function ReportsHome({ grouped, total, onPick }) {
+  const [q, setQ] = useState('');
+  return (
+    <div className="pb-16">
+      <div className="mb-4 flex flex-wrap items-start gap-3">
+        <div className="min-w-0">
+          <h1 className="font-tight text-[22px] font-semibold leading-[1.15] tracking-[-0.02em] text-ink">Reports</h1>
+          <p className="mt-[3px] text-[13px] text-body">All {total} reports in one place. Pick one to open it.</p>
+        </div>
+        <div className="flex-1" />
+        <label className="relative w-full sm:w-[300px]">
+          <Search size={14} strokeWidth={2} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-mute" aria-hidden="true" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search reports" aria-label="Search reports"
+            className="h-9 w-full rounded-pill bg-well pl-9 pr-3 text-[13px] text-ink outline-none placeholder:text-mute transition-shadow duration-(--dur-press) focus:shadow-[inset_0_0_0_2px_var(--color-ink)]" />
+        </label>
+      </div>
+      {groupChips(grouped).map((g) => {
+        const list = searchCatalogue(grouped[g.key], q);
+        if (list.length === 0) return null;
+        return (
+          <section key={g.key} className="mb-[22px]">
+            <div className="mb-2.5 flex items-baseline gap-2.5">
+              <h3 className="font-tight text-[15px] font-semibold text-ink">{g.label}</h3>
+              <small className="text-[12.5px] text-mute">{list.length} report{list.length === 1 ? '' : 's'}</small>
+            </div>
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {list.map((r) => (
+                <button data-card key={r.id} type="button" onClick={() => onPick(r.id)}
+                  className="m-press rounded-xl border border-line bg-surface px-3.5 py-3 text-left hover:bg-tile">
+                  <b className="block font-tight text-[14px] font-semibold text-ink">{r.label}</b>
+                  <small className="mt-0.5 block text-[12px] text-mute">{r.blurb}</small>
+                </button>
+              ))}
+            </div>
+          </section>
+        );
+      })}
+      {groupChips(grouped).every((g) => searchCatalogue(grouped[g.key], q).length === 0) && (
+        <p className="py-10 text-center text-[13px] text-mute">No report matches "{q}"</p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Reports (web redesign, approved mockups reports-01 to 29). Opens on the
+ * Business Report, as before; ?tab=ID opens that report in its own group.
+ * "Reports" in the trail, or All reports, shows every report on one page.
+ */
 const Reports = () => {
   const { hasPermission } = useAuth();
   const [searchParams] = useSearchParams();
   const linkedTab = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState('BUSINESS');
   const [activeGroup, setActiveGroup] = useState('OPERATIONAL');
+  const [home, setHome] = useState(false);
 
-  // Three-level navigation: group → report
-  // OPERATIONAL: day-to-day business intelligence
-  // ACCOUNTING: formal financial statements (P0)
-  // COMPLIANCE: GST / tax filing returns (P1)
-  const TABS = [
-    // --- OPERATIONAL GROUP ---
-    { id: 'BUSINESS',    group: 'OPERATIONAL', label: 'Business Report',     icon: <TrendingUp size={18} />, component: <BusinessReport />,           permission: 'sales' },
-    { id: 'DAILY_SALES', group: 'OPERATIONAL', label: 'Daily Sales',         icon: <BookMarked size={18} />, component: <DailySalesReport />,         permission: 'sales' },
-    { id: 'INVENTORY',   group: 'OPERATIONAL', label: 'Inventory',           icon: <Layers size={18} />,     component: <InventoryReport />,          permission: 'inventory' },
-    { id: 'PROFITABILITY', group: 'OPERATIONAL', label: 'Product Margins',   icon: <Tag size={18} />,        component: <ProductProfitabilityReport />, permission: 'inventory' },
-    { id: 'LOGISTICS',   group: 'OPERATIONAL', label: 'Deliveries',          icon: <Globe size={18} />,      component: <LogisticsReport />,          permission: 'inventory' },
-    { id: 'HR',          group: 'OPERATIONAL', label: 'Staff & Payroll',     icon: <Briefcase size={18} />,  component: <HRReport />,                 permission: 'reports' },
-    { id: 'CLIENTS',     group: 'OPERATIONAL', label: 'Clients',             icon: <UserCircle size={18} />, component: <ClientOutstandingReport />,  permission: 'clients' },
-    { id: 'EXPENSES',    group: 'OPERATIONAL', label: 'Expenses',            icon: <DollarSign size={18} />,     component: <ExpensesReport />,               permission: 'expenses' },
-    { id: 'CLIENT_STATEMENT', group: 'OPERATIONAL', label: 'Client Statement', icon: <BookMarked size={18} />,   component: <ClientStatementReport />,        permission: 'clients' },
-    { id: 'BILL_PROFIT',      group: 'OPERATIONAL', label: 'Bill Profit',      icon: <BarChart2 size={18} />,    component: <BillWiseProfitReport />,         permission: 'sales' },
-    { id: 'LOW_STOCK',        group: 'OPERATIONAL', label: 'Low Stock',        icon: <AlertTriangle size={18} />,component: <LowStockReport />,               permission: 'inventory' },
-    { id: 'EXPIRY',           group: 'OPERATIONAL', label: 'Expiry Tracking',  icon: <AlertTriangle size={18} />,component: <ExpiryReport />,                 permission: 'inventory' },
-    { id: 'UNVERIFIED_COST',  group: 'OPERATIONAL', label: 'Unverified Cost',  icon: <ShieldAlert size={18} />,  component: <UnverifiedCostReport />,         permission: 'inventory' },
-    { id: 'IMEI_SERIAL',      group: 'OPERATIONAL', label: 'IMEI / Serial',    icon: <Package size={18} />,      component: <IMEISerialReport />,             permission: 'inventory' },
-    { id: 'SALES_BY_PARTY',   group: 'OPERATIONAL', label: 'Sales by Party',   icon: <Users size={18} />,        component: <SalePurchaseByPartyReport />,    permission: 'sales' },
-    { id: 'PARTY_PROFIT',     group: 'OPERATIONAL', label: 'Party Profit',     icon: <PieChart size={18} />,     component: <PartyProfitReport />,            permission: 'reports' },
-    { id: 'CATEGORY_PROFIT',  group: 'OPERATIONAL', label: 'Category Profit',  icon: <Tag size={18} />,          component: <CategoryProfitReport />,         permission: 'inventory' },
-    { id: 'ALL_TRANSACTIONS', group: 'OPERATIONAL', label: 'All Transactions', icon: <ArrowLeftRight size={18} />, component: <AllTransactionsReport />,      permission: 'reports' },
-    { id: 'ITEM_PARTY',       group: 'OPERATIONAL', label: 'Item × Party',     icon: <GitFork size={18} />,      component: <ItemPartyReport />,              permission: 'sales' },
-    { id: 'PRODUCT_SALES',    group: 'OPERATIONAL', label: 'Product Sales',    icon: <Package size={18} />,      component: <ProductSalesReport />,           permission: 'sales' },
-    { id: 'PRODUCT_MOVEMENT', group: 'OPERATIONAL', label: 'Fast / Slow Movers', icon: <Activity size={18} />,   component: <ProductMovementReport />,        permission: 'inventory' },
-    { id: 'PURCHASES',        group: 'OPERATIONAL', label: 'Purchases',        icon: <ShoppingBag size={18} />,  component: <PurchasesReport />,              permission: 'purchases' },
+  const reports = useMemo(() => visibleReports(hasPermission, REPORT_CATALOGUE), [hasPermission]);
+  const grouped = useMemo(() => groupReports(reports), [reports]);
 
-    // --- ACCOUNTING GROUP ---
-    { id: 'BALANCE_SHEET', group: 'ACCOUNTING', label: 'Balance Sheet',       icon: <Scale size={18} />,       component: <BalanceSheetReport />,   permission: 'reports' },
-    { id: 'TRIAL_BALANCE', group: 'ACCOUNTING', label: 'Trial Balance',       icon: <Landmark size={18} />,    component: <TrialBalanceReport />,   permission: 'reports' },
-    { id: 'GENERAL_LEDGER',group: 'ACCOUNTING', label: 'General Ledger',      icon: <BookOpen size={18} />,    component: <GeneralLedgerReport />,  permission: 'reports' },
-    { id: 'CASH_FLOW',     group: 'ACCOUNTING', label: 'Cash Flow',           icon: <Droplets size={18} />,    component: <CashFlowReport />,       permission: 'reports' },
-    { id: 'AR_AGING',      group: 'ACCOUNTING', label: 'Customer Aging',      icon: <FileWarning size={18} />, component: <ARAgingReport />,        permission: 'clients' },
-    { id: 'AP_AGING',      group: 'ACCOUNTING', label: 'Supplier Aging',      icon: <Receipt size={18} />,     component: <APAgingReport />,        permission: 'inventory' },
-    { id: 'BUDGET_ACTUAL', group: 'ACCOUNTING', label: 'Budget vs Actual',    icon: <Target size={18} />,      component: <BudgetVsActualReport />, permission: 'reports' },
-    { id: 'YOY',           group: 'ACCOUNTING', label: 'Year Comparison',     icon: <CalendarRange size={18} />, component: <YoYComparisonReport />, permission: 'reports' },
-    { id: 'FINANCIALS',    group: 'ACCOUNTING', label: 'Profit & Loss',       icon: <BarChart3 size={18} />,   component: <FinancialReport />,      permission: 'reports' },
-
-    // --- COMPLIANCE GROUP (India GST) ---
-    { id: 'GSTR1',  group: 'COMPLIANCE', label: 'GSTR-1',  icon: <FileText size={18} />,  component: <GSTR1Report />,  permission: 'reports' },
-    { id: 'GSTR3B', group: 'COMPLIANCE', label: 'GSTR-3B', icon: <FileCheck size={18} />, component: <GSTR3BReport />, permission: 'reports' },
-    { id: 'PURCHASE_REGISTER', group: 'COMPLIANCE', label: 'Purchase Register', icon: <FileText size={18} />, component: <PurchaseRegisterReport />, permission: 'reports' },
-    { id: 'GSTR2B_RECON', group: 'COMPLIANCE', label: 'GSTR-2B Reconciliation', icon: <FileCheck size={18} />, component: <GSTR2BReconReport />, permission: 'reports' },
-  ].filter(tab => hasPermission(tab.permission, 'view'));
-
-  const groupedTabs = useMemo(() => {
-    const groups = { OPERATIONAL: [], ACCOUNTING: [], COMPLIANCE: [] };
-    TABS.forEach(t => {
-      if (groups[t.group]) groups[t.group].push(t);
-    });
-    return groups;
-  }, [TABS]);
-
-  // ?tab=DAILY_SALES opens a report directly, in its own group. A tab this user
-  // has no permission for is not in TABS, so the link falls back to the default.
+  // ?tab=DAILY_SALES opens a report directly, in its own group. A report
+  // this person cannot open is not in the list, so the link falls back.
   useEffect(() => {
-    const linked = TABS.find((t) => t.id === linkedTab);
-    if (linked) { setActiveGroup(linked.group); setActiveTab(linked.id); }
+    const linked = findReport(reports, linkedTab);
+    if (linked) { setActiveGroup(linked.group); setActiveTab(linked.id); setHome(false); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linkedTab]);
 
-  const visibleTabs = groupedTabs[activeGroup] || [];
-  const currentTab = visibleTabs.find(t => t.id === activeTab) || visibleTabs[0];
+  const visibleTabs = grouped[activeGroup] || [];
+  const current = visibleTabs.find((t) => t.id === activeTab) || visibleTabs[0];
 
-  // Switch active tab when changing groups
   const handleGroupChange = (group) => {
     setActiveGroup(group);
-    const firstTab = groupedTabs[group]?.[0];
-    if (firstTab) setActiveTab(firstTab.id);
+    const first = grouped[group]?.[0];
+    if (first) setActiveTab(first.id);
+  };
+  const openReport = (id) => {
+    const r = findReport(reports, id);
+    if (!r) return;
+    setActiveGroup(r.group);
+    setActiveTab(r.id);
+    setHome(false);
   };
 
-  // ── Searchable report dropdown ──────────────────────────────────────
-  const [tabSearch, setTabSearch]     = useState('');
-  const [tabDropOpen, setTabDropOpen] = useState(false);
-  const tabDropRef = useRef(null);
-  useEffect(() => {
-    const h = (e) => {
-      if (tabDropRef.current && !tabDropRef.current.contains(e.target)) setTabDropOpen(false);
-    };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, []);
-  const filteredTabs = visibleTabs.filter(t =>
-    t.label.toLowerCase().includes(tabSearch.toLowerCase())
-  );
+  if (home) {
+    return <ReportsHome grouped={grouped} total={reports.length} onPick={openReport} />;
+  }
+
+  const Page = current ? PAGES[current.id] : null;
+  const crumbBtn = 'rounded-[4px] hover:text-ink transition-colors duration-(--dur-hover)';
 
   return (
-    <div className="flex flex-col gap-6 w-full">
-      {/* Universal Breadcrumb / Context Identifier */}
-      <div className="no-print flex items-center gap-2 px-6 py-2 bg-white/40 backdrop-blur-md border border-black/5 rounded-pill w-fit shadow-sm">
-        <Activity size={12} className="text-accent-signature" />
-        <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">
-          REPORTS <span className="mx-2 opacity-30">/</span> {activeGroup} <span className="mx-2 opacity-30">/</span> {currentTab?.label}
-        </span>
-      </div>
+    <div className="flex w-full flex-col">
+      <nav aria-label="Breadcrumb" className="no-print mb-3 font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-mute">
+        <button type="button" onClick={() => setHome(true)} className={crumbBtn}>Reports</button>
+        <i className="mx-1.5 not-italic text-faint">/</i>{groupLabel(activeGroup)}
+        <i className="mx-1.5 not-italic text-faint">/</i><b className="font-semibold text-ink-2">{current?.label}</b>
+      </nav>
 
-      {/* Group Switcher: OPERATIONAL · ACCOUNTING · COMPLIANCE */}
-      <div className="no-print flex items-center gap-2 flex-wrap">
-        {[
-          { key: 'OPERATIONAL', label: 'Operations', icon: <TrendingUp size={14} /> },
-          { key: 'ACCOUNTING', label: 'Accounting', icon: <Scale size={14} /> },
-          { key: 'COMPLIANCE', label: 'GST', icon: <FileCheck size={14} /> },
-        ].map(({ key, label, icon }) => {
-          const count = groupedTabs[key]?.length || 0;
-          if (count === 0) return null;
-          return (
-            <button
-              key={key}
-              onClick={() => handleGroupChange(key)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-pill text-[10px] font-black uppercase tracking-widest transition-all ${
-                activeGroup === key
-                  ? 'bg-ink-primary text-white shadow-lg'
-                  : 'bg-white/60 text-muted-foreground hover:text-ink-primary border border-black/5'
-              }`}
-            >
-              {icon}
-              {label}
-              <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[9px] ${
-                activeGroup === key ? 'bg-white/20' : 'bg-black/5'
-              }`}>{count}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Searchable report selector */}
-      <div className="no-print relative w-full max-w-md" ref={tabDropRef}>
-        <button
-          onClick={() => setTabDropOpen(o => !o)}
-          className="w-full flex items-center gap-3 px-5 py-3 bg-white border border-black/5 rounded-pill shadow-sm hover:border-black/15 transition-all"
-        >
-          <span className="text-accent-signature shrink-0">{currentTab?.icon}</span>
-          <span className="flex-1 text-left text-xs font-black uppercase tracking-widest text-ink-primary truncate">
-            {currentTab?.label || 'Select report'}
-          </span>
-          <ChevronDown size={16} className={`text-muted-foreground shrink-0 transition-transform ${tabDropOpen ? 'rotate-180' : ''}`} />
+      <div className="no-print mb-3.5 flex flex-wrap items-center gap-2.5">
+        <FilterPills ariaLabel="Report groups" value={activeGroup} onChange={handleGroupChange}
+          items={groupChips(grouped).map((g) => ({ key: g.key, label: g.label, count: g.count }))} />
+        <div className="flex-1" />
+        <button type="button" onClick={() => setHome(true)}
+          className="m-press inline-flex h-[34px] items-center gap-1.5 rounded-pill px-3 font-tight text-[13px] font-semibold text-ink-2 hover:bg-tile">
+          <LayoutGrid size={15} strokeWidth={2} aria-hidden="true" />All reports
         </button>
-        {tabDropOpen && (
-          <div className="absolute z-50 mt-2 left-0 right-0 bg-white border border-black/10 rounded-2xl shadow-2xl overflow-hidden">
-            <div className="relative border-b border-black/5">
-              <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                autoFocus
-                value={tabSearch}
-                onChange={e => setTabSearch(e.target.value)}
-                placeholder="Search reports…"
-                className="w-full pl-10 pr-4 py-3 text-xs font-semibold outline-none"
-              />
-            </div>
-            <div className="max-h-80 overflow-y-auto py-1">
-              {filteredTabs.length === 0 && (
-                <div className="px-4 py-6 text-center text-[11px] text-muted-foreground">
-                  No report matches "{tabSearch}"
-                </div>
-              )}
-              {filteredTabs.map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => { setActiveTab(tab.id); setTabDropOpen(false); setTabSearch(''); }}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
-                    activeTab === tab.id
-                      ? 'bg-accent-signature/8 text-ink-primary'
-                      : 'text-ink-secondary hover:bg-canvas'
-                  }`}
-                >
-                  <span className={activeTab === tab.id ? 'text-accent-signature' : 'text-muted-foreground'}>{tab.icon}</span>
-                  <span className="text-xs font-bold">{tab.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        <ReportPicker reports={visibleTabs} current={current} onPick={setActiveTab} />
       </div>
 
-      {/* Active Report Node */}
-      <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-        {currentTab?.component}
-      </div>
+      {Page && (
+        <div key={current.id} className="m-rise">
+          <Page />
+        </div>
+      )}
     </div>
   );
 };
