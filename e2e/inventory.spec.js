@@ -40,32 +40,22 @@ test.describe('Inventory Management', () => {
   test('stock adjustment via UI triggers RPC call', async ({ page }) => {
     await gotoTenant(page, 'inventory');
 
-    // Filter to limit scope to Widget A
-    const searchInput = page.locator('input[placeholder*="Search by" i], input[placeholder*="search" i]').first();
-    if (await searchInput.isVisible()) {
-      await searchInput.fill('Widget A');
-    }
+    // Web redesign: a row's "···" menu opens Adjust stock as a dialog.
+    let rpcCalled = false;
+    page.on('request', (req) => { if (/\/rpc\/adjust_inventory_atomic/.test(req.url())) rpcCalled = true; });
 
-    // Find the edit/adjust button for Widget A. Typically an icon button.
-    // We'll click the row or the adjust button to open the modal.
-    const adjustBtn = page.locator('button').filter({ hasText: /adjust|edit|\+/i }).first();
-    
-    // If we can't find an explicit button, we click the first row which might open a detail/edit view
-    if (await adjustBtn.isVisible()) {
-      await adjustBtn.click();
-    } else {
-      await page.locator('text=Widget A').first().click();
-    }
+    await page.getByRole('button', { name: 'Actions for Widget A' }).click();
+    await page.getByRole('menuitem', { name: 'Adjust stock' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Adjust Stock' });
+    await expect(dialog).toBeVisible();
 
-    // Wait for the adjustment modal to appear - look for an input to change the qty
-    const updateStockBtn = page.locator('button').filter({ hasText: /confirm|save|update|adjust/i }).first();
-    await expect(updateStockBtn).toBeVisible({ timeout: 5000 });
-    
-    // We mock the RPC success on adjust_inventory_atomic
-    // This just verifies the form can be submitted without crashing.
-    await updateStockBtn.click();
-    
-    // Form should close
-    await expect(updateStockBtn).toBeHidden();
+    await dialog.getByRole('radio', { name: /Add/ }).click();
+    await dialog.getByRole('spinbutton', { name: 'Units to add' }).fill('5');
+    await dialog.getByLabel('Reason *').selectOption('Received new stock');
+    await dialog.getByRole('button', { name: 'Save adjustment' }).click();
+
+    // The mocked RPC answers 200, so the dialog reports the new count.
+    await expect(page.getByText('Stock updated')).toBeVisible();
+    expect(rpcCalled).toBe(true);
   });
 });
