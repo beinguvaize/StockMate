@@ -77,7 +77,7 @@ export default function AttendanceTab({ month, today, employees = [], att, lines
       : dayWords(d.iso, { year: false });
     return (
       <td key={d.iso} className={cn('border-b border-sep p-0 text-center', paidRun ? 'bg-[#EFF8F2]' : d.weekend ? 'bg-[#FBF6EE]' : '')}>
-        <button type="button" data-testid="att-day" title={title} aria-label={`${title}${mk ? `: ${mk.label}` : ''}`}
+        <button type="button" data-card data-testid="att-day" title={title} aria-label={`${title}${mk ? `: ${mk.label}` : ''}`}
           onClick={(ev) => { if (isOpen) { setPick(null); return; } anchor.current = ev.currentTarget; setPick({ emp, day: d.iso }); }}
           className={cn('my-1.5 inline-grid min-h-[22px] w-[22px] place-items-center rounded-[6px] py-[3px] font-tight text-[10.5px] font-bold leading-none',
             mk ? mk.cell : d.future ? 'bg-transparent text-[#DADCDF]' : 'bg-well text-faint',
@@ -217,7 +217,7 @@ export default function AttendanceTab({ month, today, employees = [], att, lines
                               onKeyDown={(e) => { if (e.key === 'Enter') att.applyRate(emp.id, rateDraft[emp.id] || emp.daily_rate); }} />
                             <button type="button" title="Apply this rate to every day marked Present this month that has no rate yet"
                               onClick={() => att.applyRate(emp.id, rateDraft[emp.id] || emp.daily_rate)}
-                              className="m-press h-6 rounded-[7px] px-[7px] font-tight text-[11.5px] font-semibold text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile">Apply</button>
+                              className="m-press h-6 rounded-pill px-[9px] font-tight text-[11.5px] font-semibold text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile">Apply</button>
                           </div>
                           {att.applyNote?.empId === emp.id && <span className="mt-1 block font-tight text-[10.5px] font-semibold text-good-text">{att.applyNote.text}</span>}
                         </>

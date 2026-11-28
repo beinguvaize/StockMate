@@ -68,9 +68,9 @@ export const Hint = ({ className, children }) => <span className={cn('text-[12px
 /** The ‹ November 2026 › stepper. */
 export const MonthStep = ({ label, onPrev, onNext }) => (
   <div className="inline-flex items-center gap-0.5 rounded-pill p-[3px] shadow-[inset_0_0_0_1px_var(--color-line)]">
-    <button type="button" onClick={onPrev} aria-label="Previous month" className="m-press grid h-7 w-7 place-items-center rounded-full text-ink-2 hover:bg-tile"><ChevronLeft size={14} /></button>
+    <button type="button" onClick={onPrev} aria-label="Previous month" className="m-press grid h-7 w-7 place-items-center rounded-xl text-ink-2 hover:bg-tile"><ChevronLeft size={14} /></button>
     <span className="min-w-[118px] text-center font-tight text-[13px] font-semibold tabular-nums">{label}</span>
-    <button type="button" onClick={onNext} aria-label="Next month" className="m-press grid h-7 w-7 place-items-center rounded-full text-ink-2 hover:bg-tile"><ChevronRight size={14} /></button>
+    <button type="button" onClick={onNext} aria-label="Next month" className="m-press grid h-7 w-7 place-items-center rounded-xl text-ink-2 hover:bg-tile"><ChevronRight size={14} /></button>
   </div>
 );
 
