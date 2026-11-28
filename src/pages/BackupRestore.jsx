@@ -81,7 +81,9 @@ const NOT_CHANGED = [
   'Sales on this computer that have not synced yet',
 ];
 
-const BackupRestore = () => {
+// inRail: shown inside the Settings rail, which already pads the page.
+const BackupRestore = ({ inRail = false } = {}) => {
+  const wrapCls = inRail ? 'min-w-0' : 'mx-auto max-w-[860px] p-4 sm:p-6';
   const { currentTenantId, currentTenant } = useTenant();
   const { isOwner } = useAuth();
   const { addNotification } = useNotifications();
@@ -348,7 +350,7 @@ const BackupRestore = () => {
 
   if (!isOwner) {
     return (
-      <div className="mx-auto max-w-[860px] p-4 sm:p-6">
+      <div className={wrapCls}>
         <PanelHead title="Backup & restore" sub="A copy of this shop's books, in a file you keep, and the way back to it." />
         <SCard testId="backup-owner-only">
           <div className="px-5 py-14 text-center">
@@ -369,7 +371,7 @@ const BackupRestore = () => {
   const restoring = busy === 'restore';
 
   return (
-    <div className="mx-auto max-w-[860px] p-4 sm:p-6">
+    <div className={wrapCls}>
       <PanelHead title="Backup & restore" sub="A copy of this shop's books, in a file you keep, and the way back to it." />
       <div className="grid gap-4">
 

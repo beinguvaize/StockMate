@@ -100,7 +100,7 @@ describe('plan helpers', () => {
 describe('tabFromSearch', () => {
   it('opens a known panel and falls back to Account', () => {
     expect(tabFromSearch('?tab=print')).toBe('print');
-    expect(tabFromSearch('?tab=backup')).toBe('account');   // a link, not a panel
+    expect(tabFromSearch('?tab=backup')).toBe('backup');    // a panel in the rail
     expect(tabFromSearch('?tab=nope')).toBe('account');
     expect(tabFromSearch('')).toBe('account');
   });

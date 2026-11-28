@@ -38,6 +38,7 @@ vi.mock('../../hooks/useInventory', () => ({
 }));
 vi.mock('../../hooks/usePlanLimits', () => ({ usePlanLimits: () => ({ userCount: 4, maxUsers: 5, loading: false }) }));
 vi.mock('../Users', () => ({ default: () => <div>Users page</div> }));
+vi.mock('../BackupRestore', () => ({ default: () => <div>Backup page</div> }));
 vi.mock('../../components/invoice/POSReceipt', () => ({ default: () => <div>Receipt preview</div> }));
 
 globalThis.React = React;
@@ -58,12 +59,18 @@ const text = (h) => h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
 const has = (el, list) => { const t = text(html(el)); for (const s of list) expect(t).toContain(s); return t; };
 
 describe('Settings panels render', () => {
-  it('hub: the rail, with Backup & restore as a link', () => {
+  it('hub: the rail, with Backup & restore in it', () => {
     perms = true;
     const h = html(<SettingsHub />);
     for (const s of ['Account', 'Business', 'Business type &amp; modules', 'Categories', 'Locations', 'Printing', 'Payment reminders',
       'Users &amp; roles', 'Plan &amp; billing', 'Data tools', 'Backup &amp; restore', 'API', 'Help &amp; support']) expect(h).toContain(s);
-    expect(h).toContain('href="/backup"');
+    expect(h).not.toContain('href="/backup"');
+  });
+  it('hub: /backup opens Backup & restore inside the rail', () => {
+    perms = true;
+    const h = html(<SettingsHub initialTab="backup" />);
+    expect(h).toContain('Backup page');
+    expect(h).toContain('aria-label="Settings sections"');
   });
   it('hub: /users opens Users & roles inside the rail', () => {
     perms = true;

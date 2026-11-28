@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Users from '../Users';
+import BackupRestore from '../BackupRestore';
 import AccountPanel from './AccountPanel';
 import BusinessPanel from './BusinessPanel';
 import ModulesPanel from './ModulesPanel';
@@ -48,7 +49,7 @@ export const NAV_GROUPS = [
   ]},
   { caption: 'Advanced', items: [
     { id: 'data',    label: 'Data tools', Icon: RefreshCw, perm: true },
-    { id: 'backup',  label: 'Backup & restore', Icon: Database, href: '/backup' },
+    { id: 'backup',  label: 'Backup & restore', Icon: Database },
     { id: 'api',     label: 'API', Icon: KeyRound, perm: true },
     { id: 'support', label: 'Help & support', Icon: LifeBuoy },
   ]},
@@ -71,8 +72,8 @@ export const tabFromSearch = (search) => {
   } catch { return 'account'; }
 };
 
-// initialTab: /users opens the hub on Users & roles, so that page sits in
-// the rail as drawn (users-01 to 08).
+// initialTab: /users opens the hub on Users & roles, and /backup on Backup &
+// restore, so those pages sit in the rail as drawn (users-01 to 08).
 export default function SettingsHub({ initialTab } = {}) {
   const { hasPermission } = useAuth();
   const [active, setActive] = useState(() => (PANEL_IDS.has(initialTab) ? initialTab
@@ -109,6 +110,7 @@ export default function SettingsHub({ initialTab } = {}) {
         <div className="min-w-0 max-w-[820px]" data-testid="settings-panel">
           {!allowed ? <NoSettingsAccess />
             : active === 'users' ? <Users />
+            : active === 'backup' ? <BackupRestore inRail />
             : Panel ? <Panel key={active} /> : null}
         </div>
       </div>
