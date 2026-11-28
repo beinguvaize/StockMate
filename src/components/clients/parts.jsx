@@ -44,7 +44,7 @@ export function SummaryStrip({ summary, cur = '₹', className }) {
           <div className={cell}><span className={lbl}>Total bought</span><b className={big}>{money(s.total, cur)}</b><small className={sm}>all bills</small></div>
           <div className={cell}><span className={lbl}>Bills</span><b className={big}>{s.bills}</b><small className={sm}>avg {money(Math.round(s.avg), cur)}</small></div>
           <div className={cell}><span className={lbl}>Customer since</span><b className={big}>{s.since}</b><small className={sm}>{s.sinceSpan}</small></div>
-          <div className={cell}><span className={lbl}>Last visit</span><b className={big}>{s.lastWords}</b><small className={sm}>{formatShortDateTime(s.lastAt || s.last)}</small></div>
+          <div className={cell}><span className={lbl}>Last visit</span><b className={big}>{s.lastWords}</b><small className={sm}>{s.lastAt ? formatShortDateTime(s.lastAt) : ' '}</small></div>
         </div>
       )}
     </div>

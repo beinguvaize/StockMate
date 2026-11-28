@@ -58,7 +58,7 @@ describe('Clients pages', () => {
     expect(out).toContain('Shop One');
     expect(out).not.toContain('Shop Two'); // Owing is the default filter
     expect(out).toContain('Add client');
-    expect(out).toContain('whole balance of 1 client with a bill 30+ days old');
+    expect(out).toContain('whole balance · 1 client');
   });
 
   it('hides Add client without the create permission', () => {

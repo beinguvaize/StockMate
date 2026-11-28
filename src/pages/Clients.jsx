@@ -127,7 +127,7 @@ export default function Clients() {
       <FigureStrip cols={4} className="m-rise mb-5" style={{ '--i': 0 }}>
         <Figure label="Owed to you" value={money(kpis.receivable, cur)} sub={`${kpis.owingCount} of ${(clients || []).length} clients`} />
         <Figure label="Overdue 30+ days" value={<span className={kpis.overdue > 0 ? 'text-bad-text' : ''}>{money(kpis.overdue, cur)}</span>}
-          sub={kpis.overdue > 0 ? `whole balance of ${kpis.overdueCount} client${kpis.overdueCount === 1 ? '' : 's'} with a bill 30+ days old` : 'nothing overdue'} />
+          sub={kpis.overdue > 0 ? `whole balance · ${kpis.overdueCount} client${kpis.overdueCount === 1 ? '' : 's'}` : 'nothing overdue'} />
         <Figure label="Collected this month" value={<span className={kpis.collected > 0 ? 'text-good-text' : ''}>{money(kpis.collected, cur)}</span>}
           sub={`${kpis.receipts} receipt${kpis.receipts === 1 ? '' : 's'}`} />
         <Figure label="Oldest unpaid" value={kpis.oldest != null ? <>{kpis.oldest} <span className="text-[14px] font-medium text-mute">days</span></> : '—'}
