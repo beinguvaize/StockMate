@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import CopyButton from '../../../components/motion/CopyButton';
 import HoldButton from '../../../components/motion/HoldButton';
 import SegmentedTabs from '../../../components/motion/SegmentedTabs';
@@ -17,6 +18,9 @@ import SidePanel from '../../../components/ui/SidePanel';
 import { supabase } from '../../../lib/supabase';
 import { formatCurrency, formatShortDateTime, formatTime as timeOf, todayISOInAppTZ, getAppTimezone, getAppLocale } from '../../../lib/utils';
 import { surplusLabel } from '../lib/checkoutMoney';
+import { Card } from '../../../components/ui/card';
+import { rankTopSelling } from '../../../lib/topSelling';
+import { minutesOfDay, revenueComparison, inComparison, revenueChange } from '../../../lib/salesComparison';
 
 // Payment method -> how it reads under the client name.
 const PAY_LABEL = { CASH: 'Cash', CARD: 'Card', UPI: 'UPI', BANK: 'Bank', CREDIT: 'Credit' };
@@ -187,6 +191,32 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
     }
     return { revenue, paid, pending, pendingAmt, failed, count: paid + pending + failed };
   }, [sales, inDateRange]);
+
+  // ---------- Revenue compared with the period before ----------
+  // Same rule as Revenue above (failed bills left out), over the earlier
+  // window lib/salesComparison picks: today against the same weekday last
+  // week up to the same time; a longer window against the one before it.
+  const revenueCmp = useMemo(() => {
+    const tz = getAppTimezone();
+    const cmp = revenueComparison(dateFilter, todayISOInAppTZ(), minutesOfDay(new Date(), tz) ?? 24 * 60, customRange);
+    if (!cmp) return null;
+    let prior = 0;
+    for (const s of sales) {
+      if (!inComparison(s, cmp, tz)) continue;
+      if (isVoidStatus(getStatus(s))) continue;
+      prior += Number(s.totalAmount) || 0;
+    }
+    return { ...cmp, prior, change: revenueChange(summary.revenue, prior) };
+  }, [sales, dateFilter, customRange, summary.revenue]);
+
+  // ---------- Best sellers ----------
+  // lib/topSelling: the Dashboard's "Top-selling items" ranking, over the
+  // same date window as the list, so both pages agree for the same period.
+  const [bestBy, setBestBy] = useState('value');
+  const best = useMemo(
+    () => rankTopSelling(sales.filter(inDateRange), { by: bestBy, limit: 5 }),
+    [sales, inDateRange, bestBy],
+  );
 
   // ---------- Filtered rows ----------
   const filteredSales = useMemo(() => {
@@ -417,7 +447,9 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
       {/* Summary strip */}
       <FigureStrip cols={4} className="m-rise mb-5" style={{ '--i': 1 }}>
         <Figure label="Sales" value={summary.count} sub={`bills ${dateLabel}`} />
-        <Figure label="Revenue" value={formatCurrency(summary.revenue)} sub="failed bills left out" />
+        <Figure label="Revenue" value={formatCurrency(summary.revenue)}
+          sub={revenueCmp?.change ? <RevenueChange change={revenueCmp.change} label={revenueCmp.label} /> : 'failed bills left out'}
+          cap={revenueCmp?.change ? `${revenueCmp.detail}: ${formatCurrency(revenueCmp.prior)} · failed bills left out` : null} />
         <Figure label="Paid" value={<span className="text-good-text">{summary.paid}</span>} sub="bills" />
         <Figure
           label="Pending"
@@ -492,8 +524,9 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
         </div>
       </div>
 
-      {/* Table */}
-      <div className="m-rise" style={{ '--i': 4 }}>
+      {/* Table, with the best sellers beside it from xl */}
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-5 items-start">
+      <div className="m-rise min-w-0" style={{ '--i': 4 }}>
       <Table>
         <TableHeader>
           <tr>
@@ -519,6 +552,8 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
           )}
         </TableBody>
       </Table>
+      </div>
+      <BestSellers best={best} by={bestBy} onBy={setBestBy} dateLabel={dateLabel} />
       </div>
       {sortedSales.length > 0 && (
         <div className="m-rise px-1 pt-3.5 text-[13px] text-body" style={{ '--i': 5 }}>
@@ -629,6 +664,68 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
 
 /** "Label Value ▾" filter menu: a native select dressed as a pill. */
 /** A column head that sorts; the sorted one shows its direction in amber. */
+// "▲ ₹2,170 (13%) vs last Thursday": green up, red down, amber flat.
+const RevenueChange = ({ change, label }) => {
+  const tone = change.dir > 0 ? 'text-good-text' : change.dir < 0 ? 'text-bad-text' : 'text-amber-text';
+  const arrow = change.dir > 0 ? '▲' : change.dir < 0 ? '▼' : '';
+  return (
+    <span className={`font-tight text-[12px] font-semibold ${tone}`}>
+      {arrow} {formatCurrency(Math.abs(change.diff))} ({Math.round(Math.abs(change.pct))}%) {label}
+    </span>
+  );
+};
+
+// Best sellers for the list's date window, by value or by quantity sold.
+const BestSellers = ({ best, by, onBy, dateLabel }) => {
+  const navigate = useNavigate();
+  return (
+  <Card role="complementary" className="m-rise !px-4 !py-4" style={{ '--i': 4 }} aria-label={`Best sellers ${dateLabel}`}>
+    <div className="mb-1.5 flex items-center gap-2">
+      <h3 className="font-tight text-[14.5px] font-semibold">Best sellers {dateLabel}</h3>
+      <div className="ml-auto inline-flex rounded-pill bg-well p-[3px]" role="group" aria-label="Rank by">
+        {[['value', 'Value'], ['quantity', 'Quantity']].map(([k, l]) => (
+          <button key={k} type="button" aria-pressed={by === k} onClick={() => onBy(k)}
+            className={`m-press rounded-pill px-3 py-1 font-tight text-[12px] font-semibold ${by === k ? 'bg-surface text-ink shadow-[0_1px_2px_rgba(17,20,24,0.12)]' : 'text-body hover:text-ink'}`}>
+            {l}
+          </button>
+        ))}
+      </div>
+    </div>
+    {best.rows.length === 0 ? (
+      <div className="grid min-h-[140px] place-items-center content-center gap-1 rounded-xl bg-tile p-3 text-center text-[13px] text-mute">
+        <b className="font-tight text-[14px] font-semibold text-ink-2">No items sold {dateLabel}</b>
+        Best sellers show here after a few sales
+      </div>
+    ) : (
+      <>
+        {best.rows.map(r => (
+          <div key={r.key} className="grid grid-cols-[20px_minmax(0,1fr)_auto] items-start gap-2.5 border-b border-sep py-2.5 text-[13px]">
+            <span className="pt-px font-tight text-[12px] font-semibold text-mute">{r.rank}</span>
+            <div className="min-w-0">
+              <span className="block truncate font-medium text-ink" title={r.name}>{r.name}</span>
+              <small className="mt-0.5 block text-[12px] text-mute tabular-nums">
+                {by === 'quantity' ? formatCurrency(r.value) : `${r.qty.toLocaleString('en-IN')} sold`}
+              </small>
+              <div className="mt-1.5 h-1 overflow-hidden rounded-pill bg-well" aria-hidden="true">
+                <i className="block h-full rounded-pill bg-ink-2" style={{ width: `${r.share}%` }} />
+              </div>
+            </div>
+            <span className="text-right font-tight text-[13px] font-semibold tabular-nums text-ink">
+              {by === 'quantity' ? `${r.qty.toLocaleString('en-IN')} sold` : formatCurrency(r.value)}
+            </span>
+          </div>
+        ))}
+        <div className="flex items-center justify-between pt-2.5 text-[12.5px] text-mute">
+          <span>Top {best.rows.length} made {formatCurrency(best.shownValue)} of {formatCurrency(best.totalValue)}</span>
+          <button type="button" onClick={() => navigate('/reports')}
+            className="font-tight text-[13px] font-semibold text-amber-text hover:underline underline-offset-4">All items</button>
+        </div>
+      </>
+    )}
+  </Card>
+  );
+};
+
 const SortHead = ({ k, sort, onSort, children, numeric }) => {
   const on = sort.key === k;
   return (
