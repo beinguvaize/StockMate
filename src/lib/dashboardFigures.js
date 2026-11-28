@@ -108,20 +108,6 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 export const shortDate = (ymd) => { const [, m, d] = ymdParts(ymd); return `${d} ${MONTHS[m - 1]}`; };
 export const spanLabel = (r) => (r.start === r.end ? shortDate(r.start) : `${shortDate(r.start)} – ${shortDate(r.end)}`);
 
-/**
- * Words for the comparison: the short one beside each pill ("vs yesterday")
- * and the line in the section heading ("Today, compared with yesterday").
- */
-export function comparisonWords(preset, range, prior, presetLabel) {
-  if (!range || !prior) return { short: null, heading: presetLabel };
-  if (preset === 'Today') return { short: 'vs yesterday', heading: `${presetLabel}, compared with yesterday` };
-  const days = Math.round((fromYMD(range.end) - fromYMD(range.start)) / 86400000) + 1;
-  return {
-    short: days === 1 ? `vs ${shortDate(prior.start)}` : `vs previous ${days} days`,
-    heading: `${presetLabel}, compared with ${spanLabel(prior)}`,
-  };
-}
-
 // ── Setup guide ──────────────────────────────────────────────────────────
 
 /**

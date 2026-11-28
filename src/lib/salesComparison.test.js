@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { minutesOfDay, historyRange, revenueComparison, inComparison, revenueChange } from './salesComparison';
+import {
+  minutesOfDay, historyRange, revenueComparison, inComparison, revenueChange,
+  periodComparison, inPeriodComparison, sumInPeriodComparison, periodComparisonWords,
+} from './salesComparison';
 
 const TZ = 'Asia/Kolkata';
 const today = '2026-11-26'; // a Thursday
@@ -69,5 +72,62 @@ describe('revenueChange', () => {
   });
   it('nothing to compare with when the earlier figure is zero', () => {
     expect(revenueChange(500, 0)).toBeNull();
+  });
+});
+
+describe('Dashboard periods: same time of day', () => {
+  const at = (ymd, hhmm) => `${ymd}T${hhmm}:00+05:30`;
+
+  it('today compares with yesterday, cut at this time', () => {
+    const c = periodComparison({ start: today, end: today }, today, 10 * 60);
+    expect(c).toEqual({ range: { start: '2026-11-25', end: '2026-11-25' }, cutDate: '2026-11-25', cutoff: 600 });
+    expect(inPeriodComparison({ date: '2026-11-25', created_at: at('2026-11-25', '09:59') }, c, TZ)).toBe(true);
+    expect(inPeriodComparison({ date: '2026-11-25', created_at: at('2026-11-25', '10:01') }, c, TZ)).toBe(false);
+  });
+
+  it('a running week cuts only the last day of the window before it', () => {
+    const c = periodComparison({ start: '2026-11-23', end: today }, today, 10 * 60);
+    expect(c.range).toEqual({ start: '2026-11-19', end: '2026-11-22' });
+    expect(c.cutDate).toBe('2026-11-22');
+    // An earlier day of the window counts whole, even late in the evening.
+    expect(inPeriodComparison({ date: '2026-11-20', created_at: at('2026-11-20', '21:00') }, c, TZ)).toBe(true);
+    expect(inPeriodComparison({ date: '2026-11-22', created_at: at('2026-11-22', '21:00') }, c, TZ)).toBe(false);
+  });
+
+  it('a fully past range compares whole days', () => {
+    const c = periodComparison({ start: '2026-10-01', end: '2026-10-31' }, today, 10 * 60);
+    expect(c.cutDate).toBeNull();
+    expect(inPeriodComparison({ date: '2026-09-30', created_at: at('2026-09-30', '23:00') }, c, TZ)).toBe(true);
+    expect(inPeriodComparison({ date: '2026-09-30' }, c, TZ)).toBe(true);
+  });
+
+  it('a row on the cut day with no timestamp is left out, not guessed', () => {
+    const c = periodComparison({ start: today, end: today }, today, 10 * 60);
+    expect(inPeriodComparison({ date: '2026-11-25' }, c, TZ)).toBe(false);
+  });
+
+  it('sums the comparison window', () => {
+    const c = periodComparison({ start: today, end: today }, today, 10 * 60);
+    const rows = [
+      { date: '2026-11-25', created_at: at('2026-11-25', '09:00'), amount: 100 },
+      { date: '2026-11-25', created_at: at('2026-11-25', '18:00'), amount: 900 },
+      { date: '2026-11-24', created_at: at('2026-11-24', '09:00'), amount: 50 },
+    ];
+    expect(sumInPeriodComparison(rows, c, TZ, r => r.amount)).toBe(100);
+  });
+
+  it('all time has nothing to compare with', () => {
+    expect(periodComparison(null, today, 600)).toBeNull();
+  });
+
+  it('wording', () => {
+    const r = { start: today, end: today };
+    expect(periodComparisonWords('Today', r, periodComparison(r, today, 600), 'Today'))
+      .toEqual({ short: 'vs yesterday at this time', heading: 'Today, compared with yesterday at this time' });
+    const w = { start: '2026-11-23', end: today };
+    expect(periodComparisonWords('This Week', w, periodComparison(w, today, 600), 'This week'))
+      .toEqual({ short: 'vs previous 4 days at this time', heading: 'This week, compared with 19 Nov – 22 Nov at this time' });
+    const past = { start: '2026-10-01', end: '2026-10-31' };
+    expect(periodComparisonWords('Last Month', past, periodComparison(past, today, 600), 'Last month').short).toBe('vs previous 31 days');
   });
 });

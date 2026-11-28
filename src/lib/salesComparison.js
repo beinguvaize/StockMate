@@ -17,6 +17,9 @@
  */
 import { addDays, comparisonRange, shortDate, spanLabel, ymdOf } from './dashboardFigures';
 
+// The same "same time of day" rule serves the Dashboard's period pills too
+// (owner decision): see periodComparison / inPeriodComparison below.
+
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const weekdayOf = (ymd) => {
   const [y, m, d] = ymd.split('-').map(Number);
@@ -98,4 +101,58 @@ export function revenueChange(current, prior) {
   const diff = c - p;
   const pct = (diff / Math.abs(p)) * 100;
   return { diff, pct, dir: Math.abs(diff) < 0.005 ? 0 : diff > 0 ? 1 : -1 };
+}
+
+// ── Dashboard period pills: the same time-of-day rule ────────────────────
+
+/**
+ * What a Dashboard period is compared with. The window of equal length just
+ * before `range`; when `range` is still running (it ends today), that
+ * window's LAST day is cut at the current time of day, so a part-day is never
+ * compared with a full day. Today therefore compares with yesterday up to
+ * this time. A range that is fully past compares whole days.
+ *
+ * Returns null (nothing before all time), or
+ *   { range, cutDate, cutoff }   cutDate null for a whole-day comparison.
+ */
+export function periodComparison(range, today, nowMinutes) {
+  const prior = comparisonRange(range);
+  if (!prior) return null;
+  const running = !!range && range.end === today;
+  return { range: prior, cutDate: running ? prior.end : null, cutoff: running ? nowMinutes : null };
+}
+
+/**
+ * Does a row (sale, expense, purchase) fall in that comparison? Rows on the
+ * cut day count only up to the cutoff, placed in the day by created_at; one
+ * with no timestamp is left out rather than guessed, as the phone does.
+ */
+export function inPeriodComparison(row, cmp, tz) {
+  if (!cmp) return false;
+  const d = ymdOf(row?.date);
+  if (!d || d < cmp.range.start || d > cmp.range.end) return false;
+  if (cmp.cutDate && d === cmp.cutDate) {
+    const m = minutesOfDay(row.created_at, tz);
+    return m !== null && m <= cmp.cutoff;
+  }
+  return true;
+}
+
+/** Σ amountOf(row) over the comparison window. */
+export const sumInPeriodComparison = (rows, cmp, tz, amountOf) =>
+  (rows || []).reduce((s, r) => (inPeriodComparison(r, cmp, tz) ? s + (Number(amountOf(r)) || 0) : s), 0);
+
+/**
+ * Words for the Dashboard comparison: the short text beside each pill and
+ * the section heading line.
+ */
+export function periodComparisonWords(preset, range, cmp, presetLabel) {
+  if (!range || !cmp) return { short: null, heading: presetLabel };
+  const atTime = cmp.cutDate ? ' at this time' : '';
+  if (preset === 'Today') return { short: 'vs yesterday at this time', heading: `${presetLabel}, compared with yesterday at this time` };
+  const days = Math.round((new Date(`${range.end}T00:00:00Z`) - new Date(`${range.start}T00:00:00Z`)) / 86400000) + 1;
+  return {
+    short: days === 1 ? `vs ${shortDate(cmp.range.start)}${atTime}` : `vs previous ${days} days${atTime}`,
+    heading: `${presetLabel}, compared with ${spanLabel(cmp.range)}${atTime}`,
+  };
 }

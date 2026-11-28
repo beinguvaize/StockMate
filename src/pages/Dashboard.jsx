@@ -31,11 +31,14 @@ import usePLRanged from '../components/reports/usePLRanged';
 import { useTopSellingItems } from '../hooks/useTopSellingItems';
 import { supplierOwedSummary } from '../lib/supplierOwed';
 import {
-  periodRange, comparisonRange, sumInRange, inRange, deltaPct, deltaTone, formatDelta,
-  comparisonWords, spanLabel, setupSteps, isNewShop,
+  periodRange, sumInRange, inRange, deltaPct, deltaTone, formatDelta,
+  spanLabel, setupSteps, isNewShop,
 } from '../lib/dashboardFigures';
+import {
+  minutesOfDay, periodComparison, sumInPeriodComparison, periodComparisonWords,
+} from '../lib/salesComparison';
 import { DashboardQuickActions } from '../components/AppLayout';
-import { todayISOInAppTZ, formatShortDateTime, parseLocalDate } from '../lib/utils';
+import { todayISOInAppTZ, formatShortDateTime, parseLocalDate, getAppTimezone } from '../lib/utils';
 import { realtimeEnabled } from '../lib/realtime';
 import {
  ResponsiveContainer,
@@ -274,17 +277,27 @@ const Dashboard = () => {
  const [customRange, setCustomRange] = useState({ start: '', end: ''});
 
  // Business dates in the shop's timezone (lib/dashboardFigures). `range` is
- // null for all time; `prior` is the period of equal length just before it.
+ // null for all time. `cmp` is what it is compared with (owner decision: the
+ // same time of day, as the phone): the period of equal length just before
+ // it, its last day cut at the current time when `range` is still running,
+ // so today compares with yesterday up to this time.
  const todayStr = todayISOInAppTZ();
  const range = useMemo(() => periodRange(datePreset, todayStr, customRange), [datePreset, todayStr, customRange]);
- const prior = useMemo(() => comparisonRange(range), [range]);
+ const tz = getAppTimezone();
+ const nowMinutes = minutesOfDay(new Date(), tz) ?? 24 * 60;
+ const cmp = useMemo(() => periodComparison(range, todayStr, nowMinutes), [range, todayStr, nowMinutes]);
+ // get_pl_ranged works in whole days, so profit can only be compared when
+ // the comparison is whole days. While the period is still running, its
+ // pill waits for the end of the day rather than compare part with whole.
+ const profitCmpWhole = !!cmp && !cmp.cutDate;
 
  // Profit: get_pl_ranged's gross_profit, the figure the Business report and
  // the P&L show (sales.totalCogs based, returns netted). Never worked out here.
  // All time has no window, so it reads from far enough back to cover the books.
  const plWindow = range || { start: '2000-01-01', end: todayStr };
  const { pl, error: plError, refetch: refetchPl } = usePLRanged(plWindow.start, plWindow.end);
- const { pl: priorPl, error: priorPlError, refetch: refetchPriorPl } = usePLRanged(prior?.start, prior?.end);
+ const { pl: priorPl, error: priorPlError, refetch: refetchPriorPl } = usePLRanged(
+   profitCmpWhole ? cmp.range.start : null, profitCmpWhole ? cmp.range.end : null);
 
  // Top-selling items for the same window (lib/topSelling, shared with Sales).
  const top = useTopSellingItems(currentTenantId, range, { limit: 5 });
@@ -325,9 +338,9 @@ const Dashboard = () => {
  const rangePurchases = useMemo(() => sumInRange(purchases, range, purAmt), [purchases, range]);
  // The same sums over the previous period, for the comparison pills. Both
  // sides of a comparison use the same rows and the same rule.
- const priorSales = useMemo(() => (prior ? sumInRange(sales, prior, saleAmt) : null), [sales, prior]);
- const priorExpenses = useMemo(() => (prior ? sumInRange(expenses, prior, expAmt) : null), [expenses, prior]);
- const priorPurchases = useMemo(() => (prior ? sumInRange(purchases, prior, purAmt) : null), [purchases, prior]);
+ const priorSales = useMemo(() => (cmp ? sumInPeriodComparison(sales, cmp, tz, saleAmt) : null), [sales, cmp, tz]);
+ const priorExpenses = useMemo(() => (cmp ? sumInPeriodComparison(expenses, cmp, tz, expAmt) : null), [expenses, cmp, tz]);
+ const priorPurchases = useMemo(() => (cmp ? sumInPeriodComparison(purchases, cmp, tz, purAmt) : null), [purchases, cmp, tz]);
 
  const currentCashBalance = useMemo(() => {
    if (accounts && accounts.length > 0) {
@@ -551,7 +564,7 @@ const Dashboard = () => {
  const PRESET_LABEL = { 'Today': 'Today', 'This Week': 'This week', 'This Month': 'This month', 'Last Month': 'Last month', 'All Time': 'All time', 'Custom Range': range ? spanLabel(range) : 'All dates' };
  const rangeWord = (datePreset === 'Custom Range' && !range) ? 'all time' : (RANGE_WORD[datePreset] || '');
  const rangeTitle = rangeWord ? rangeWord.charAt(0).toUpperCase() + rangeWord.slice(1) : null;
- const words = comparisonWords(datePreset, range, prior, PRESET_LABEL[datePreset]);
+ const words = periodComparisonWords(datePreset, range, cmp, PRESET_LABEL[datePreset]);
  const now = new Date();
  const thisMonthName = now.toLocaleString('en-IN', { month: 'long' });
  const lastMonthName = new Date(now.getFullYear(), now.getMonth() - 1, 1).toLocaleString('en-IN', { month: 'long' });
@@ -567,7 +580,7 @@ const Dashboard = () => {
  // A comparison under a period figure: the pill, then "vs yesterday".
  // `failed` is the previous period's read failing: say so, never a made-up 0%.
  const compareSub = ({ kind, pct, failed }) => {
-   if (!prior) return null;
+   if (!cmp) return null;
    if (failed) return <><Badge tone="neutral">—</Badge><span className="text-mute">could not compare</span></>;
    if (typeof pct !== 'number') return <><Badge tone="neutral">—</Badge>nothing to compare yet</>;
    return <><Badge tone={deltaTone(kind, pct)}>{formatDelta(pct)}</Badge><span className="text-mute">{words.short}</span></>;
@@ -590,7 +603,9 @@ const Dashboard = () => {
      cap: hasAnySale ? 'all bills, cash and credit' : 'your first sale shows here' },
    { key: 'profit', label: `Profit ${rangeWord}`, to: '/reports',
      value: plError ? null : profitValue, failed: !!plError, loading: !pl && !plError,
-     sub: plError ? null : compareSub({ kind: 'income', pct: priorProfit === null ? null : deltaPct(profitValue, priorProfit), failed: !!priorPlError }),
+     sub: plError ? null
+       : cmp && !profitCmpWhole ? <><Badge tone="neutral">—</Badge><span className="text-mute">compares at end of day</span></>
+       : compareSub({ kind: 'income', pct: priorProfit === null ? null : deltaPct(profitValue, priorProfit), failed: !!priorPlError }),
      cap: 'Sales minus cost of goods' },
    { key: 'expenses', label: `Expenses ${rangeWord}`, to: '/expenses',
      value: finError && !useKpi ? null : expensesValue, failed: finError && !useKpi,

@@ -68,7 +68,9 @@ describe('Dashboard renders', () => {
       'Cash balance', 'Owed to you', 'You owe', 'Salary pending', 'Top-selling items', 'You owe most', 'Owed to you most']) {
       expect(t).toContain(label);
     }
-    expect(t).toContain('Today, compared with yesterday');
+    expect(t).toContain('Today, compared with yesterday at this time');
+    // get_pl_ranged is whole days: profit's pill waits for the end of the day.
+    expect(t).toContain('compares at end of day');
     expect(t).toContain('₹300');          // profit, straight from get_pl_ranged
     expect(t).toContain('to 1 supplier');
     expect(t).toContain('Supplier One');

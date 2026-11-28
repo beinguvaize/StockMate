@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   periodRange, comparisonRange, sumInRange, deltaPct, deltaTone, formatDelta,
-  comparisonWords, setupSteps, isNewShop, addDays,
+  setupSteps, isNewShop, addDays,
 } from './dashboardFigures';
 
 describe('periodRange', () => {
@@ -106,22 +106,6 @@ describe('deltaTone: pill colour', () => {
   it('no change or nothing to compare with is grey', () => {
     expect(deltaTone('income', 0)).toBe('neutral');
     expect(deltaTone('cost', null)).toBe('neutral');
-  });
-});
-
-describe('comparisonWords', () => {
-  it('today reads "vs yesterday"', () => {
-    const r = { start: '2026-11-26', end: '2026-11-26' };
-    expect(comparisonWords('Today', r, comparisonRange(r), 'Today'))
-      .toEqual({ short: 'vs yesterday', heading: 'Today, compared with yesterday' });
-  });
-  it('a longer period names the days it is compared with', () => {
-    const r = { start: '2026-11-23', end: '2026-11-26' };
-    expect(comparisonWords('This Week', r, comparisonRange(r), 'This week'))
-      .toEqual({ short: 'vs previous 4 days', heading: 'This week, compared with 19 Nov – 22 Nov' });
-  });
-  it('all time has no comparison', () => {
-    expect(comparisonWords('All Time', null, null, 'All time')).toEqual({ short: null, heading: 'All time' });
   });
 });
 
