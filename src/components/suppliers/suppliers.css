@@ -1,0 +1,12 @@
+/* Suppliers (web redesign): the one animation Tailwind has no class for --
+   the due-date bar grows in once, as drawn in suppliers-01. */
+.sup-agebar > i {
+  display: block;
+  height: 100%;
+  transform-origin: left;
+  animation: supGrowX 560ms var(--ease-out) 200ms backwards;
+}
+@keyframes supGrowX { from { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .sup-agebar > i { animation: none !important; }
+}
