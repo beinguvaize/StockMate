@@ -99,7 +99,7 @@ const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' })
 
 const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale, currentTenantId, taxMode = 'EXCLUSIVE', businessProfile = null, topSellingIds = [], stores = [],
   // Table POS (restaurant) — bind this builder to a table's running tab.
-  initialCart = null, onCartChange = null, tableLabel = null, onSendKOT = null, businessType = null,
+  initialCart = null, initialClientId = null, onCartChange = null, tableLabel = null, onSendKOT = null, businessType = null,
   // Weighing-scale labels. A capability pack, passed in like businessType so
   // this component keeps taking its vertical context from its caller rather
   // than reaching for the tenant itself.
@@ -123,7 +123,8 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cart]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedClientId, setSelectedClientId] = useState('WALKIN');
+  // initialClientId: the client an estimate or order handed over with its items.
+  const [selectedClientId, setSelectedClientId] = useState(() => initialClientId || 'WALKIN');
   const [outstandingPrompt, setOutstandingPrompt] = useState(null); // { clientId, clientName, outstanding, excess, paymentMethod }
   const [printSale, setPrintSale] = useState(null); // completed-sale snapshot for the receipt
   const [showCheckout, setShowCheckout] = useState(false);

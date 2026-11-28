@@ -25,6 +25,10 @@ import { printKOT } from '../../lib/kotPrint';
 import { deductRecipeIngredients } from '../../lib/recipeDeduct';
 import { calculateGST } from '../../lib/gstEngine';
 import { supabase } from '../../lib/supabase';
+import { readHandoff, saleIsConversion, markFailedWords } from '../../lib/convertHandoff';
+import { classifyWriteFailure } from '../../lib/writeOutcome';
+import { useEstimates } from '../../hooks/useEstimates';
+import { useOrders } from '../../hooks/useOrders';
 
 const SalesPage = () => {
   // Maximize window to full-screen in Electron (POS kiosk mode).
@@ -46,23 +50,23 @@ const SalesPage = () => {
   // Non-restaurant tenants have no floor tables — skip that fetch entirely.
   const tablesApi = useTables(currentTenantId, isResto);
 
-  // Estimate → POS handoff: read items stashed by the Estimates page, map them
-  // to InvoiceBuilder cart lines, consume the stash once.
-  const [estimateCart] = useState(() => {
+  // Estimate / order → POS handoff: read items stashed by the Estimates or
+  // Orders page, map them to InvoiceBuilder cart lines, consume the stash
+  // once (lib/convertHandoff). The estimate is marked Billed, or the order
+  // moved to Invoiced, only after the sale is saved (convertAddSale below).
+  const [handoff] = useState(() => {
     try {
       const raw = sessionStorage.getItem('estimate_cart');
       if (!raw) return null;
       sessionStorage.removeItem('estimate_cart');
-      const { items } = JSON.parse(raw);
-      if (!Array.isArray(items) || !items.length) return null;
-      return items.map(it => ({
-        uid: it.id, productId: it.id, name: it.name,
-        basePrice: Number(it.rate) || 0, price: Number(it.rate) || 0,
-        quantity: Number(it.qty) || 1, taxRate: Number(it.taxRate) || 0,
-        modifiers: [], modLabel: null,
-      }));
+      return readHandoff(raw);
     } catch { return null; }
   });
+  const estimateCart = handoff?.cart || null;
+  const [convertSource, setConvertSource] = useState(() => handoff?.source || null);
+  // Only load estimates / orders when there is one to mark.
+  const { setStatus: setEstimateStatus } = useEstimates(convertSource?.kind === 'estimate' ? currentTenantId : null);
+  const { advanceStatus: advanceOrderStatus } = useOrders(convertSource?.kind === 'order' ? currentTenantId : null);
   const { createTicket } = useKOT(currentTenantId);
   // The table whose tab is currently open in the builder (restaurant only).
   const [activeTable, setActiveTable] = useState(null); // { table, tab }
@@ -181,6 +185,30 @@ const SalesPage = () => {
     }
 
     refetchInventory();
+    return result;
+  };
+
+  // A sale rung from an estimate or order: save the sale first; only when it
+  // saved, mark the estimate Billed / move the order to Invoiced. A failed
+  // mark never fails the sale: it is said plainly, with the server's reason.
+  const convertAddSale = async (saleData) => {
+    const result = await addSale(saleData);
+    if (result?.error || !saleIsConversion(convertSource, saleData)) return result;
+    const src = convertSource;
+    setConvertSource(null); // one sale per handoff
+    const saleId = result?.id || saleData.id || null;
+    let res;
+    try {
+      res = src.kind === 'estimate'
+        ? await setEstimateStatus(src.id, 'CONVERTED', saleId ? { converted_sale_id: saleId } : {})
+        : await advanceOrderStatus(src.id, 'INVOICED', { saleId });
+    } catch (e) { res = { error: e }; }
+    if (res?.error) {
+      const f = classifyWriteFailure(res.error, { noun: 'status' });
+      const why = f.maySaved ? `${f.title}. It may have been saved; check before trying again. ${f.detail}` : f.detail;
+      console.error('[convert] marking billed failed', res.error);
+      addNotification(markFailedWords(src, why), 'error', 10000);
+    }
     return result;
   };
   const { products, inventoryBalances, inventoryLocations, loading: productsLoading, refetch: refetchInventory } = useInventory(currentTenantId);
@@ -404,13 +432,14 @@ const SalesPage = () => {
               products={products}
               inventoryBalances={inventoryBalances}
               clients={clients}
-              onPlaceSale={editingSale ? handleEditSale : (isResto && activeTable ? placeTableSale : addSale)}
+              onPlaceSale={editingSale ? handleEditSale : (isResto && activeTable ? placeTableSale : (convertSource ? convertAddSale : addSale))}
               currentTenantId={currentTenantId}
               taxMode={businessProfile?.tax_mode || 'EXCLUSIVE'}
               businessProfile={businessProfile}
               topSellingIds={topSellingIds}
               stores={posStores}
               initialCart={editCart || activeTable?.tab?.cart || estimateCart || null}
+              initialClientId={!editingSale && !activeTable && handoff?.clientId && (clients || []).some(c => c.id === handoff.clientId) ? handoff.clientId : null}
               onCartChange={isResto && activeTable ? persistTabCart : null}
               tableLabel={activeTable?.table?.label || null}
               onSendKOT={isResto && activeTable ? sendTableKOT : null}
