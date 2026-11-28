@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
 import { isElectron, fetchWithCache } from '../lib/offline/hookAdapter';
 import { restRpc } from '../lib/supabase';
+import { vanSaleParams } from '../lib/vanSale';
 import { useAuth } from '../context/AuthContext';
 import { realtimeEnabled } from '../lib/realtime';
 import useRefetchOnFocus from './useRefetchOnFocus';
@@ -276,32 +277,19 @@ export const useOperations = (tenantId) => {
   // batches and write the movement log itself -- which is why the separate
   // adjust_inventory_atomic loop is gone rather than kept alongside: it would
   // have deducted the same units a second time.
-  const recordVanSale = async (routeId, vehicleLocId, { clientName, items, totalAmount, paymentMethod, vehicleId }) => {
+  const recordVanSale = async (routeId, vehicleLocId, { clientId, items, totalAmount, paymentMethod }) => {
     if (!currentUser?.id) return { success: false, error: new Error('recordVanSale: not authenticated') };
     const today = new Date().toISOString().split('T')[0];
-    const saleId = crypto.randomUUID();
 
-    const { error: rpcError } = await restRpc('process_sale', {
-      p_id: saleId,
-      p_shop_id: null,
-      // `id` is the key every server-side reader uses. `rate` matches the POS
-      // so reports aggregate the two kinds of sale together.
-      p_items: (items || []).map(i => ({
-        id: i.productId,
-        name: i.productName,
-        quantity: i.quantity,
-        rate: i.sellingPrice,
-      })),
-      p_total_amount: totalAmount,
-      p_payment_method: paymentMethod || 'CASH',
-      p_payment_status: 'PAID',
-      p_date: today,
-      p_user_id: currentUser.id,
-      p_tenant_id: tenantId || null,
-      p_location_id: vehicleLocId || null,
-      p_route_id: routeId || null,
-      p_source_app: 'WEB',
+    // The chosen client and, for CREDIT, PENDING with nothing paid -- the same
+    // values the phone's van sale sends. See lib/vanSale.js.
+    const built = vanSaleParams({
+      saleId: crypto.randomUUID(), clientId, items, totalAmount, paymentMethod,
+      date: today, userId: currentUser.id, tenantId, vehicleLocId, routeId,
     });
+    if (built.error) return { success: false, error: built.error };
+
+    const { error: rpcError } = await restRpc('process_sale', built.params);
     if (rpcError) {
       console.error('recordVanSale process_sale error:', rpcError);
       return { success: false, error: rpcError };

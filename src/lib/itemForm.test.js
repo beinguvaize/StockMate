@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isServiceForm, validateItemPricing, stockFieldsFor, defaultProductType } from './itemForm';
+import { isServiceForm, validateItemPricing, stockFieldsFor, defaultProductType, editFieldsFor, SERVER_OWNED_ON_EDIT } from './itemForm';
 
 describe('isServiceForm', () => {
   it('is true for a services tenant, whatever the item', () => {
@@ -86,5 +86,40 @@ describe('defaultProductType', () => {
   it('round-trips into service mode', () => {
     const businessType = 'SERVICES';
     expect(isServiceForm({ businessType, product_type: defaultProductType(businessType) })).toBe(true);
+  });
+});
+
+describe('editFieldsFor', () => {
+  const row = { name: 'Item A', sellingPrice: 12, costPrice: 8, stock: 40, lowStockThreshold: 5, taxRate: 5 };
+
+  it('drops stock and cost from an edit', () => {
+    const out = editFieldsFor(row);
+    expect(out).not.toHaveProperty('stock');
+    expect(out).not.toHaveProperty('costPrice');
+    expect(SERVER_OWNED_ON_EDIT).toEqual(['stock', 'costPrice']);
+  });
+
+  it('keeps every field the form lets the user change', () => {
+    expect(editFieldsFor(row)).toEqual({ name: 'Item A', sellingPrice: 12, lowStockThreshold: 5, taxRate: 5 });
+  });
+
+  it('does not touch the row it was given (create still sends both)', () => {
+    editFieldsFor(row);
+    expect(row.stock).toBe(40);
+    expect(row.costPrice).toBe(8);
+  });
+});
+
+describe('validateItemPricing on an edit', () => {
+  it('does not demand a cost the user can no longer type', () => {
+    expect(validateItemPricing({ costPrice: 0, sellingPrice: 10 }, { editing: true })).toBeNull();
+  });
+
+  it('still demands it on create', () => {
+    expect(validateItemPricing({ costPrice: 0, sellingPrice: 10 })).toMatch(/Cost price is required/);
+  });
+
+  it('still demands a selling price on an edit', () => {
+    expect(validateItemPricing({ costPrice: 5, sellingPrice: 0 }, { editing: true })).toMatch(/Selling price/);
   });
 });

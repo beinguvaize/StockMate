@@ -38,7 +38,10 @@ const VanSalePage = () => {
 
   const handleSubmit = async ({ cart, clientId, clientName, paymentMethod, total }) => {
     const locId = vehicleLocId;
+    // The client's id, not only its name: process_sale books a credit sale
+    // against p_shop_id, and the web used to send null here.
     const { success, error } = await recordVanSale(route.id, locId, {
+      clientId,
       clientName,
       items: cart.map(i => ({
         productId:    i.productId,
