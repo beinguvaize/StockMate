@@ -14,6 +14,7 @@ import { uploadProductImage, listTenantProductImages } from '../../../lib/supaba
 import { shrinkImageFile } from '../../../lib/imageShrink';
 import { useTenant } from '../../../context/TenantContext';
 import { PACK_KEYS, fieldsFor, cleanAttributes, validateAttributes } from '../../../lib/sectorFields';
+import { marginOnPrice, packSizeForMargin } from '../../../lib/margin';
 
 const DEFAULT_CATEGORIES = [
   'Electronics', 'Clothing & Apparel', 'Food & Beverages', 'Pharmaceuticals',
@@ -315,10 +316,10 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
 
   const c = parseFloat(formData.costPrice);
   const s = parseFloat(formData.sellingPrice);
-  const showMargin = c > 0 && !isNaN(s);
-  // Markup on cost, as this form has always shown it (the products table
-  // shows margin on the selling price; known, left for the owner).
-  const margin = showMargin ? ((s - c) / c) * 100 : 0;
+  const showMargin = c > 0 && s > 0;
+  // Margin on the selling price (lib/margin): the products table's figure
+  // and the one the till's minimum-margin check uses.
+  const margin = showMargin ? marginOnPrice(s, c) : 0;
   const marginColor = margin < 0 ? 'text-bad-text' : margin < 10 ? 'text-amber-text' : 'text-good-text';
   const pricingError = validateItemPricing({ ...formData, businessType });
   const steps = formSteps(formData, { pricingError, hasPhoto: !!imagePreview });
@@ -627,14 +628,14 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
 
                 {/* Work the pack size out from the shelf price. Given a cost
                     per base unit, a shelf price and a margin FIX the weight.
-                    Same margin as the rest of this screen: markup on cost.
-                      sell = cost × size × (1 + m/100)  ⇒  size = sell ÷ (cost × (1 + m/100)) */}
+                    Same margin as the rest of this screen: on the selling price.
+                      sell = cost × size ÷ (1 − m/100)  ⇒  size = sell × (1 − m/100) ÷ cost
+                    (lib/margin packSizeForMargin) */}
                 {(parseFloat(formData.costPrice) > 0) && (() => {
                   const price = parseFloat(wantPrice);
                   const marginPc = parseFloat(wantMargin);
                   const cost = parseFloat(formData.costPrice);
-                  const ok = price > 0 && marginPc >= 0;
-                  const size = ok ? price / (cost * (1 + marginPc / 100)) : null;
+                  const size = packSizeForMargin(price, marginPc, cost);
                   const isWeight = ['KG', 'LITRE'].includes(String(formData.unit || '').toUpperCase());
                   return (
                     <div className="mt-3 flex flex-wrap items-end gap-2.5 border-t border-[#F3E3C8] pt-3">
@@ -644,12 +645,12 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                         <Input id="it-want" type="number" step="0.01" placeholder="30" value={wantPrice} onChange={e => setWantPrice(e.target.value)} />
                       </div>
                       <div className="w-24">
-                        <Label htmlFor="it-wantm">Margin % on cost</Label>
+                        <Label htmlFor="it-wantm">Margin % on price</Label>
                         <Input id="it-wantm" type="number" step="1" placeholder="25" value={wantMargin} onChange={e => setWantMargin(e.target.value)} />
                       </div>
                       {!(size > 0) && (wantPrice !== '' || wantMargin !== '') && (
                         <span className="pb-2 text-[12.5px] font-medium text-mute">
-                          {!(price > 0) ? 'Enter the price you want to charge.' : 'Margin cannot be negative.'}
+                          {!(price > 0) ? 'Enter the price you want to charge.' : marginPc >= 100 ? 'Margin must be under 100%.' : 'Margin cannot be negative.'}
                         </span>
                       )}
                       {size > 0 && (<>
@@ -709,7 +710,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 <div>
                   <span className="mb-1.5 block font-tight text-[12.5px] font-semibold text-ink-2">Current margin</span>
                   <div className="flex h-9 items-center justify-between rounded-[10px] bg-tile px-3 text-[13.5px]">
-                    <span className="text-body">On cost</span>
+                    <span className="text-body">On price</span>
                     <b className={cn('font-tight font-semibold tabular-nums', showMargin ? marginColor : 'text-mute')}>
                       {showMargin ? `${margin.toFixed(1)}%${margin < 0 ? ' · loss' : margin < 10 ? ' · low' : ''}` : '—'}
                     </b>
@@ -846,7 +847,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
             <div className="px-[18px] pt-1.5 pb-3">
               <SumRow label="Sells at" value={s > 0 ? `${cur}${fx(s)}${isService ? '' : ` / ${formData.unit}`}` : '—'} />
               {!isService && packConv > 0 && s > 0 && <SumRow label={`Per ${formData.secondary_unit}`} value={`${cur}${fx(s * packConv)}`} />}
-              {!isService && <SumRow label="Margin on cost" value={showMargin ? `${margin.toFixed(1)}%` : '—'} cls={showMargin ? marginColor : ''} />}
+              {!isService && <SumRow label="Margin on price" value={showMargin ? `${margin.toFixed(1)}%` : '—'} cls={showMargin ? marginColor : ''} />}
               <SumRow label="GST" value={taxStatus === 'TAXABLE'
                 ? `${Number(formData.taxRate) || 0}%${Number(formData.cess_rate) ? ` + ${Number(formData.cess_rate)}% cess` : ''}${formData.hsn_code ? ` · ${isService ? 'SAC' : 'HSN'} ${formData.hsn_code}` : ''}`
                 : taxStatus === 'EXEMPT' ? 'Exempt or nil' : 'Non-GST'} />

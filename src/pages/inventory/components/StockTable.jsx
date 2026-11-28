@@ -5,6 +5,7 @@ import { useTenant } from '../../../context/TenantContext';
 import { Button } from '../../../components/ui/button';
 import { RowMenu, MenuItem, MenuRule } from '../../../components/ui/RowMenu';
 import { reorderOf, statusOf } from '../../../lib/inventoryView';
+import { marginOnPrice } from '../../../lib/margin';
 import { cn } from '../../../lib/utils';
 import { ProductAvatar, CheckBox } from './parts';
 
@@ -38,13 +39,12 @@ const packConv = (p) => {
 // Current margin on the LATEST prices — sell vs weighted-average cost
 // (products.costPrice, kept fresh from open batches). Null when no sell price,
 // so a serviceless/priceless row shows "—" rather than a bogus 0%.
-// Margin here is on the selling price; the item form shows markup on cost.
-// The two are left as they are (known, owner to decide).
+// Margin on the selling price (lib/margin), the one definition the item
+// form uses too.
 const marginPct = (p) => {
   const sell = toNum(p.sellingPrice);
   const cost = toNum(p.costPrice);
-  if (sell <= 0) return null;
-  return ((sell - cost) / sell) * 100;
+  return marginOnPrice(sell, cost);
 };
 // Loss red, thin amber (<15%), healthy ink. Tiers let the eye catch the
 // items bleeding margin without reading every number.
