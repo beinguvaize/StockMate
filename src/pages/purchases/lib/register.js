@@ -223,6 +223,26 @@ export function totals(bills) {
   return { count: bills.length, total: r2(total), paid: r2(paid), due: r2(due), overdue: r2(overdue) };
 }
 
+/**
+ * The two register figures in the page's strip, over the bills in view:
+ * what is due (and from how many suppliers), and the overdue part with how
+ * many bills and how late the oldest is. Sums only; no new money rule.
+ */
+export function viewFigures(bills) {
+  const t = totals(bills);
+  const over = bills.filter((b) => b.state === 'over');
+  const oldestLate = over.reduce((m, b) => Math.max(m, -Number(b.dleft) || 0), 0);
+  const dueBills = bills.filter((b) => b.state !== 'cancelled' && b.due >= 0.5);
+  return {
+    due: t.due,
+    dueCount: dueBills.length,
+    dueSuppliers: new Set(dueBills.map((b) => b.supplier_id)).size,
+    overdue: t.overdue,
+    overdueCount: over.length,
+    oldestLate,
+  };
+}
+
 /** Count and money for every tab, over the filtered set. */
 export function tabStats(filtered) {
   return Object.fromEntries(TABS.map((tab) => [tab.id, totals(filtered.filter(tab.test))]));
