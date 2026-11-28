@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parsePeriod, overlaps, findOverlapping, describePeriod, monthIsPaid, runsPaidInMonth, paidByEmployeeInMonth, monthToDate, financialYear, yearToDate, monthlyPayItem, needsOverlapConfirmation, paidForWindow } from './payrollPeriods';
+import { parsePeriod, overlaps, findOverlapping, describePeriod, monthIsPaid, runsPaidInMonth, paidByEmployeeInMonth, monthToDate, financialYear, yearToDate, monthlyPayItem, needsOverlapConfirmation, paidForWindow, paidOnLine } from './payrollPeriods';
 
 /**
  * The defect these pin: the same window could be paid twice. FUTURE DISPO's
@@ -621,5 +621,38 @@ describe('monthToDate on a monthly slip', () => {
     const mtd = monthToDate({ run: m.run, records, employeeId: AK });
     const ytd = yearToDate({ run: m.run, records, employeeId: AK });
     expect(ytd.totalAmount).toBeGreaterThanOrEqual(mtd.totalAmount);
+  });
+});
+
+describe('paidForWindow with staff advances', () => {
+  const E = 'e1';
+  const line = (extra) => ({ employeeId: E, payType: 'MONTHLY', ...extra });
+
+  it('counts the recovered advance as paid, not just the cash', () => {
+    const records = [{ id: 'r1', period: '2026-11', processed_at: '2026-11-30T10:00:00Z',
+      items: [line({ netPay: 16000, earnedNet: 20000, advanceRecovered: 4000 })] }];
+    expect(paidForWindow({ from: '2026-11-01', to: '2026-11-30', employeeId: E, records })).toBe(20000);
+    // a partly overlapping window is pro-rated on the whole 20,000
+    expect(paidForWindow({ from: '2026-11-01', to: '2026-11-15', employeeId: E, records })).toBe(10000);
+  });
+
+  it('counts a run that paid no cash at all because the advance took everything', () => {
+    const records = [{ id: 'r1', period: '2026-11-01/2026-11-07', processed_at: '2026-11-07T10:00:00Z',
+      items: [line({ netPay: 0, earnedNet: 2500, advanceRecovered: 2500 })] }];
+    expect(paidForWindow({ from: '2026-11-01', to: '2026-11-30', employeeId: E, records })).toBe(2500);
+  });
+
+  it('is unchanged for runs saved before advances existed', () => {
+    const records = [{ id: 'r1', period: '2026-11', processed_at: '2026-11-30T10:00:00Z', items: [line({ netPay: 7000 })] }];
+    expect(paidForWindow({ from: '2026-11-01', to: '2026-11-30', employeeId: E, records })).toBe(7000);
+    expect(paidOnLine({ netPay: 7000 })).toBe(7000);
+    expect(paidOnLine({ netPay: 7000, advanceRecovered: -5 })).toBe(7000);
+    expect(paidOnLine(undefined)).toBe(0);
+  });
+
+  it('ignores deleted runs, recovered part included', () => {
+    const records = [{ id: 'r1', period: '2026-11', deleted_at: '2026-12-01T00:00:00Z', processed_at: '2026-11-30T10:00:00Z',
+      items: [line({ netPay: 16000, advanceRecovered: 4000 })] }];
+    expect(paidForWindow({ from: '2026-11-01', to: '2026-11-30', employeeId: E, records })).toBe(0);
   });
 });

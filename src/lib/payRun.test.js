@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildPayRun, payRunItem, markCounts, dayRateWage, leaveUse, netOf,
-  isDayRate, payRunTotals,
+  isDayRate, payRunTotals, planAdvanceRecovery,
 } from './payRun';
 
 // The staff and figures on the approved phone mockup (Run Payroll boards),
@@ -214,5 +214,44 @@ describe('small rules', () => {
 
   it('keeps statutory deductions in the net', () => {
     expect(netOf({ basePay: 1000, bonus: 100, deductions: 50, alreadyPaid: 200, statutoryTotal: 120 })).toBe(730);
+  });
+});
+
+describe('planAdvanceRecovery (preview of what process_payroll_run takes)', () => {
+  it('takes the per-run amount, never more than owed or than net pay', () => {
+    expect(planAdvanceRecovery({ netPay: 20000, balance: { outstanding: 9000, due_per_run: 4000 } }))
+      .toEqual({ outstanding: 9000, planned: 4000 });
+    expect(planAdvanceRecovery({ netPay: 600, balance: { outstanding: 1000, due_per_run: 1000 } }).planned).toBe(600);
+    expect(planAdvanceRecovery({ netPay: 5000, balance: { outstanding: 300, due_per_run: 5000 } }).planned).toBe(300);
+  });
+  it('skip takes nothing; recover all takes everything owed up to net', () => {
+    const balance = { outstanding: 5000, due_per_run: 1000 };
+    expect(planAdvanceRecovery({ netPay: 8000, balance, skip: true })).toEqual({ outstanding: 5000, planned: 0 });
+    expect(planAdvanceRecovery({ netPay: 8000, balance, recoverAll: true }).planned).toBe(5000);
+    expect(planAdvanceRecovery({ netPay: 3000, balance, recoverAll: true }).planned).toBe(3000);
+  });
+  it('is 0 with no balance, a zero per-run amount, or no pay', () => {
+    expect(planAdvanceRecovery({ netPay: 8000 })).toEqual({ outstanding: 0, planned: 0 });
+    expect(planAdvanceRecovery({ netPay: 8000, balance: { outstanding: 5000, due_per_run: 0 } }).planned).toBe(0);
+    expect(planAdvanceRecovery({ netPay: 0, balance: { outstanding: 5000, due_per_run: 1000 } }).planned).toBe(0);
+  });
+});
+
+describe('buildPayRun with advances', () => {
+  const employees = [
+    { id: 'a', name: 'A', status: 'ACTIVE', pay_type: 'MONTHLY', salary: 30000 },
+    { id: 'b', name: 'B', status: 'ACTIVE', pay_type: 'MONTHLY', salary: 30000 },
+  ];
+  const from = '2026-11-01', to = '2026-11-30';
+  it('adds the two fields and leaves netPay and the totals as earned', () => {
+    const plain = buildPayRun({ employees, from, to });
+    const run = buildPayRun({ employees, from, to, advances: { a: { outstanding: 5000, due_per_run: 2000 } } });
+    expect(run.items[0]).toMatchObject({ advanceOutstanding: 5000, advancePlanned: 2000, netPay: plain.items[0].netPay });
+    expect(run.items[1]).toMatchObject({ advanceOutstanding: 0, advancePlanned: 0 });
+    expect(run.totalNet).toBe(plain.totalNet);
+  });
+  it('adds nothing when no advances are passed (the web page today)', () => {
+    const run = buildPayRun({ employees, from, to });
+    expect('advancePlanned' in run.items[0]).toBe(false);
   });
 });

@@ -25,6 +25,8 @@ it raises an exception naming the specific assertion that broke.
 | `restore_test.sql` | Restore round trip: every shop table byte-identical after restore and after undo; every insert/delete trigger guarded; incomplete backups and non-owners refused |
 | `ai_chat_test.sql` | AI chat read functions: STABLE, no tenant argument, no DML, anon refused; one shop cannot read another; a global admin gets their own tenant only; staff refused; voided and soft-deleted rows excluded; cache, quota and the on/off switch; both tables outside shop backups. Over MCP, swap the closing SELECT and ROLLBACK for a RAISE so the pass list shows and nothing can commit |
 | `gl_posting_test.sql` | GL posts each event once on its own date: a payment never rewrites the sale journal; sales debit Receivables; ledger receipts, supplier payments and UPI purchases post to Cash; a real receipt replaces an inferred one |
+| `staff_advances_test.sql` | Staff advances end to end in a throwaway shop: give and replay; recovery capped at net, oldest first, skip, recover all; delete a run with `delete_payroll_run` and the old two-step way; a failure mid-run saves nothing; an old app is refused only when a recovery is due; a shop with no advances gets exactly what the old `process_payroll_run` wrote; collect, write off, replay; update and cancel; who may; anon refused; GL 1300 = sum of `staff_advance_balances`. Over MCP: drop BEGIN/ROLLBACK and run `SELECT set_config('staff_test.mcp','on',false);` first |
+| `staff_advances_concurrency_test.sql` | DEV ONLY, commits then cleans up: two pay runs at once (one through a one-off pg_cron job) cannot recover the same money |
 
 ## Conventions
 

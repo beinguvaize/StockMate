@@ -64,7 +64,9 @@ describe('payroll-run server function', () => {
       ks: { '2026-11-16': { status: 'PRESENT', custom_rate: null }, '2026-11-17': { status: 'HALF_DAY', custom_rate: null } },
       aj: { '2026-11-03': { status: 'ABSENT', custom_rate: null }, '2026-11-04': { status: 'SICK', custom_rate: null } },
     };
-    const web = buildPayRun({ employees: staff, attendance, records: [], from: '2026-11-01', to: '2026-11-30' });
+    // advances: {} -- the server always reads staff advances, so every line
+    // carries advanceOutstanding / advancePlanned (0 here).
+    const web = buildPayRun({ employees: staff, attendance, records: [], from: '2026-11-01', to: '2026-11-30', advances: {} });
     expect(out.run).toEqual(JSON.parse(JSON.stringify(web)));
     expect(out.period).toBe('2026-11');
     expect(out.run.items.map(i => i.employeeId).sort()).toEqual(['aj', 'ks']);
@@ -133,5 +135,64 @@ describe('payroll-run server function', () => {
       { employees: new Error('permission denied for table employees'), attendance: [], payroll: [] });
     expect(res.status).toBe(502);
     expect((await res.json()).message).toContain('permission denied');
+  });
+
+  describe('staff advances', () => {
+    const balances = [
+      { employee_id: 'aj', outstanding: 5000, due_per_run: 2000, open_advances: 2 },
+      { employee_id: 'ks', outstanding: 300, due_per_run: 300, open_advances: 1 },
+    ];
+    const body = { tenant_id: TENANT, from: '2026-11-01', to: '2026-11-30' };
+
+    it('adds what each person owes and what this run would take, without touching netPay', async () => {
+      const plain = await (await call(body, { employees: staff, attendance: marks, payroll: [] })).json();
+      const res = await call(body, { employees: staff, attendance: marks, payroll: [], staff_advance_balances: balances });
+      expect(res.status).toBe(200);
+      const out = await res.json();
+      const aj = out.run.items.find(i => i.employeeId === 'aj');
+      const ks = out.run.items.find(i => i.employeeId === 'ks');
+      expect(aj.advanceOutstanding).toBe(5000);
+      expect(aj.advancePlanned).toBe(2000);
+      // ks earned 600; owes 300: all 300 planned
+      expect(ks.advancePlanned).toBe(300);
+      // every field the released phone reads is exactly as before
+      for (const line of out.run.items) {
+        const before = plain.run.items.find(i => i.employeeId === line.employeeId);
+        const { advanceOutstanding: _o, advancePlanned: _p, ...rest } = line;
+        const { advanceOutstanding: _a, advancePlanned: _b, ...restBefore } = before;
+        expect(rest).toEqual(restBefore);
+      }
+      expect(out.run.totalNet).toBe(plain.run.totalNet);
+      expect(out.advances_read).toBe(true);
+      expect(out.contract_version).toBe(1);
+    });
+
+    it('previews skip_advance and recover_all the way the database applies them', async () => {
+      const out = await (await call({ ...body, skip_advance: ['aj'], recover_all: ['ks'] },
+        { employees: staff, attendance: marks, payroll: [], staff_advance_balances: balances })).json();
+      expect(out.run.items.find(i => i.employeeId === 'aj').advancePlanned).toBe(0);
+      expect(out.run.items.find(i => i.employeeId === 'aj').advanceOutstanding).toBe(5000);
+      expect(out.run.items.find(i => i.employeeId === 'ks').advancePlanned).toBe(300);
+    });
+
+    it('still costs the run when advances cannot be read, and says why', async () => {
+      const res = await call(body, { employees: staff, attendance: marks, payroll: [],
+        staff_advance_balances: new Error('relation "staff_advance_balances" does not exist') });
+      expect(res.status).toBe(200);
+      const out = await res.json();
+      expect(out.advances_read).toBe(false);
+      expect(out.advances_error).toContain('does not exist');
+      expect(out.run.items.every(i => i.advancePlanned === 0)).toBe(true);
+    });
+
+    it('does not pay the recovered part again in an overlapping run', async () => {
+      // A month run paid aj 9,000 cash and took 2,000 back against an advance.
+      const prior = [{ id: 'r1', period: '2026-11', processed_at: '2026-11-30T10:00:00Z', deleted_at: null, total_net: 9000,
+        items: [{ employeeId: 'aj', payType: 'MONTHLY', netPay: 9000, earnedNet: 11000, advanceRecovered: 2000 }] }];
+      const out = await (await call(body, { employees: staff, attendance: marks, payroll: prior })).json();
+      const aj = out.run.items.find(i => i.employeeId === 'aj');
+      expect(aj.alreadyPaid).toBe(11000);
+      expect(aj.netPay).toBe(Math.max(0, aj.basePay - aj.statutoryTotal - 11000));
+    });
   });
 });
