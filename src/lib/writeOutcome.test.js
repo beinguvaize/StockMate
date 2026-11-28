@@ -88,7 +88,10 @@ describe('isTransportFailure', () => {
 
 describe('one definition of the rule', () => {
   const ADAPTER = readFileSync(join(here, 'offline', 'hookAdapter.js'), 'utf8');
-  const PAYROLL = readFileSync(join(here, '..', 'pages', 'Payroll.jsx'), 'utf8');
+  // The attendance grid's save lives in a hook since the payroll redesign;
+  // its bar is drawn by AttendanceTab.
+  const ATT_HOOK = readFileSync(join(here, '..', 'hooks', 'usePayrollAttendance.js'), 'utf8');
+  const ATT_TAB = readFileSync(join(here, '..', 'components', 'payroll', 'AttendanceTab.jsx'), 'utf8');
 
   it('hookAdapter.isOfflineError is this function, not a copy of it', () => {
     // Five hooks ask the same question to decide whether to queue a write for
@@ -99,23 +102,24 @@ describe('one definition of the rule', () => {
   });
 
   it('the attendance screen classifies instead of assuming', () => {
-    expect(PAYROLL).toContain('classifyWriteFailure(error');
+    expect(ATT_HOOK).toContain('classifyWriteFailure(error');
     // The old line asserted the write was lost whatever had happened.
-    expect(PAYROLL).not.toMatch(/setAttSaveError\(error\?\.message \|\| 'Could not save attendance'\)/);
+    expect(ATT_HOOK).not.toMatch(/Could not save attendance/);
   });
 
   it('offers a re-read rather than a discard when the outcome is unknown', () => {
     // Discard is the only button that can destroy committed work here.
-    expect(PAYROLL).toMatch(/attSaveError\?\.maySaved \? \(/);
-    expect(PAYROLL).toContain('att-check-server');
-    expect(PAYROLL).toContain('reloadAttendance');
+    expect(ATT_TAB).toMatch(/problem\?\.maySaved \? \(/);
+    expect(ATT_TAB).toContain('att-check-server');
+    expect(ATT_TAB).toContain('onClick={att.reload}');
   });
 
   it('keeps the pending edits after a failed save', () => {
     // Re-saving is an upsert on (tenant_id, employee_id, day) and costs
     // nothing; losing the buffer costs the user their afternoon.
-    const save = PAYROLL.slice(PAYROLL.indexOf('const saveAttendance ='));
-    const failBranch = save.slice(0, save.indexOf('setSavedAtt'));
-    expect(failBranch).not.toMatch(/setPendingAtt\(\{\}\)/);
+    const save = ATT_HOOK.slice(ATT_HOOK.indexOf('const save = async'));
+    const failBranch = save.slice(0, save.indexOf('setSaved('));
+    expect(failBranch).toContain('if (!success)');
+    expect(failBranch).not.toMatch(/setPending\(\{\}\)/);
   });
 });
