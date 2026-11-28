@@ -1,502 +1,313 @@
 import React, { useMemo, useState } from 'react';
-import { useDialogClose } from '../hooks/useDialogClose';
-import {
-  Wallet, Landmark, CreditCard, Banknote, Plus, ArrowRightLeft,
-  ArrowUpRight, ArrowDownLeft, X, Trash2, Pencil,
-} from 'lucide-react';
+import { Plus, ArrowRightLeft, ArrowUpRight, ArrowDownLeft, Pencil, Wallet, AlertTriangle, X } from 'lucide-react';
 import { useTenant } from '../context/TenantContext';
 import { useNotifications } from '../context/NotificationContext';
-import { useAccounts, emiOf, loanStats } from '../hooks/useAccounts';
+import { useAccounts, loanStats } from '../hooks/useAccounts';
+import { cn, formatDate } from '../lib/utils';
+import {
+  inr, visibleAccounts, upiHandlesFor, mergedBalance, totalBalance, linkedUpiIds, ledgerRows,
+  accountSubline, LEDGER_FILTERS,
+} from '../lib/accountsView';
+import { Button } from '../components/ui/button';
+import { CloseButton } from '../components/ui/SidePanel';
+import { Pill } from '../components/payroll/parts';
+import WriteFailure from '../components/invoices/WriteFailure';
+import { AccountIcon, Chips } from '../components/accounts/parts';
+import {
+  AddAccountDialog, EditAccountDialog, TransferDialog, EntryDialog, PayEmiDialog,
+} from '../components/accounts/AccountDialogs';
 
-const inr = (n) => `₹${(Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const TYPES = [
-  { id: 'CASH', label: 'Cash', icon: Banknote },
-  { id: 'BANK', label: 'Bank', icon: Landmark },
-  { id: 'UPI', label: 'UPI', icon: Wallet },
-  { id: 'CARD', label: 'Card', icon: CreditCard },
-  { id: 'LOAN', label: 'Loan', icon: Landmark },
-];
-const iconFor = (t) => (TYPES.find((x) => x.id === t) || TYPES[1]).icon;
-
+/**
+ * Cash and Bank (web redesign, approved mockups accounts-01 to 13).
+ *
+ * What the cards and the ledger show is lib/accountsView; every save goes
+ * through useAccounts exactly as before (this page adds no writes). A failed
+ * save stays in its dialog with the real reason.
+ */
 const Accounts = () => {
   const { currentTenantId } = useTenant();
   const { addNotification } = useNotifications();
-  const { accounts, txns, balances, loading, error, refetch, createAccount, updateAccount, removeAccount, setDefaultAccount, addTxn, transfer, loanPayments, payEMI } = useAccounts(currentTenantId);
-  const [emiFor, setEmiFor] = useState(null); // loan account → pay-EMI modal
-  const [editAcc, setEditAcc] = useState(null); // account being edited
+  const {
+    accounts, txns, balances, loading, error, refetch,
+    createAccount, updateAccount, removeAccount, setDefaultAccount, addTxn, transfer, loanPayments, payEMI,
+  } = useAccounts(currentTenantId);
 
-  const [modal, setModal] = useState(null); // 'add' | 'txn' | 'transfer' | null
-  const [active, setActive] = useState(null); // account id for ledger view
-  const [ledgerFilter, setLedgerFilter] = useState('ALL'); // 'ALL' | 'UPI' | 'DIRECT'
+  const [modal, setModal] = useState(null);       // 'add' | 'txn' | 'transfer' | null
+  const [editAcc, setEditAcc] = useState(null);
+  const [emiFor, setEmiFor] = useState(null);
+  const [active, setActive] = useState(null);     // account id whose ledger is open
+  const [ledgerFilter, setLedgerFilter] = useState('ALL');
+  const [failure, setFailure] = useState(null);   // a failed Set as default
 
-  // Linked UPI accounts merge into their bank's card — not shown standalone.
-  const isLinkedUpi = (a) => a.type === 'UPI' && a.linked_bank_account_id;
-  const visibleAccounts = useMemo(() => accounts.filter((a) => !isLinkedUpi(a)), [accounts]);
-  const upiHandlesFor = useMemo(() => {
-    const map = {};
-    accounts.filter(isLinkedUpi).forEach((u) => {
-      (map[u.linked_bank_account_id] = map[u.linked_bank_account_id] || []).push(u.upi_id || u.name);
-    });
-    return map;
-  }, [accounts]);
-
-  // Merged balance = account's own + any linked UPI accounts folded in (so a
-  // stray pre-link balance parked on a now-hidden UPI account never vanishes).
-  const mergedBalance = (id) =>
-    (balances[id] || 0) + (upiHandlesFor[id]?.length ? accounts.filter((u) => u.linked_bank_account_id === id).reduce((s, u) => s + (balances[u.id] || 0), 0) : 0);
-
-  const totalBalance = useMemo(
-    () => accounts.reduce((s, a) => s + (balances[a.id] || 0), 0),
-    [accounts, balances],
-  );
-  // Include historic txns posted directly to a since-linked UPI account, so a
-  // merged bank card's ledger shows its full money trail, not just post-link entries.
-  const linkedUpiIds = useMemo(
-    () => accounts.filter(isLinkedUpi).filter((u) => u.linked_bank_account_id === active).map((u) => u.id),
-    [accounts, active],
-  );
-  const isUpiTxn = (t) => t.mode === 'UPI' || linkedUpiIds.includes(t.account_id);
-  const activeTxnsAll = useMemo(
-    () => active ? txns.filter((t) => t.account_id === active || linkedUpiIds.includes(t.account_id)) : [],
-    [txns, active, linkedUpiIds],
-  );
-  const activeTxns = useMemo(() => {
-    if (ledgerFilter === 'UPI') return activeTxnsAll.filter(isUpiTxn);
-    if (ledgerFilter === 'DIRECT') return activeTxnsAll.filter((t) => !isUpiTxn(t));
-    return activeTxnsAll;
-  }, [activeTxnsAll, ledgerFilter, linkedUpiIds]);
+  const cards = useMemo(() => visibleAccounts(accounts), [accounts]);
+  const handles = useMemo(() => upiHandlesFor(accounts), [accounts]);
+  const total = useMemo(() => totalBalance(accounts, balances), [accounts, balances]);
+  const linkedIds = useMemo(() => linkedUpiIds(accounts, active), [accounts, active]);
+  const rows = useMemo(() => ledgerRows(txns, active, linkedIds, ledgerFilter), [txns, active, linkedIds, ledgerFilter]);
   const activeAcc = accounts.find((a) => a.id === active);
-  const activeLoan = activeAcc?.type === 'LOAN'
-    ? loanStats(activeAcc, loanPayments?.[active] || [])
-    : null;
+  const statsOf = (a) => loanStats(a, loanPayments?.[a.id] || []);
+  const activeLoan = activeAcc?.type === 'LOAN' ? statsOf(activeAcc) : null;
+  const bal = (id) => mergedBalance(id, accounts, balances);
 
-  return (
-    <div className="p-4 sm:p-6 max-w-5xl mx-auto flex flex-col gap-5">
-      <div className="flex items-center gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-ink-primary leading-none">Cash &amp; bank</h1>
-          <p className="text-[12px] text-muted-foreground mt-1">Accounts, balances and money movement</p>
-        </div>
-        <div className="ml-auto flex gap-2">
-          <button onClick={() => setModal('transfer')} className="px-3 py-2 rounded-pill text-[12px] font-semibold border border-black/10 text-ink-secondary hover:bg-black/5 transition-colors"><ArrowRightLeft size={14} className="inline -mt-0.5 mr-1.5" />Transfer</button>
-          <button onClick={() => setModal('add')} className="px-4 py-2 rounded-pill text-[12px] font-semibold bg-accent-signature text-white hover:opacity-90 transition-opacity"><Plus size={14} className="inline -mt-0.5 mr-1" />Add account</button>
-        </div>
+  const openLedger = (id) => { setActive(id); setLedgerFilter('ALL'); };
+  const reread = () => refetch?.();
+  const done = (res, word) => {
+    if (res?.error) return res;
+    addNotification(word, 'success');
+    return res;
+  };
+
+  const makeDefault = async (a) => {
+    setFailure(null);
+    let res;
+    try { res = await setDefaultAccount(a.id); } catch (err) { res = { error: err }; }
+    if (res?.error) { console.error('[accounts] set default failed', res.error); setFailure(res.error); return; }
+    addNotification(`${a.name} set as default ${a.type.toLowerCase()}`, 'success');
+  };
+
+  let body;
+  if (error && !loading) {
+    // An error must not read as "still loading": the desktop app once sat on
+    // "Loading accounts…" forever when the fetch failed.
+    body = (
+      <div className="m-rise px-5 py-14 text-center" style={{ '--i': 2 }}>
+        <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-[14px] bg-bad-soft text-bad-text"><AlertTriangle size={22} strokeWidth={1.8} /></div>
+        <h3 className="font-tight text-[16px] font-semibold text-bad-text">Could not load accounts</h3>
+        <p className="mt-1 text-[13px] text-body break-words">{error.message || String(error)}</p>
+        <Button variant="outline" size="sm" className="mt-3.5" onClick={refetch}>Try again</Button>
       </div>
-
-      <div className="bg-white rounded-xl border border-black/8 shadow-sm p-4 flex items-baseline gap-3">
-        <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Total balance</span>
-        <span className="text-2xl font-semibold text-ink-primary ml-auto tabular-nums">{inr(totalBalance)}</span>
+    );
+  } else if (loading) {
+    body = <div className="py-16 text-center text-[13px] font-medium text-mute animate-pulse">Loading accounts…</div>;
+  } else if (accounts.length === 0) {
+    body = (
+      <div className="m-rise px-5 py-14 text-center" style={{ '--i': 2 }}>
+        <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-[14px] bg-tile text-mute"><Wallet size={22} strokeWidth={1.8} /></div>
+        <h3 className="font-tight text-[16px] font-semibold text-ink">No accounts yet.</h3>
+        <p className="mt-1 text-[13px] text-body">Add a Cash, Bank or Loan account to track money.</p>
       </div>
-
-      {/* An error must not read as "still loading". The desktop app sat on
-          "Loading accounts…" forever when the fetch failed, so the one state
-          that needed saying was the one never shown. */}
-      {error && !loading ? (
-        <div className="text-center py-16">
-          <p className="text-sm font-medium text-[color:var(--color-neg)]">Could not load accounts</p>
-          <p className="text-xs text-muted-foreground mt-1">{error.message || String(error)}</p>
-          <button onClick={refetch}
-            className="mt-3 px-3 py-1.5 rounded-pill border border-border text-xs font-semibold text-muted-foreground hover:text-foreground">
-            Try again
-          </button>
-        </div>
-      ) : loading ? (
-        <div className="text-center py-16 text-muted-foreground text-sm font-medium animate-pulse">Loading accounts…</div>
-      ) : accounts.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">
-          <Wallet size={28} className="mx-auto mb-3 opacity-30" />
-          <p className="text-sm font-semibold text-muted-foreground">No accounts yet.</p>
-          <p className="text-[12px] mt-1">Add a Cash, Bank or Loan account to track money.</p>
-        </div>
-      ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {visibleAccounts.map((a) => {
-            const Icon = iconFor(a.type);
-            const isLoan = a.type === 'LOAN';
-            const ls = isLoan ? loanStats(a, loanPayments?.[a.id] || []) : null;
-            const linkedUpi = upiHandlesFor[a.id];
-            return (
-              <div key={a.id}
-                className={`text-left bg-white rounded-xl border shadow-sm p-4 transition-colors ${active === a.id ? 'border-accent-signature ring-1 ring-accent-signature/20' : 'border-black/8'}`}>
-                <button onClick={() => { setActive(a.id); setLedgerFilter('ALL'); }} className="w-full text-left">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-canvas border border-black/8 text-ink-primary grid place-items-center"><Icon size={15} /></div>
-                    <div className="font-semibold text-[13px] text-ink-primary">{a.name}</div>
-                    <div className="ml-auto flex items-center gap-1.5">
-                      {a.is_default && !isLoan && (
-                        <span className="text-[8px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-accent-signature/10 text-accent-signature border border-accent-signature/20">Default</span>
-                      )}
-                      <span className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">{a.type}</span>
-                    </div>
-                  </div>
-                  {isLoan ? (
-                    <>
-                      <div className="mt-3 text-[10px] uppercase tracking-wide text-muted-foreground font-medium">Outstanding</div>
-                      <div className="font-semibold text-xl text-rose-600 tabular-nums">{inr(ls.outstanding)}</div>
-                      <div className="text-[11px] text-muted-foreground mt-1">EMI {inr(ls.emi)} · {ls.paid}/{ls.total} paid · {a.loan_rate}% p.a.</div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="mt-3 font-semibold text-xl text-ink-primary tabular-nums">{inr(mergedBalance(a.id))}</div>
-                      {a.bank_name && <div className="text-[11px] text-muted-foreground mt-0.5">{a.bank_name} {a.account_no ? `· ${a.account_no}` : ''}</div>}
-                      {a.upi_id && !a.bank_name && <div className="text-[11px] text-muted-foreground mt-0.5">{a.upi_id}</div>}
-                      {linkedUpi?.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1.5">
-                          {linkedUpi.map((h) => (
-                            <span key={h} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-canvas border border-black/8 text-muted-foreground">{h}</span>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </button>
-                {isLoan && ls.outstanding > 0 && (
-                  <button onClick={() => setEmiFor(a)} className="mt-3 w-full py-2 rounded-pill text-[11px] font-semibold bg-accent-signature text-white hover:opacity-90 transition-opacity">Pay EMI {inr(ls.emi)}</button>
-                )}
-                {!isLoan && (
-                  <div className="mt-3 flex gap-2">
-                    {!a.is_default && (
-                      <button
-                        onClick={async () => {
-                          const { error } = await setDefaultAccount(a.id);
-                          if (error) addNotification('Failed: ' + error.message, 'error');
-                          else addNotification(`${a.name} set as default ${a.type.toLowerCase()}`, 'success');
-                        }}
-                        className="flex-1 py-1.5 rounded-pill text-[11px] font-semibold border border-black/10 text-muted-foreground hover:bg-black/5 transition-colors"
-                      >
-                        Set as default
-                      </button>
+    );
+  } else {
+    body = (
+      <div className="m-rise grid gap-3 sm:grid-cols-2 lg:grid-cols-3" style={{ '--i': 2 }}>
+        {cards.map((a) => {
+          const isLoan = a.type === 'LOAN';
+          const ls = isLoan ? statsOf(a) : null;
+          const ups = handles[a.id];
+          const sub = isLoan ? '' : accountSubline(a);
+          return (
+            <div key={a.id} className={cn('flex flex-col rounded-[14px] border bg-surface p-4 transition-shadow duration-(--dur-press)',
+              active === a.id ? 'border-transparent shadow-[inset_0_0_0_2px_var(--color-amber)]' : 'border-line')}>
+              <button type="button" onClick={() => openLedger(a.id)} aria-pressed={active === a.id}
+                aria-label={`${a.name}: show ${isLoan ? 'repayment history' : 'ledger'}`} className="w-full text-left">
+                <span className="flex items-center gap-2">
+                  <AccountIcon type={a.type} />
+                  <b className="min-w-0 truncate font-tight text-[14px] font-semibold text-ink">{a.name}</b>
+                  <span className="flex-1" />
+                  {a.is_default && !isLoan && <Pill tone="warn" small>Default</Pill>}
+                  <span className="font-tight text-[10.5px] font-semibold tracking-[0.06em] text-mute">{a.type}</span>
+                </span>
+                {isLoan ? (
+                  <>
+                    <span className="mt-3 block font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-mute">Outstanding</span>
+                    <span className="mt-0.5 block font-tight text-[22px] font-semibold tracking-[-0.02em] tabular-nums text-bad-text">{inr(ls.outstanding)}</span>
+                    <small className="mt-0.5 block text-[12.5px] text-mute">EMI {inr(ls.emi)} · {ls.paid}/{ls.total} paid · {a.loan_rate}% p.a.</small>
+                  </>
+                ) : (
+                  <>
+                    <span className="mt-3 block font-tight text-[22px] font-semibold tracking-[-0.02em] tabular-nums text-ink">{inr(bal(a.id))}</span>
+                    {sub && <small className="mt-0.5 block text-[12.5px] text-mute">{sub}</small>}
+                    {ups?.length > 0 && (
+                      <span className="mt-1.5 flex flex-wrap gap-1">{ups.map((h) => <Pill key={h} small>{h}</Pill>)}</span>
                     )}
-                    <button
-                      onClick={() => setEditAcc(a)}
-                      className={`${a.is_default ? 'flex-1' : ''} px-3 py-1.5 rounded-pill border border-black/10 text-muted-foreground hover:bg-black/5 transition-colors flex items-center justify-center gap-1.5`}
-                      title="Edit account"
-                    >
-                      <Pencil size={13} />
-                      {a.is_default && <span className="text-[11px] font-semibold">Edit</span>}
-                    </button>
-                  </div>
+                  </>
+                )}
+              </button>
+              <div className="mt-auto flex gap-2 pt-3.5">
+                {isLoan ? (
+                  ls.outstanding > 0 && <Button variant="dark" size="xs" className="flex-1" onClick={() => setEmiFor(a)}>Pay EMI {inr(ls.emi)}</Button>
+                ) : (
+                  <>
+                    {!a.is_default && <Button variant="outline" size="xs" className="flex-1" onClick={() => makeDefault(a)}>Set as default</Button>}
+                    <Button variant="outline" size="xs" className={cn(a.is_default && 'flex-1', '[&_svg]:size-[13px]')}
+                      aria-label="Edit account" title="Edit account" onClick={() => setEditAcc(a)}>
+                      <Pencil />{a.is_default && 'Edit'}
+                    </Button>
+                  </>
                 )}
               </div>
-            );
-          })}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col pb-16">
+      <div className="m-rise mb-4 flex flex-wrap items-start gap-3">
+        <div>
+          <h1 className="font-tight text-[22px] font-semibold leading-[1.15] tracking-[-0.02em] text-ink">Cash &amp; bank</h1>
+          <p className="mt-[3px] text-[13px] text-body">Accounts, balances and money movement</p>
+        </div>
+        <div className="flex-1" />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setModal('transfer')}><ArrowRightLeft /> Transfer</Button>
+          <Button size="sm" onClick={() => setModal('add')}><Plus /> Add account</Button>
+        </div>
+      </div>
+
+      <div className="m-rise mb-4 flex items-baseline gap-3 rounded-[14px] border border-line px-[18px] py-4" style={{ '--i': 1 }}>
+        <span className="font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-mute">Total balance</span>
+        <b className="ml-auto font-tight text-[26px] font-semibold tracking-[-0.02em] tabular-nums text-ink">{inr(total)}</b>
+      </div>
+
+      {failure && (
+        <div className="mb-3 flex items-start gap-2">
+          <WriteFailure error={failure} noun="change" onReread={() => { setFailure(null); reread(); }} className="flex-1" />
+          <Button variant="secondary" size="icon-sm" aria-label="Dismiss" onClick={() => setFailure(null)}><X /></Button>
         </div>
       )}
 
-      {/* Ledger drawer */}
-      {active && (
-        <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-black/5">
-            <div className="font-black text-[13px] text-ink-primary">{activeAcc?.name} · {activeLoan ? 'repayment history' : 'ledger'}</div>
-            <span className="ml-auto tabular-nums font-black text-[15px]">{activeLoan ? inr(activeLoan.outstanding) : inr(mergedBalance(active))}</span>
-            {!activeLoan && <button onClick={() => setModal('txn')} className="ml-3 px-2.5 py-1.5 rounded-pill text-[11px] font-bold border border-black/10 hover:bg-black/5"><Plus size={12} className="inline -mt-0.5 mr-1" />Entry</button>}
-            {activeLoan && activeLoan.outstanding > 0 && <button onClick={() => setEmiFor(activeAcc)} className="ml-3 px-2.5 py-1.5 rounded-pill text-[11px] font-black bg-accent-signature text-white">Pay</button>}
-            <button onClick={() => setActive(null)} className="p-1.5 rounded-pill hover:bg-black/5"><X size={15} /></button>
+      {body}
+
+      {active && activeAcc && (
+        <section className="m-rise mt-4 overflow-hidden rounded-[14px] border border-line bg-surface" aria-label={`${activeAcc.name} ${activeLoan ? 'repayment history' : 'ledger'}`}>
+          <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-3">
+            <h3 className="min-w-0 truncate font-tight text-[15px] font-semibold text-ink">{activeAcc.name} · {activeLoan ? 'repayment history' : 'ledger'}</h3>
+            <span className="flex-1" />
+            <b className={cn('font-tight text-[16px] font-semibold tabular-nums', activeLoan ? 'text-bad-text' : 'text-ink')}>
+              {activeLoan ? inr(activeLoan.outstanding) : inr(bal(active))}
+            </b>
+            {!activeLoan && <Button variant="outline" size="xs" className="ml-1.5 [&_svg]:size-[13px]" onClick={() => setModal('txn')}><Plus /> Entry</Button>}
+            {activeLoan && activeLoan.outstanding > 0 && <Button variant="dark" size="xs" className="ml-1.5" onClick={() => setEmiFor(activeAcc)}>Pay</Button>}
+            <CloseButton onClick={() => setActive(null)} />
           </div>
+
           {activeLoan ? (
             <>
-              <div className="grid grid-cols-3 gap-px bg-black/[0.06] border-b border-black/[0.06] text-center">
-                <div className="bg-white px-3 py-2"><div className="text-[9px] uppercase tracking-widest text-muted-foreground">EMI</div><div className="tabular-nums font-bold text-[13px]">{inr(activeLoan.emi)}</div></div>
-                <div className="bg-white px-3 py-2"><div className="text-[9px] uppercase tracking-widest text-muted-foreground">Interest paid</div><div className="tabular-nums font-bold text-[13px] text-accent-signature-hover">{inr(activeLoan.interestPaid)}</div></div>
-                <div className="bg-white px-3 py-2"><div className="text-[9px] uppercase tracking-widest text-muted-foreground">Paid</div><div className="tabular-nums font-bold text-[13px]">{activeLoan.paid}/{activeLoan.total}</div></div>
-              </div>
-              <div className="grid grid-cols-[80px_1fr_90px_90px_100px] gap-2 px-4 py-2 text-[10px] uppercase tracking-wider text-muted-foreground border-b border-black/5">
-                <div>Date</div><div>#</div><div className="text-right">Interest</div><div className="text-right">Principal</div><div className="text-right">Balance</div>
-              </div>
-              <div className="divide-y divide-black/5 max-h-72 overflow-auto">
-                {activeLoan.rows.length === 0 && <div className="p-4 text-[12px] text-muted-foreground">No repayments yet.</div>}
-                {activeLoan.rows.map((p, i) => (
-                  <div key={p.id} className="grid grid-cols-[80px_1fr_90px_90px_100px] gap-2 px-4 py-2.5 items-center text-[12px]">
-                    <div className="tabular-nums text-muted-foreground">{p.date}</div>
-                    <div className="tabular-nums font-bold">{inr(p.amount)} <span className="text-[10px] text-muted-foreground">#{i + 1}</span></div>
-                    <div className="text-right tabular-nums text-accent-signature-hover">{inr(p.interest)}</div>
-                    <div className="text-right tabular-nums text-emerald-700">{inr(p.principal)}</div>
-                    <div className="text-right tabular-nums text-muted-foreground">{inr(p.balanceAfter)}</div>
+              <div className="grid grid-cols-3 border-t border-line text-center">
+                {[['EMI', inr(activeLoan.emi), ''], ['Interest paid', inr(activeLoan.interestPaid), 'text-amber-text'], ['Paid', `${activeLoan.paid}/${activeLoan.total}`, '']].map(([k, v, c]) => (
+                  <div key={k} className="px-4 py-2.5 [&+&]:border-l [&+&]:border-line">
+                    <small className="block font-tight text-[10.5px] font-semibold uppercase tracking-[0.06em] text-mute">{k}</small>
+                    <b className={cn('font-tight text-[14.5px] font-semibold tabular-nums', c)}>{v}</b>
                   </div>
                 ))}
+              </div>
+              <div className="max-h-[420px] overflow-auto border-t border-line">
+                <table className="w-full text-[13.5px]">
+                  <thead>
+                    <tr className="bg-tile text-left font-tight text-[12px] font-semibold text-mute">
+                      <th className="px-4 py-2.5 font-semibold">Date</th>
+                      <th className="px-4 py-2.5 font-semibold">#</th>
+                      <th className="px-4 py-2.5 text-right font-semibold">Interest</th>
+                      <th className="px-4 py-2.5 text-right font-semibold">Principal</th>
+                      <th className="px-4 py-2.5 text-right font-semibold">Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody className="tabular-nums">
+                    {activeLoan.rows.length === 0 && <tr><td colSpan={5} className="px-4 py-7 text-center text-[13px] text-body">No repayments yet.</td></tr>}
+                    {activeLoan.rows.map((p, i) => (
+                      <tr key={p.id} className="border-t border-sep">
+                        <td className="whitespace-nowrap px-4 py-2.5 text-ink-2">{formatDate(p.date)}</td>
+                        <td className="px-4 py-2.5"><b className="font-tight font-semibold">{inr(p.amount)}</b> <small className="text-[12px] text-mute">#{i + 1}</small></td>
+                        <td className="px-4 py-2.5 text-right text-amber-text">{inr(p.interest)}</td>
+                        <td className="px-4 py-2.5 text-right text-good-text">{inr(p.principal)}</td>
+                        <td className="px-4 py-2.5 text-right text-ink-2">{inr(p.balanceAfter)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </>
           ) : (
-          <>
-            {linkedUpiIds.length > 0 && (
-              <div className="flex gap-1.5 px-4 pt-3 pb-1">
-                {[['ALL', 'All'], ['UPI', 'UPI only'], ['DIRECT', 'Bank/other']].map(([k, label]) => (
-                  <button key={k} onClick={() => setLedgerFilter(k)}
-                    className={`px-2.5 py-1 rounded-pill text-[10px] font-semibold border transition-colors ${ledgerFilter === k ? 'bg-ink-primary text-white border-ink-primary' : 'border-black/10 text-muted-foreground hover:bg-black/5'}`}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="divide-y divide-black/5 max-h-80 overflow-auto">
-              {activeTxns.length === 0 && <div className="p-4 text-[12px] text-muted-foreground">No transactions yet.</div>}
-              {activeTxns.map((t) => (
-                <div key={t.id} className="flex items-center gap-3 px-4 py-2.5">
-                  <div className={`w-7 h-7 rounded-lg grid place-items-center ${t.direction === 'IN' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600'}`}>
-                    {t.direction === 'IN' ? <ArrowDownLeft size={14} /> : <ArrowUpRight size={14} />}
-                  </div>
-                  <div className="leading-tight">
-                    <div className="text-[12px] font-bold text-ink-primary flex items-center gap-1.5">
-                      {t.note || t.ref_type}
-                      {isUpiTxn(t) && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-canvas border border-black/8 text-muted-foreground">UPI</span>}
-                    </div>
-                    <div className="text-[10px] text-muted-foreground">{t.date} · {t.ref_type}</div>
-                  </div>
-                  <div className={`ml-auto tabular-nums font-bold text-[13px] ${t.direction === 'IN' ? 'text-emerald-700' : 'text-rose-600'}`}>
-                    {t.direction === 'IN' ? '+' : '−'}{inr(t.amount)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
+            <>
+              {linkedIds.length > 0 && (
+                <Chips ariaLabel="Show entries" className="px-4 pb-2.5" items={LEDGER_FILTERS} value={ledgerFilter} onChange={setLedgerFilter} />
+              )}
+              {rows.length === 0 ? (
+                <p className="px-7 py-7 text-center text-[13px] text-body">No transactions yet.</p>
+              ) : (
+                <ul className="max-h-[520px] overflow-auto">
+                  {rows.map((t) => {
+                    const isIn = t.direction === 'IN';
+                    return (
+                      <li key={t.id} className="flex items-center gap-3 border-t border-sep px-4 py-[11px]">
+                        <span aria-hidden="true" className={cn('grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[9px]', isIn ? 'bg-good-soft text-good-text' : 'bg-bad-soft text-bad-text')}>
+                          {isIn ? <ArrowDownLeft size={14} strokeWidth={2.2} /> : <ArrowUpRight size={14} strokeWidth={2.2} />}
+                        </span>
+                        <div className="min-w-0">
+                          <b className="flex flex-wrap items-center gap-1.5 font-tight text-[13.5px] font-semibold text-ink">
+                            <span className="min-w-0 break-words">{t.note || t.ref_type}</span>
+                            {t.isUpi && <Pill small>UPI</Pill>}
+                          </b>
+                          <small className="block text-[12px] text-mute">{formatDate(t.date)} · {t.ref_type}</small>
+                        </div>
+                        <span className="flex-1" />
+                        <b className={cn('whitespace-nowrap font-tight text-[13.5px] font-semibold tabular-nums', isIn ? 'text-good-text' : 'text-bad-text')}>
+                          {isIn ? '+' : '−'}{inr(t.amount)}
+                        </b>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </>
           )}
-        </div>
+        </section>
       )}
 
-      {modal === 'add' && <AddAccountModal accounts={accounts} onClose={() => setModal(null)} onSave={async (a) => {
-        const { error } = await createAccount(a);
-        if (error) return addNotification('Add failed: ' + error.message, 'error');
-        addNotification('Account added', 'success'); setModal(null);
-      }} />}
+      {modal === 'add' && (
+        <AddAccountDialog open accounts={accounts} onClose={() => setModal(null)} onReread={reread}
+          onSave={async (a) => {
+            const res = done(await createAccount(a), 'Account added');
+            if (!res?.error) setModal(null);
+            return res;
+          }} />
+      )}
 
-      {editAcc && <EditAccountModal account={editAcc} accounts={accounts} onClose={() => setEditAcc(null)} onSave={async (patch) => {
-        const { error } = await updateAccount(editAcc.id, patch);
-        if (error) return addNotification('Update failed: ' + error.message, 'error');
-        addNotification('Account updated', 'success'); setEditAcc(null);
-      }} onDelete={async () => {
-        const { error } = await removeAccount(editAcc.id);
-        if (error) return addNotification('Delete failed: ' + error.message, 'error');
-        addNotification('Account deleted', 'success');
-        setEditAcc(null);
-        if (active === editAcc.id) setActive(null);
-      }} />}
+      {editAcc && (
+        <EditAccountDialog key={editAcc.id} account={editAcc} accounts={accounts} onClose={() => setEditAcc(null)} onReread={reread}
+          onSave={async (patch) => {
+            const res = done(await updateAccount(editAcc.id, patch), 'Account updated');
+            if (!res?.error) setEditAcc(null);
+            return res;
+          }}
+          onDelete={async () => {
+            const res = done(await removeAccount(editAcc.id), 'Account deleted');
+            if (!res?.error) { if (active === editAcc.id) setActive(null); setEditAcc(null); }
+            return res;
+          }} />
+      )}
 
-      {modal === 'txn' && active && <TxnModal accountName={accounts.find((a) => a.id === active)?.name} onClose={() => setModal(null)} onSave={async (t) => {
-        const { error } = await addTxn({ ...t, account_id: active });
-        if (error) return addNotification('Entry failed: ' + error.message, 'error');
-        addNotification('Entry added', 'success'); setModal(null);
-      }} />}
+      {modal === 'txn' && activeAcc && (
+        <EntryDialog open accountName={activeAcc.name} onClose={() => setModal(null)} onReread={reread}
+          onSave={async (t) => {
+            const res = done(await addTxn({ ...t, account_id: active }), 'Entry added');
+            if (!res?.error) setModal(null);
+            return res;
+          }} />
+      )}
 
-      {modal === 'transfer' && <TransferModal accounts={accounts} onClose={() => setModal(null)} onSave={async (t) => {
-        const { error } = await transfer(t);
-        if (error) return addNotification(error.message, 'error');
-        addNotification('Transfer done', 'success'); setModal(null);
-      }} />}
+      {modal === 'transfer' && (
+        <TransferDialog open accounts={accounts} onClose={() => setModal(null)} onReread={reread}
+          onSave={async (t) => {
+            const res = done(await transfer(t), 'Transfer done');
+            if (!res?.error) setModal(null);
+            return res;
+          }} />
+      )}
 
-      {emiFor && <PayEMIModal loan={emiFor} accounts={accounts.filter((a) => a.type !== 'LOAN')}
-        stats={loanStats(emiFor, loanPayments?.[emiFor.id] || [])}
-        onClose={() => setEmiFor(null)} onSave={async (fromAccountId, amount) => {
-          const { error } = await payEMI({ loan: emiFor, fromAccountId, amount });
-          if (error) return addNotification(error.message, 'error');
-          addNotification('Payment recorded', 'success'); setEmiFor(null);
-        }} />}
+      {emiFor && (
+        <PayEmiDialog key={emiFor.id} loan={emiFor} accounts={accounts.filter((a) => a.type !== 'LOAN')} stats={statsOf(emiFor)}
+          onClose={() => setEmiFor(null)} onReread={reread}
+          onSave={async (fromAccountId, amount) => {
+            const res = done(await payEMI({ loan: emiFor, fromAccountId, amount }), 'Payment recorded');
+            if (!res?.error) setEmiFor(null);
+            return res;
+          }} />
+      )}
     </div>
-  );
-};
-
-const PayEMIModal = ({ loan, accounts, stats, onClose, onSave }) => {
-  const [from, setFrom] = useState(accounts.find((a) => a.type === 'BANK')?.id || accounts[0]?.id || '');
-  const [amount, setAmount] = useState(String(stats.emi));
-  const amt = Number(amount) || 0;
-  const interest = Math.round(stats.outstanding * ((Number(loan.loan_rate) || 0) / 12 / 100));
-  const principal = Math.max(0, Math.round(amt) - interest);
-  return (
-    <Shell title={`Loan payment · ${loan.name}`} onClose={onClose}>
-      <div className="grid grid-cols-2 gap-2 text-[12px] mb-3">
-        <div><div className="text-muted-foreground">EMI</div><div className="tabular-nums font-bold">{inr(stats.emi)}</div></div>
-        <div><div className="text-muted-foreground">Outstanding</div><div className="tabular-nums font-bold text-rose-600">{inr(stats.outstanding)}</div></div>
-        <div className="col-span-2 text-[11px] text-muted-foreground">{stats.paid}/{stats.total} paid · interest paid {inr(stats.interestPaid)}</div>
-      </div>
-      <label className={lbl}>Amount (EMI or custom / prepay)</label>
-      <input type="number" className={inp} value={amount} onChange={(e) => setAmount(e.target.value)} />
-      <div className="flex gap-1.5 mt-1.5">
-        <button onClick={() => setAmount(String(stats.emi))} className="text-[11px] font-bold px-2 py-1 rounded border border-black/10">EMI</button>
-        <button onClick={() => setAmount(String(stats.outstanding + interest))} className="text-[11px] font-bold px-2 py-1 rounded border border-black/10">Foreclose</button>
-      </div>
-      {amt > 0 && <div className="text-[11px] text-muted-foreground mt-2">Interest {inr(interest)} · Principal {inr(principal)}</div>}
-      <label className={`${lbl} mt-3`}>Pay from</label>
-      <select className={inp} value={from} onChange={(e) => setFrom(e.target.value)}>
-        {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-      </select>
-      <button disabled={!from || !(amt > 0)} className={primary} onClick={() => onSave(from, amt)}>Pay {inr(amt)}</button>
-    </Shell>
-  );
-};
-
-// Wrapper for every modal on this page — Loan payment, Add account, Entry,
-// Transfer, Edit account. Escape / scroll lock / focus restore land here once.
-const Shell = ({ title, onClose, children }) => {
-  useDialogClose(onClose);
-  return (
-  <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
-    <div role="dialog" aria-modal="true" aria-label={title} className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-      <div className="flex items-center mb-4"><div className="font-black text-[15px] text-ink-primary">{title}</div><button onClick={onClose} className="ml-auto"><X size={18} className="text-muted-foreground" /></button></div>
-      {children}
-    </div>
-  </div>
-  );
-};
-const lbl = 'text-[10px] uppercase tracking-widest text-muted-foreground mb-1 block';
-const inp = 'w-full text-[14px] border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40';
-const primary = 'w-full mt-4 py-2.5 rounded-xl text-[13px] font-black bg-accent-signature text-white hover:opacity-90 disabled:opacity-40';
-
-const AddAccountModal = ({ onClose, onSave, accounts = [] }) => {
-  const [f, setF] = useState({ name: '', type: 'BANK', bank_name: '', account_no: '', upi_id: '', opening_balance: '', loan_principal: '', loan_rate: '', loan_tenure_months: '', loan_start: new Date().toISOString().slice(0, 10), lender: '', linked_bank_account_id: '' });
-  const isLoan = f.type === 'LOAN';
-  const bankAccounts = accounts.filter((a) => a.type === 'BANK' && !a.deleted_at);
-  const previewEmi = isLoan ? emiOf(f.loan_principal, f.loan_rate, f.loan_tenure_months) : 0;
-  return (
-    <Shell title="Add account" onClose={onClose}>
-      <label className={lbl}>{isLoan ? 'Loan name' : 'Account name'}</label>
-      <input className={inp} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder={isLoan ? 'e.g. Shop loan' : 'e.g. SBI Current'} />
-      <label className={`${lbl} mt-3`}>Type</label>
-      <div className="flex gap-1.5 flex-wrap">
-        {TYPES.map((t) => (
-          <button key={t.id} onClick={() => setF({ ...f, type: t.id })}
-            className={`px-3 py-1.5 rounded-pill text-[12px] font-bold border ${f.type === t.id ? 'bg-accent-signature text-white border-accent-signature' : 'border-black/10 text-muted-foreground'}`}>{t.label}</button>
-        ))}
-      </div>
-      {(f.type === 'BANK') && (
-        <div className="grid grid-cols-2 gap-2 mt-3">
-          <div><label className={lbl}>Bank</label><input className={inp} value={f.bank_name} onChange={(e) => setF({ ...f, bank_name: e.target.value })} /></div>
-          <div><label className={lbl}>A/c no.</label><input className={inp} value={f.account_no} onChange={(e) => setF({ ...f, account_no: e.target.value })} /></div>
-        </div>
-      )}
-      {(f.type === 'UPI' || f.type === 'BANK') && (
-        <div className="mt-3">
-          <label className={lbl}>UPI ID / Handle <span className="text-muted-foreground normal-case tracking-normal">(e.g. shop@upi)</span></label>
-          <input className={inp} value={f.upi_id} onChange={(e) => setF({ ...f, upi_id: e.target.value })} placeholder="e.g. 9876543210@okicici" />
-        </div>
-      )}
-      {(f.type === 'UPI') && bankAccounts.length > 0 && (
-        <div className="mt-3">
-          <label className={lbl}>Settles to bank account</label>
-          <select className={inp} value={f.linked_bank_account_id} onChange={(e) => setF({ ...f, linked_bank_account_id: e.target.value })}>
-            <option value="">— Auto (first bank) —</option>
-            {bankAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}{a.bank_name ? ` · ${a.bank_name}` : ''}</option>)}
-          </select>
-        </div>
-      )}
-      {isLoan ? (
-        <>
-          <div className="grid grid-cols-2 gap-2 mt-3">
-            <div><label className={lbl}>Lender</label><input className={inp} value={f.lender} onChange={(e) => setF({ ...f, lender: e.target.value })} placeholder="HDFC Bank" /></div>
-            <div><label className={lbl}>Principal (₹)</label><input type="number" className={inp} value={f.loan_principal} onChange={(e) => setF({ ...f, loan_principal: e.target.value })} placeholder="500000" /></div>
-            <div><label className={lbl}>Interest % p.a.</label><input type="number" className={inp} value={f.loan_rate} onChange={(e) => setF({ ...f, loan_rate: e.target.value })} placeholder="12" /></div>
-            <div><label className={lbl}>Tenure (months)</label><input type="number" className={inp} value={f.loan_tenure_months} onChange={(e) => setF({ ...f, loan_tenure_months: e.target.value })} placeholder="36" /></div>
-          </div>
-          <label className={`${lbl} mt-3`}>Start date</label>
-          <input type="date" className={inp} value={f.loan_start} onChange={(e) => setF({ ...f, loan_start: e.target.value })} />
-          {previewEmi > 0 && <div className="mt-2 text-[12px] font-bold text-emerald-700">Monthly EMI ≈ {inr(previewEmi)}</div>}
-        </>
-      ) : (
-        <>
-          <label className={`${lbl} mt-3`}>Opening balance</label>
-          <input type="number" className={inp} value={f.opening_balance} onChange={(e) => setF({ ...f, opening_balance: e.target.value })} placeholder="0.00" />
-        </>
-      )}
-      <button disabled={!f.name.trim() || (isLoan && !(previewEmi > 0))} className={primary} onClick={() => onSave(f)}>{isLoan ? 'Add loan' : 'Add account'}</button>
-    </Shell>
-  );
-};
-
-const TxnModal = ({ accountName, onClose, onSave }) => {
-  const [f, setF] = useState({ direction: 'IN', amount: '', note: '', date: new Date().toISOString().slice(0, 10) });
-  return (
-    <Shell title={`Entry · ${accountName}`} onClose={onClose}>
-      <div className="flex gap-2">
-        {['IN', 'OUT'].map((d) => (
-          <button key={d} onClick={() => setF({ ...f, direction: d })}
-            className={`flex-1 py-2 rounded-pill text-[12px] font-black border ${f.direction === d ? (d === 'IN' ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-rose-600 text-white border-rose-600') : 'border-black/10 text-muted-foreground'}`}>
-            {d === 'IN' ? 'Money in' : 'Money out'}</button>
-        ))}
-      </div>
-      <label className={`${lbl} mt-3`}>Amount</label>
-      <input type="number" className={inp} value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} placeholder="0.00" />
-      <label className={`${lbl} mt-3`}>Note</label>
-      <input className={inp} value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} placeholder="e.g. Cash deposit" />
-      <label className={`${lbl} mt-3`}>Date</label>
-      <input type="date" className={inp} value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} />
-      <button disabled={!(Number(f.amount) > 0)} className={primary} onClick={() => onSave(f)}>Save entry</button>
-    </Shell>
-  );
-};
-
-const TransferModal = ({ accounts, onClose, onSave }) => {
-  const [f, setF] = useState({ from: accounts[0]?.id || '', to: accounts[1]?.id || '', amount: '', date: new Date().toISOString().slice(0, 10) });
-  return (
-    <Shell title="Transfer money" onClose={onClose}>
-      <label className={lbl}>From</label>
-      <select className={inp} value={f.from} onChange={(e) => setF({ ...f, from: e.target.value })}>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
-      <label className={`${lbl} mt-3`}>To</label>
-      <select className={inp} value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })}>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
-      <label className={`${lbl} mt-3`}>Amount</label>
-      <input type="number" className={inp} value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} placeholder="0.00" />
-      <button disabled={!(Number(f.amount) > 0) || f.from === f.to} className={primary} onClick={() => onSave(f)}>Transfer</button>
-    </Shell>
-  );
-};
-
-const EditAccountModal = ({ account, accounts, onClose, onSave, onDelete }) => {
-  const [f, setF] = useState({
-    name: account.name || '',
-    bank_name: account.bank_name || '',
-    account_no: account.account_no || '',
-    upi_id: account.upi_id || '',
-    linked_bank_account_id: account.linked_bank_account_id || '',
-  });
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const isBank = account.type === 'BANK';
-  const isUpi  = account.type === 'UPI';
-  const bankAccounts = accounts.filter((a) => a.type === 'BANK' && !a.deleted_at && a.id !== account.id);
-  return (
-    <Shell title={`Edit · ${account.type}`} onClose={onClose}>
-      <label className={lbl}>Account name</label>
-      <input className={inp} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="e.g. SBI Current" />
-      {isBank && (
-        <div className="grid grid-cols-2 gap-2 mt-3">
-          <div><label className={lbl}>Bank</label><input className={inp} value={f.bank_name} onChange={(e) => setF({ ...f, bank_name: e.target.value })} /></div>
-          <div><label className={lbl}>A/c no.</label><input className={inp} value={f.account_no} onChange={(e) => setF({ ...f, account_no: e.target.value })} /></div>
-        </div>
-      )}
-      {(isUpi || isBank) && (
-        <div className="mt-3">
-          <label className={lbl}>UPI ID / Handle <span className="text-muted-foreground normal-case tracking-normal">(e.g. shop@upi)</span></label>
-          <input className={inp} value={f.upi_id} onChange={(e) => setF({ ...f, upi_id: e.target.value })} placeholder="e.g. 9876543210@okicici" />
-        </div>
-      )}
-      {isUpi && (
-        <div className="mt-3">
-          <label className={lbl}>Settles to bank account <span className="text-muted-foreground normal-case tracking-normal">(where UPI money actually lands)</span></label>
-          <select className={inp} value={f.linked_bank_account_id} onChange={(e) => setF({ ...f, linked_bank_account_id: e.target.value })}>
-            <option value="">— Auto (first bank) —</option>
-            {bankAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}{a.bank_name ? ` · ${a.bank_name}` : ''}</option>)}
-          </select>
-          {bankAccounts.length === 0 && <p className="text-[10px] text-accent-signature mt-1">No bank accounts yet — add one first to link this UPI ID.</p>}
-        </div>
-      )}
-      <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground bg-canvas rounded-lg px-3 py-2">
-        <span>Opening balance</span>
-        <span className="tabular-nums font-semibold text-muted-foreground">{inr(account.opening_balance)}</span>
-      </div>
-      <button disabled={!f.name.trim()} className={primary} onClick={() => onSave(f)}>Save changes</button>
-
-      {onDelete && (
-        confirmDelete ? (
-          <div className="mt-3 border border-rose-200 bg-rose-50 rounded-lg p-3">
-            <p className="text-[11px] text-rose-700 font-medium mb-2">Delete "{account.name}"? Transaction history stays, but the account is removed from the list.</p>
-            <div className="flex gap-2">
-              <button onClick={() => setConfirmDelete(false)} className="flex-1 py-1.5 rounded-pill text-[11px] font-semibold border border-black/10 text-ink-secondary hover:bg-black/5">Cancel</button>
-              <button onClick={onDelete} className="flex-1 py-1.5 rounded-pill text-[11px] font-semibold bg-rose-600 text-white hover:opacity-90">Delete account</button>
-            </div>
-          </div>
-        ) : (
-          <button onClick={() => setConfirmDelete(true)} className="mt-3 w-full py-2 rounded-pill text-[11px] font-semibold text-rose-500 border border-rose-200 hover:bg-rose-50 transition-colors flex items-center justify-center gap-1.5">
-            <Trash2 size={13} /> Delete account
-          </button>
-        )
-      )}
-    </Shell>
   );
 };
 
