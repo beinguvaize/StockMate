@@ -1,17 +1,23 @@
 import { describe, it, expect } from 'vitest';
 import {
   resolvePrintFor, resolveInvoiceTemplate, withDocTypeSaved, docTypeKeyFor, lockedOptsFor,
-  DEFAULT_INVOICE_TEMPLATE, LEGACY_TEMPLATE_IDS, isInvoiceModel, formValuesFor, defaultFormValues, countChanges,
+  DEFAULT_INVOICE_TEMPLATE, LEGACY_INVOICE_TEMPLATE, LEGACY_TEMPLATE_IDS, isInvoiceModel, formValuesFor, defaultFormValues, countChanges,
 } from './printSettings';
 
 const REGULAR = { gst_no: '29AAAAA0000A1Z5', tax_mode: 'EXCLUSIVE' };
 
 describe('which design prints', () => {
-  it('a shop that never saved one gets the default, the new Modern', () => {
+  it('a shop that never saved one keeps the old Classic it prints today', () => {
+    expect(LEGACY_INVOICE_TEMPLATE).toBe('classic');
     expect(DEFAULT_INVOICE_TEMPLATE).toBe('model-modern');
-    expect(resolveInvoiceTemplate(undefined, REGULAR)).toBe('model-modern');
-    expect(resolveInvoiceTemplate({}, REGULAR)).toBe('model-modern');
-    expect(resolveInvoiceTemplate({ paper: '80' }, REGULAR)).toBe('model-modern');
+    for (const biz of [REGULAR, { tax_mode: 'NONE' }, { tax_mode: 'EXCLUSIVE' }, {}]) {
+      expect(resolveInvoiceTemplate(undefined, biz)).toBe('classic');
+      expect(resolveInvoiceTemplate({}, biz)).toBe('classic');
+      expect(resolveInvoiceTemplate({ paper: '80', invOpts: { bank: false } }, biz)).toBe('classic');
+    }
+  });
+  it('the Customise form shows that Classic as selected, so saving it changes nothing', () => {
+    expect(formValuesFor({}, 'TAX_INVOICE').invoiceTemplate).toBe('classic');
   });
   it('a saved older design is kept exactly', () => {
     for (const id of LEGACY_TEMPLATE_IDS) {
@@ -36,7 +42,7 @@ describe('options and texts', () => {
     expect(r.opts.taxSummary).toBe('below');
   });
   it('a broken stored value reads as nothing, never throws', () => {
-    expect(resolvePrintFor({ invOpts: 'x', docTypes: [] }, 'TAX_INVOICE').template).toBe('model-modern');
+    expect(resolvePrintFor({ invOpts: 'x', docTypes: [] }, 'TAX_INVOICE').template).toBe('classic');
   });
 });
 

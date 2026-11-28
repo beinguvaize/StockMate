@@ -11,7 +11,7 @@ import { supabase } from '../../lib/supabase';
 import { shareToWhatsApp } from '../../lib/gstEngine';
 import { formatCurrency, formatDate, todayISOInAppTZ } from '../../lib/utils';
 import { documentRules } from '../../lib/gstDocument';
-import { resolveInvoiceTemplate, INVOICE_MODELS } from '../../lib/printSettings';
+import { resolveInvoiceTemplate, INVOICE_MODELS, isInvoiceModel } from '../../lib/printSettings';
 import { resolveInvoiceStatus, invoiceOutstanding, dueWords, paymentCheck } from '../../lib/invoiceList';
 import { paymentsSummary, buildTimeline, creditTermsDays, collectedShare, whenWords } from '../../lib/invoiceDetail';
 import { Button } from '../../components/ui/button';
@@ -103,9 +103,11 @@ const InvoiceDetail = () => {
   }
 
   const today = todayISOInAppTZ();
-  const docTitle = documentRules(businessProfile || {}).title;
   const styleId = resolveInvoiceTemplate(businessProfile?.print_settings, businessProfile || {});
-  const styleName = INVOICE_MODELS.find((m) => m.id === styleId)?.name || 'Older design';
+  const styleName = INVOICE_MODELS.find((m) => m.id === styleId)?.name || (styleId === 'classic' ? 'Classic (older)' : 'Older design');
+  // The older designs always print "Tax Invoice"; only the new models follow
+  // the GST document rules, so the page says what the paper says.
+  const docTitle = isInvoiceModel(styleId) ? documentRules(businessProfile || {}).title : 'Tax invoice';
   const status = resolveInvoiceStatus(inv);
   const unpaid = status !== 'PAID';
   const out = invoiceOutstanding(inv);

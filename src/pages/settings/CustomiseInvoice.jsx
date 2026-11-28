@@ -212,15 +212,15 @@ const CustomiseInvoice = () => {
                     className={cn('m-press rounded-xl p-2 text-center', on ? 'shadow-[inset_0_0_0_2px_var(--color-ink)]' : 'shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile')}>
                     <div className={`cz-mini cz-mini-${m.id.replace('model-', '')}`}><i className="a" /><i className="b" /><i className="c" /><i className="d" /><i className="e" /></div>
                     <b className="mt-1.5 block font-tight text-[12px] font-semibold">{m.name}</b>
-                    {m.id === 'model-modern' && <span className="block font-tight text-[10.5px] font-semibold text-mute">Default</span>}
+                    {m.id === 'model-modern' && <span className="block font-tight text-[10.5px] font-semibold text-mute">Recommended</span>}
                   </button>
                 );
               })}
               {legacy && (
                 <button type="button" data-card role="radio" aria-checked
                   className="m-press col-span-2 rounded-xl p-2 text-center shadow-[inset_0_0_0_2px_var(--color-ink)]">
-                  <b className="block font-tight text-[12px] font-semibold">Your current design</b>
-                  <span className="block text-[11px] text-mute">An older design, kept until you pick one above</span>
+                  <b className="block font-tight text-[12px] font-semibold">Your current design{form.invoiceTemplate === 'classic' ? ': Classic (older)' : ''}</b>
+                  <span className="block text-[11px] text-mute">What you print today. It stays until you pick a style above and save.</span>
                 </button>
               )}
             </div>
