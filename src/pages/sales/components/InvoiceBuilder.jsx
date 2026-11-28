@@ -1,15 +1,23 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { readPosStore, writePosStore, onPosStoreChange } from '../../../lib/posStore';
 import { parseScaleBarcode, quantityFrom } from '../../../lib/scaleBarcode';
 import { buildCatalogIndex, resolveScan, resolvePlu } from '../../../lib/pos/catalog';
 import { cameraScanSupported } from '../../../lib/pos/cameraScan';
 import ScanSheet from '../../../components/pos/ScanSheet';
 import { useDialogClose } from '../../../hooks/useDialogClose';
-import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle, Truck, Store, ChevronLeft, MapPin, Calendar, MessageSquare, DollarSign, ScanBarcode, List, LayoutGrid } from 'lucide-react';
-import Button from '../../../shared/Button';
+import { Search, Plus, Minus, CreditCard, Banknote, Check, Package, X, User, Smartphone, Landmark, AlertTriangle, Truck, Store, ChevronLeft, ChevronDown, MapPin, Calendar, MessageSquare, ScanBarcode, List, LayoutGrid, ChefHat, FileText, ArrowUpRight } from 'lucide-react';
+import { Button } from '../../../components/ui/button';
+import { Badge } from '../../../components/ui/badge';
+import { Card, CardHeader } from '../../../components/ui/card';
+import { Input } from '../../../components/ui/input';
+import { FilterPills } from '../../../components/ui/Tabs';
+import OptionCard, { OptionGroup } from '../../../components/ui/OptionCard';
+import Dialog from '../../../components/ui/Dialog';
+import { CloseButton } from '../../../components/ui/SidePanel';
 import QtyField from './QtyField';
 import { allowsFraction, qtyStep, qtyMin, qtyStepButton, clampQty, formatQty, formatQtyWithUnit, subQtyLabel, exceedsStock } from '../../../lib/units';
 import { checkoutMoney } from '../lib/checkoutMoney';
-import { formatCurrency, generateRef } from '../../../lib/utils';
+import { formatCurrency, formatShortDateTime, generateRef, cn } from '../../../lib/utils';
 import { tierPrice } from '../../../lib/priceResolver';
 import { useAccounts, accountForMethod, buildPaymentMethods } from '../../../hooks/useAccounts';
 import { useNotifications } from '../../../context/NotificationContext';
@@ -21,6 +29,7 @@ import CopyButton from '../../../components/motion/CopyButton';
 import SaveButton, { useSaveStatus } from '../../../components/motion/SaveButton';
 import RollingNumber from '../../../components/motion/RollingNumber';
 import FieldError, { useShake } from '../../../components/motion/FieldError';
+import { reorderLevel } from '../../../lib/stockLevels';
 
 // Restaurant modifier picker — choose options for a dish before it hits the cart.
 const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' }) => {
@@ -44,31 +53,33 @@ const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' })
   const total = (Number(product.sellingPrice) || 0) + addPrice;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-sm bg-card rounded-2xl border border-border/60 shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border/60">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+      <div className="m-scrim absolute inset-0 bg-[rgba(17,20,24,0.28)]" onClick={onCancel} aria-hidden="true" />
+      <div role="dialog" aria-modal="true" aria-label={product.name}
+        className="m-dialog relative w-full max-w-sm bg-surface rounded-[18px] shadow-[0_24px_60px_-20px_rgba(17,20,24,0.45)] overflow-hidden max-h-[85vh] flex flex-col">
+        <div className="flex items-start justify-between gap-3 px-[22px] pt-5 pb-3">
           <div>
-            <h3 className="text-base font-extrabold text-foreground">{product.name}</h3>
-            <p className="text-[11px] text-muted-foreground">Choose options</p>
+            <h3 className="font-tight text-[18px] font-semibold tracking-[-0.01em] text-ink">{product.name}</h3>
+            <p className="mt-0.5 text-[13px] text-body">Choose options</p>
           </div>
-          <button onClick={onCancel} className="text-muted-foreground hover:text-foreground"><X size={18} /></button>
+          <CloseButton onClick={onCancel} />
         </div>
-        <div className="p-5 space-y-4 overflow-y-auto">
+        <div className="px-[22px] pb-4 space-y-4 overflow-y-auto">
           {groups.map(g => (
             <div key={g.id}>
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                {g.name} {g.multi && <span className="text-muted-foreground font-normal normal-case">· choose any</span>}
+              <div className="font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-mute mb-2">
+                {g.name} {g.multi && <span className="font-ui font-normal normal-case tracking-normal">· choose any</span>}
               </div>
               <div className="space-y-1.5">
                 {(g.options || []).map(o => {
                   const on = !!sel[g.id]?.[o.name];
                   return (
-                    <button key={o.name} type="button" onClick={() => toggle(g, o.name)}
-                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-pill border text-sm transition-all ${
-                        on ? 'border-accent-signature bg-accent-signature/10' : 'border-border hover:border-black/20'
+                    <button key={o.name} type="button" onClick={() => toggle(g, o.name)} aria-pressed={on}
+                      className={`m-press w-full flex items-center justify-between px-3.5 py-2.5 rounded-pill text-[13.5px] ${
+                        on ? 'bg-surface shadow-[inset_0_0_0_2px_var(--color-ink)]' : 'shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile'
                       }`}>
-                      <span className="font-semibold text-foreground">{o.name}</span>
-                      <span className="tabular-nums text-xs text-muted-foreground">{o.price > 0 ? `+${currencySymbol}${o.price}` : '—'}</span>
+                      <span className="font-tight font-semibold text-ink">{o.name}</span>
+                      <span className="tabular-nums text-[12.5px] text-mute">{o.price > 0 ? `+${currencySymbol}${o.price}` : ''}</span>
                     </button>
                   );
                 })}
@@ -76,11 +87,10 @@ const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' })
             </div>
           ))}
         </div>
-        <div className="p-4 border-t border-border/60">
-          <button onClick={() => onConfirm(chosen)}
-            className="w-full h-11 rounded-pill bg-accent-signature text-white text-sm font-semibold hover:bg-accent-signature-hover transition-all flex items-center justify-center gap-2">
+        <div className="px-[22px] pt-1 pb-5">
+          <Button size="lg" className="w-full" onClick={() => onConfirm(chosen)}>
             Add · <span className="tabular-nums">{currencySymbol}{total}</span>
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -89,12 +99,14 @@ const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' })
 
 const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale, currentTenantId, taxMode = 'EXCLUSIVE', businessProfile = null, topSellingIds = [], stores = [],
   // Table POS (restaurant) — bind this builder to a table's running tab.
-  initialCart = null, onCartChange = null, tableLabel = null, onSendKOT = null, businessType = null,
+  initialCart = null, initialClientId = null, onCartChange = null, tableLabel = null, onSendKOT = null, businessType = null,
   // Weighing-scale labels. A capability pack, passed in like businessType so
   // this component keeps taking its vertical context from its caller rather
   // than reaching for the tenant itself.
   scaleOn = false,
-  editId = null, editMeta = null, onEditDone = null, onRecordPayment = null }) => {
+  editId = null, editMeta = null, onEditDone = null, onRecordPayment = null,
+  // Layout only: tells the page when the full-page checkout opens and closes.
+  onCheckoutChange = null }) => {
   const taxInclusive = taxMode === 'INCLUSIVE';
   const noGst        = taxMode === 'NONE'; // not filing GST — no tax split, price is final
   // Restaurant dishes aren't unit-stocked at the POS (recipe deduction is R5),
@@ -111,10 +123,17 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cart]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedClientId, setSelectedClientId] = useState('WALKIN');
+  // initialClientId: the client an estimate or order handed over with its items.
+  const [selectedClientId, setSelectedClientId] = useState(() => initialClientId || 'WALKIN');
   const [outstandingPrompt, setOutstandingPrompt] = useState(null); // { clientId, clientName, outstanding, excess, paymentMethod }
   const [printSale, setPrintSale] = useState(null); // completed-sale snapshot for the receipt
   const [showCheckout, setShowCheckout] = useState(false);
+  // Layout only: let the page hide its tabs while the checkout is open.
+  useEffect(() => {
+    onCheckoutChange?.(showCheckout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showCheckout]);
+  useEffect(() => () => onCheckoutChange?.(false), []); // eslint-disable-line react-hooks/exhaustive-deps
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [paymentAccountId, setPaymentAccountId] = useState(null); // specific account from dynamic button
 
@@ -167,16 +186,16 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   useEffect(() => {
     try { localStorage.setItem('pos_view_mode', viewMode); } catch { /* ignore */ }
   }, [viewMode]);
-  // Store the sale is rung at (multi-store). Persisted per device.
-  const [storeId, setStoreId] = useState(() => {
-    try { return localStorage.getItem('pos_store_id') || ''; } catch { return ''; }
-  });
+  // Store the sale is rung at (multi-store). Persisted per device; the side
+  // menu's shop card can change it too (lib/posStore), so listen for that.
+  const [storeId, setStoreId] = useState(() => readPosStore());
   useEffect(() => {
     if (stores.length && !stores.some(s => s.id === storeId)) setStoreId(stores[0].id);
   }, [stores]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    try { if (storeId) localStorage.setItem('pos_store_id', storeId); } catch { /* ignore */ }
+    if (storeId && storeId !== readPosStore()) writePosStore(storeId);
   }, [storeId]);
+  useEffect(() => onPosStoreChange((id) => { if (id) setStoreId(id); }), []);
   // Cashier-entered "Amount Received". Empty = method default (full pay
   // for CASH/UPI/BANK, 0 for CREDIT). > total → Change due. < total
   // with registered client → Balance to outstanding ledger.
@@ -202,6 +221,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const [clientSearch, setClientSearch]     = useState('');
   const [clientDropOpen, setClientDropOpen] = useState(false);
   const clientDropRef = useRef(null);
+  const clientInputRef = useRef(null);
 
   // Quick add-customer at POS. Retail shops sell to walk-in individuals who
   // aren't in the client list yet — capture name + phone (+ optional Aadhaar
@@ -873,7 +893,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         const msg = hit
           ? raw.replace(new RegExp(`^.*${hit[0]}:\\s*`), '')
           : raw;
-        addNotification(hit ? `${hit[1]} — ${msg}` : `Checkout failed: ${msg}`, 'error');
+        addNotification(hit ? `${hit[1]}: ${msg}` : `Checkout failed: ${msg}`, 'error');
         saveState.fail();
         return; // keep cart + modal so user can retry
       }
@@ -922,7 +942,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         editId
           ? `Sale updated: ${formatCurrency(total)}`
           : fulfillmentType === 'DELIVERY'
-            ? `Sale recorded — added to delivery queue.`
+            ? `Sale recorded, added to the delivery queue.`
             : `Sale recorded: ${formatCurrency(total)}`,
         'success'
       );
@@ -982,6 +1002,29 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     }
   };
 
+  // Shared bits of the redesigned till.
+  const selectedClient = selectedClientId !== 'WALKIN' ? allClients.find(c => c.id === selectedClientId) : null;
+  const initialsOf = (name) => String(name || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
+  const fieldCls = 'w-full h-9 rounded-[10px] bg-surface px-3 text-[13.5px] text-ink tabular-nums shadow-[inset_0_0_0_1px_var(--color-line)] outline-none transition-shadow duration-(--dur-press) placeholder:text-mute focus:shadow-[inset_0_0_0_2px_var(--color-ink)]';
+  const secHead = 'font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-mute';
+  const itemWord = (n) => `${n} item${n === 1 ? '' : 's'}`;
+  // A product's stock / flag pills, shared by the grid tile and the list row.
+  const stockFlags = (product, { stock, isSvc, outOfStock, lowStock, ms }) => (
+    <>
+      {isSvc ? <Badge tone="info">Service</Badge>
+        : outOfStock ? <Badge tone="bad">Out of stock</Badge>
+        : lowStock ? <Badge tone="warn">Low · {stock} left</Badge>
+        : <span className="tabular-nums">{stock} in stock</span>}
+      {isExpired(product.id) ? (
+        <Badge tone="bad">Expired {formatShortDateTime(batchExpiry[product.id])}</Badge>
+      ) : isNearExpiry(product.id) ? (
+        <Badge tone="warn">Expires {formatShortDateTime(batchExpiry[product.id])}</Badge>
+      ) : null}
+      {!outOfStock && ms.isLoss && <Badge tone="bad">Below cost</Badge>}
+      {!outOfStock && !ms.isLoss && ms.belowFloor && <Badge tone="warn">Low margin</Badge>}
+    </>
+  );
+
   return (
     <>
     {outstandingPrompt && (
@@ -1001,137 +1044,125 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         onClose={() => setPrintSale(null)}
       />
     )}
-    <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-130px)]">
-      {/* Modifier picker (restaurant) */}
-      {modPicker && (
-        <ModifierSheet
-          product={modPicker.product}
-          currencySymbol={businessProfile?.currencySymbol || '₹'}
-          onCancel={() => setModPicker(null)}
-          onConfirm={(chosen) => { addToCart(modPicker.product, chosen); setModPicker(null); }}
-        />
-      )}
+    {/* Modifier picker (restaurant) */}
+    {modPicker && (
+      <ModifierSheet
+        product={modPicker.product}
+        currencySymbol={businessProfile?.currencySymbol || '₹'}
+        onCancel={() => setModPicker(null)}
+        onConfirm={(chosen) => { addToCart(modPicker.product, chosen); setModPicker(null); }}
+      />
+    )}
+    {/* The till stays mounted under the checkout (hidden), so the search box,
+        the cart and anything half-typed are exactly as they were on "Back to
+        cart". */}
+    <div className={cn('grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_392px] gap-5 lg:h-[calc(100vh-196px)] lg:min-h-[540px]', showCheckout && 'hidden')}>
       {/* Product Selection Area */}
-      <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-          <input
-            ref={searchInputRef}
-            type="text"
-            placeholder="Search by name, SKU or scan barcode…"
-            className="w-full bg-card rounded-2xl py-4 pl-12 pr-12 border border-border/60 outline-none focus:ring-2 focus:ring-accent-signature/20 shadow-sm font-medium"
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            onKeyDown={handleSearchEnter}
-          />
-          {canCameraScan ? (
-            <button
-              type="button"
-              onClick={() => setScanOpen(true)}
-              aria-label="Scan a barcode with the camera"
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 grid place-items-center
-                         rounded-xl text-muted-foreground hover:text-foreground hover:bg-canvas
-                         transition-[background-color,color,transform] duration-150 active:scale-[0.96]"
-            >
-              <ScanBarcode size={18} />
-            </button>
-          ) : (
-            // No camera API here -- a scanner gun types into this box instead,
-            // so the icon stays as a hint about what the field accepts.
-            <ScanBarcode
-              size={18}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+      <div className="flex flex-col min-h-0 min-w-0">
+        <div className="m-rise flex items-center gap-2.5 mb-3" style={{ '--i': 1 }}>
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-mute pointer-events-none" size={16} />
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search by name, SKU or scan a barcode"
+              className="w-full h-10 rounded-pill bg-well pl-10 pr-12 text-[13.5px] text-ink outline-none placeholder:text-mute transition-shadow duration-(--dur-press) focus:shadow-[inset_0_0_0_2px_var(--color-ink)]"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              onKeyDown={handleSearchEnter}
             />
-          )}
-        </div>
-
-        {/* Category chips + list/grid toggle */}
-        <div className="flex items-center gap-2 shrink-0">
-          {productCategories.length > 0 && (
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mb-1 flex-1">
+            {canCameraScan ? (
               <button
-                onClick={() => setCategoryFilter('ALL')}
-                className={`px-3 py-1.5 rounded-pill text-[11px] whitespace-nowrap transition-colors ${categoryFilter === 'ALL' ? 'bg-foreground text-background font-semibold' : 'bg-card border border-border text-muted-foreground font-medium hover:text-foreground'}`}
-              >All</button>
-              {productCategories.map(c => (
-                <button
-                  key={c}
-                  onClick={() => setCategoryFilter(c === categoryFilter ? 'ALL' : c)}
-                  className={`px-3 py-1.5 rounded-pill text-[11px] whitespace-nowrap transition-colors ${categoryFilter === c ? 'bg-foreground text-background font-semibold' : 'bg-card border border-border text-muted-foreground font-medium hover:text-foreground'}`}
-                >{c}</button>
-              ))}
-            </div>
-          )}
-          <div className="flex items-center bg-card border border-border rounded-lg p-0.5 shrink-0 ml-auto">
-            <button onClick={() => setViewMode('list')} aria-label="List view"
-              className={`w-7 h-7 rounded-xl flex items-center justify-center transition-colors ${viewMode === 'list' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}>
-              <List size={15} />
-            </button>
-            <button onClick={() => setViewMode('grid')} aria-label="Grid view"
-              className={`w-7 h-7 rounded-xl flex items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}>
-              <LayoutGrid size={15} />
-            </button>
+                type="button"
+                onClick={() => setScanOpen(true)}
+                aria-label="Scan a barcode with the camera"
+                title="Scan with the camera"
+                className="m-press absolute right-1.5 top-1/2 -translate-y-1/2 grid place-items-center w-7 h-7 rounded-xl bg-surface text-ink-2 shadow-[0_0_0_1px_var(--color-line)] hover:bg-tile"
+              >
+                <ScanBarcode size={15} />
+              </button>
+            ) : (
+              // No camera API here -- a scanner gun types into this box instead,
+              // so the icon stays as a hint about what the field accepts.
+              <ScanBarcode
+                size={16}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-mute pointer-events-none"
+              />
+            )}
+          </div>
+          <div className="inline-flex shrink-0 rounded-pill bg-well p-[3px]" role="group" aria-label="View">
+            {[['list', 'List view', List], ['grid', 'Grid view', LayoutGrid]].map(([mode, label, Icon]) => (
+              <button key={mode} type="button" onClick={() => setViewMode(mode)} aria-label={label} title={label} aria-pressed={viewMode === mode}
+                className={cn('m-press grid place-items-center px-2.5 py-1.5 rounded-pill',
+                  viewMode === mode ? 'bg-surface text-ink shadow-[0_1px_2px_rgba(17,20,24,0.12)]' : 'text-body hover:text-ink')}>
+                <Icon size={15} />
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* GRID view — product cards with quick-add ×1/×5/×10. */}
+        {/* Category pills */}
+        {productCategories.length > 0 && (
+          <div className="m-rise mb-3.5 shrink-0" style={{ '--i': 2 }}>
+            <FilterPills
+              ariaLabel="Category"
+              className="flex-nowrap overflow-x-auto no-scrollbar"
+              items={[{ key: 'ALL', label: 'All' }, ...productCategories.map(c => ({ key: c, label: c }))]}
+              value={categoryFilter}
+              onChange={(c) => setCategoryFilter(c === categoryFilter ? 'ALL' : c)}
+            />
+          </div>
+        )}
+
+        {/* GRID view: tap a tile to add it; "One less" takes one off. */}
         {viewMode === 'grid' && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 overflow-y-auto pr-1 pb-4 content-start">
+        <div className="m-rise grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 overflow-y-auto pr-1 pb-4 content-start min-h-0 max-h-[60vh] lg:max-h-none" style={{ '--i': 3 }}>
           {filteredProducts.map(product => {
             const ms = marginStatus[product.id] || {};
             const stock = warehouseStock[product.id] !== undefined ? warehouseStock[product.id] : product.stock;
             const isSvc = product.product_type === 'SERVICE';
             const outOfStock = !isSvc && stock <= 0;
-            const lowStock = !outOfStock && stock <= (product.lowStockThreshold || 10);
+            const lowStock = !outOfStock && stock <= reorderLevel(product);
             const inCart = cart.find(i => i.productId === product.id);
             const cartQty = inCart ? inCart.quantity : 0;
             return (
             <div key={product.id}
-              className={`relative rounded-2xl border p-3 flex flex-col transition-all ${
-                outOfStock ? 'opacity-40 border-transparent bg-card/60' :
-                inCart ? 'border-accent-signature/40 bg-accent-signature/5' :
-                'border-border bg-card hover:border-accent-signature/30 hover:shadow-sm'
-              }`}>
+              role="button"
+              tabIndex={outOfStock ? -1 : 0}
+              aria-disabled={outOfStock || undefined}
+              aria-label={`Add ${product.name}`}
+              onClick={() => !outOfStock && addToCart(product)}
+              onKeyDown={(e) => {
+                if (e.target !== e.currentTarget || outOfStock) return;
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); addToCart(product); }
+              }}
+              className={cn('m-press relative flex flex-col rounded-xl border bg-surface p-3 text-left',
+                outOfStock ? 'opacity-50 cursor-not-allowed border-line'
+                  : inCart ? 'cursor-pointer border-amber shadow-[inset_0_0_0_1px_var(--color-amber)] hover:bg-tile'
+                  : ms.isLoss ? 'cursor-pointer border-[#F5C2C2] hover:bg-tile'
+                  : 'cursor-pointer border-line hover:bg-tile')}>
               {cartQty > 0 && (
-                <span className="absolute top-2 right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-accent-signature text-button-text text-[9px] font-semibold flex items-center justify-center shadow ring-2 ring-white">{cartQty}</span>
+                <span className="absolute top-2.5 right-2.5 min-w-[22px] h-[22px] px-1.5 rounded-pill bg-amber text-white font-tight text-[12px] font-semibold grid place-items-center tabular-nums">{cartQty}</span>
               )}
-              <div className="w-10 h-10 rounded-lg overflow-hidden bg-card border border-border flex items-center justify-center mb-2">
+              <div className="w-[38px] h-[38px] rounded-[10px] overflow-hidden bg-tile grid place-items-center mb-2.5">
                 {product.image
                   ? <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
-                  : <span className="text-xs font-semibold text-foreground/30 uppercase">{(product.name||'?').slice(0,2)}</span>}
+                  : <span className="font-tight text-[12.5px] font-semibold text-body uppercase">{(product.name||'?').slice(0,2)}</span>}
               </div>
-              <div className="text-sm font-semibold text-foreground leading-tight line-clamp-2 mb-1">{product.name}</div>
-              <div className="flex items-center gap-1.5 mb-1">
-                <span className={`tabular-nums text-sm font-semibold tabular-nums ${ms.isLoss ? 'text-red-500' : 'text-foreground'}`}>{formatCurrency(product.sellingPrice)}</span>
-                {product.taxRate > 0 && <span className="text-[9px] font-semibold px-1 rounded bg-blue-50 text-blue-500">{product.taxRate}%</span>}
+              <b className="block font-tight text-[13.5px] font-semibold leading-[1.3] text-ink line-clamp-2 min-h-[35px]">{product.name}</b>
+              <div className="flex items-baseline gap-1.5 mt-1.5">
+                <span className={cn('font-tight text-[15px] font-semibold tabular-nums', ms.isLoss ? 'text-bad-text' : 'text-ink')}>{formatCurrency(product.sellingPrice)}</span>
+                {product.taxRate > 0 && <small className="text-[11.5px] text-mute">{product.taxRate}% GST</small>}
               </div>
-              <div className={`text-[11px] font-semibold mb-2 ${isSvc ? 'text-violet-500' : outOfStock ? 'text-red-400' : lowStock ? 'text-accent-signature' : 'text-muted-foreground'}`}>
-                {isSvc ? 'SERVICE' : outOfStock ? 'OUT OF STOCK' : lowStock ? `${stock} stk · low` : `${stock} stk`}
+              <div className={cn('mt-1.5 flex flex-wrap items-center gap-1.5 text-[12px] text-body', cartQty > 0 && 'pr-8')}>
+                {stockFlags(product, { stock, isSvc, outOfStock, lowStock, ms })}
               </div>
-              {isExpired(product.id) ? (
-                <div className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-red-50 text-red-600 mb-1 inline-block">EXPIRED {batchExpiry[product.id]}</div>
-              ) : isNearExpiry(product.id) ? (
-                <div className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-accent-signature/10 text-accent-signature mb-1 inline-block">EXP {batchExpiry[product.id]}</div>
-              ) : null}
-              {!outOfStock && (
-                cartQty > 0 ? (
-                  <div className="mt-auto flex items-center justify-between gap-1">
-                    <button type="button" onClick={() => updateQuantity(product.id, -1)}
-                      className="w-8 h-8 rounded-xl bg-card border border-border text-foreground flex items-center justify-center hover:bg-black/5">
-                      <Minus size={14} />
-                    </button>
-                    <span className="text-sm font-semibold text-foreground tabular-nums">{cartQty}</span>
-                    <button type="button" onClick={() => addToCart(product)}
-                      className="w-8 h-8 rounded-xl bg-accent-signature text-button-text flex items-center justify-center hover:opacity-90">
-                      <Plus size={14} />
-                    </button>
-                  </div>
-                ) : (
-                  <button type="button" onClick={() => addToCart(product)}
-                    className="mt-auto w-full py-2 rounded-pill bg-canvas hover:bg-accent-signature hover:text-button-text text-xs font-semibold text-foreground transition-colors flex items-center justify-center gap-1.5">
-                    <Plus size={14} /> Add
-                  </button>
-                )
+              {!outOfStock && cartQty > 0 && (
+                <button type="button" onClick={(e) => { e.stopPropagation(); updateQuantity(product.id, -1); }}
+                  aria-label={`One less ${product.name}`} title="One less"
+                  className="m-press absolute bottom-2.5 right-2.5 grid place-items-center w-7 h-7 rounded-xl bg-well text-ink-2 hover:bg-[#E8E8E7]">
+                  <Minus size={14} />
+                </button>
               )}
             </div>
             );
@@ -1140,41 +1171,36 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         )}
 
         {viewMode === 'list' && (
-        <div className="flex flex-col gap-px overflow-y-auto pr-1 pb-4">
+        <div className="m-rise flex flex-col overflow-y-auto pr-1 pb-4 min-h-0 max-h-[60vh] lg:max-h-none" style={{ '--i': 3 }}>
           {filteredProducts.map(product => {
             const ms = marginStatus[product.id] || {};
             const stock = warehouseStock[product.id] !== undefined ? warehouseStock[product.id] : product.stock;
             const isSvc = product.product_type === 'SERVICE';
             const outOfStock = !isSvc && stock <= 0;
-            const lowStock = !outOfStock && stock <= (product.lowStockThreshold || 10);
+            const lowStock = !outOfStock && stock <= reorderLevel(product);
             const inCart  = cart.find(i => i.productId === product.id);
             const cartQty = inCart ? inCart.quantity : 0;
             return (
             <div
               key={product.id}
               onClick={() => !outOfStock && addToCart(product)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all border group ${
-                outOfStock
-                  ? 'opacity-40 cursor-not-allowed border-transparent'
-                  : ms.isLoss
-                  ? 'border-red-200 bg-red-50/40 hover:bg-red-50/70'
-                  : ms.belowFloor
-                  ? 'border-orange-200 bg-orange-50/30 hover:bg-orange-50/60'
-                  : inCart
-                  ? 'border-accent-signature/40 bg-accent-signature/5 hover:bg-accent-signature/10'
-                  : 'border-transparent bg-card/60 hover:bg-card hover:border-accent-signature/20 hover:shadow-sm'
-              } ${inCart && !outOfStock ? 'ring-2 ring-inset ring-accent-signature/30' : ''}`}
+              className={cn('group flex items-center gap-3 px-3 py-2.5 rounded-xl border-b border-sep last:border-b-0 transition-colors duration-(--dur-press)',
+                outOfStock ? 'opacity-50 cursor-not-allowed'
+                  : inCart ? 'cursor-pointer bg-amber-soft/60 shadow-[inset_0_0_0_1px_var(--color-amber)] hover:bg-amber-soft'
+                  : ms.isLoss ? 'cursor-pointer bg-bad-soft/50 hover:bg-bad-soft'
+                  : ms.belowFloor ? 'cursor-pointer bg-amber-soft/40 hover:bg-amber-soft/70'
+                  : 'cursor-pointer hover:bg-tile')}
             >
               {/* Thumbnail / initial */}
-              <div className="relative flex-shrink-0">
-                <div className="w-8 h-8 rounded-md flex items-center justify-center overflow-hidden bg-card border border-border shadow-sm">
+              <div className="relative shrink-0">
+                <div className="w-9 h-9 rounded-[10px] grid place-items-center overflow-hidden bg-tile">
                   {product.image
                     ? <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
-                    : <span className="text-[11px] font-semibold text-foreground/30 uppercase">{(product.name || '?').slice(0, 2)}</span>
+                    : <span className="font-tight text-[12px] font-semibold text-body uppercase">{(product.name || '?').slice(0, 2)}</span>
                   }
                 </div>
                 {cartQty > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-accent-signature text-button-text text-[9px] font-semibold flex items-center justify-center shadow ring-2 ring-white">
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-pill bg-amber text-white font-tight text-[10.5px] font-semibold grid place-items-center ring-2 ring-surface tabular-nums">
                     {cartQty}
                   </span>
                 )}
@@ -1182,55 +1208,41 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
               {/* Name + SKU */}
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-foreground truncate leading-tight">{product.name}</div>
-                {product.sku && <div className="text-xs font-medium text-muted-foreground truncate">{product.sku}</div>}
+                <div className="font-tight text-[13.5px] font-semibold text-ink truncate leading-tight">{product.name}</div>
+                {product.sku && <div className="text-[12px] text-mute truncate">{product.sku}</div>}
               </div>
 
-              {/* Price + stock + tax */}
-              <div className="text-right flex-shrink-0">
-                <div className="flex items-center justify-end gap-1.5">
-                  <div className={`text-sm font-semibold leading-none ${ms.isLoss ? 'text-red-500' : 'text-foreground'}`}>
+              {/* Price + tax, then stock and flags */}
+              <div className="text-right shrink-0">
+                <div className="flex items-baseline justify-end gap-1.5">
+                  <span className={cn('font-tight text-[14px] font-semibold tabular-nums leading-none', ms.isLoss ? 'text-bad-text' : 'text-ink')}>
                     {formatCurrency(product.sellingPrice)}
-                  </div>
-                  {product.taxRate > 0 && (
-                    <span className="text-[10px] font-semibold px-1 py-0.5 rounded bg-blue-50 text-blue-500 border border-blue-100">
-                      {product.taxRate}%
-                    </span>
-                  )}
+                  </span>
+                  {product.taxRate > 0 && <small className="text-[11.5px] text-mute">{product.taxRate}% GST</small>}
                 </div>
-                <div className={`text-xs font-semibold mt-0.5 ${
-                  isSvc ? 'text-violet-500' : outOfStock ? 'text-red-400' : lowStock ? 'text-accent-signature' : ms.isLoss || ms.belowFloor ? 'text-orange-500' : 'text-muted-foreground'
-                }`}>
-                  {isSvc ? 'SERVICE' : outOfStock ? 'OUT' : lowStock ? `${stock} stk · low` : `${stock} stk`}
+                <div className="mt-1 flex flex-wrap items-center justify-end gap-1.5 text-[12px] text-body">
+                  {stockFlags(product, { stock, isSvc, outOfStock, lowStock, ms })}
                 </div>
               </div>
-
-              {/* Warning badge */}
-              {(ms.isLoss || ms.belowFloor) && !outOfStock && (
-                <div className={`flex-shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase ${
-                  ms.isLoss ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'
-                }`}>
-                  <AlertTriangle size={7} />
-                  {ms.isLoss ? 'LOSS' : 'LOW'}
-                </div>
-              )}
 
               {/* Add / quantity stepper. When the item is in the cart show
                   −/qty/+; otherwise a single + that's always a clear tap
                   target (the whole row is still clickable too). */}
               {!outOfStock && (
                 cartQty > 0 ? (
-                  <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center rounded-pill bg-well shrink-0" onClick={e => e.stopPropagation()}>
                     <button
                       type="button"
                       onClick={() => updateQuantity(product.id, -1)}
-                      className="w-7 h-7 rounded-xl bg-card border border-border text-foreground flex items-center justify-center hover:bg-black/5"
+                      aria-label="One less"
+                      className="m-press grid place-items-center w-7 h-7 rounded-xl text-ink-2 hover:bg-[#E8E8E7]"
                     ><Minus size={13} /></button>
-                    <span className="w-6 text-center text-sm font-semibold text-foreground tabular-nums">{cartQty}</span>
+                    <span className="min-w-[22px] text-center font-tight text-[13px] font-semibold text-ink tabular-nums">{cartQty}</span>
                     <button
                       type="button"
                       onClick={() => updateQuantity(product.id, 1)}
-                      className="w-7 h-7 rounded-xl bg-accent-signature text-button-text flex items-center justify-center hover:opacity-90"
+                      aria-label="One more"
+                      className="m-press grid place-items-center w-7 h-7 rounded-xl text-ink-2 hover:bg-[#E8E8E7]"
                     ><Plus size={13} /></button>
                   </div>
                 ) : (
@@ -1238,7 +1250,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     type="button"
                     onClick={e => { e.stopPropagation(); addToCart(product); }}
                     aria-label={`Add ${product.name}`}
-                    className="w-7 h-7 rounded-xl bg-canvas text-muted-foreground flex items-center justify-center opacity-60 group-hover:opacity-100 hover:bg-accent-signature hover:text-button-text transition-all flex-shrink-0"
+                    className="m-press grid place-items-center w-8 h-8 rounded-xl bg-well text-ink-2 opacity-70 group-hover:opacity-100 hover:bg-amber hover:text-white shrink-0"
                   ><Plus size={14} /></button>
                 )
               )}
@@ -1250,72 +1262,217 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       </div>
 
       {/* Cart Area */}
-      <div className="w-full lg:w-[580px] xl:w-[640px] glass-panel !p-0 flex flex-col overflow-hidden border-l border-border/60 shadow-2xl">
+      <aside className="m-rise flex flex-col min-h-0 rounded-[14px] border border-line bg-surface" style={{ '--i': 2 }} aria-label="Cart">
         {/* Cart header */}
-        <div className="px-4 py-3 border-b border-border/60 flex justify-between items-center bg-canvas/30">
-          <div className="flex items-center gap-2">
-            <CartIcon size={18} className="text-accent-signature" />
-            <h2 className="font-semibold text-sm text-foreground">Cart</h2>
-          </div>
-          <div className="flex items-center gap-2">
-            {/* Store selector — only when the tenant has more than one POS
-                store. Tags the sale with where it was rung. */}
-            {stores.length > 1 && (
-              <div className="flex items-center gap-1.5 bg-card border border-border rounded-pill pl-2.5 pr-1 py-1">
-                <Store size={12} className="text-muted-foreground" />
-                <select
-                  value={storeId}
-                  onChange={e => setStoreId(e.target.value)}
-                  className="text-[11px] font-semibold text-foreground bg-transparent outline-none cursor-pointer pr-1"
-                >
-                  {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
-            )}
-            {tableLabel && cart.length > 0 && (
-              <button onClick={handleSendKOT} disabled={unsentKOTCount === 0} title="Send to kitchen"
-                className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded-pill bg-ink-primary text-accent-signature/70 hover:bg-black disabled:opacity-40 transition-colors">
-                🍳 Send KOT{unsentKOTCount > 0 ? ` (${unsentKOTCount})` : ''}
-              </button>
-            )}
-            {cart.length > 0 && (
-              <button onClick={holdSale} title="Hold sale"
-                className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded-pill border border-border text-muted-foreground hover:border-accent-signature/70 hover:text-accent-signature-hover transition-colors">
-                ⏸ Hold
-              </button>
-            )}
-            <div className="bg-accent-signature text-button-text text-[10px] font-semibold px-2 py-1 rounded-pill ring-4 ring-accent-signature/10">
-              {cart.length} item{cart.length === 1 ? '' : 's'}
-            </div>
-          </div>
+        <div className="flex items-center gap-2 px-[18px] pt-4 pb-3 flex-wrap">
+          <h3 className="font-tight text-[16px] font-semibold text-ink">Cart</h3>
+          <span className="mr-auto text-[13px] text-body">· {itemWord(cart.length)}</span>
+          {/* Store selector — only when the tenant has more than one POS
+              store. Tags the sale with where it was rung. */}
+          {stores.length > 1 && (
+            <label className="relative inline-flex items-center gap-1.5 rounded-pill pl-3 pr-7 py-[5px] font-tight text-[12.5px] font-semibold text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)] cursor-pointer" title="Store this sale is rung at">
+              <em className="not-italic font-medium text-mute">Store</em>
+              <select
+                value={storeId}
+                onChange={e => setStoreId(e.target.value)}
+                className="appearance-none bg-transparent outline-none cursor-pointer max-w-[120px] truncate"
+              >
+                {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+              <ChevronDown size={13} className="absolute right-2.5 text-mute pointer-events-none" />
+            </label>
+          )}
+          {tableLabel && cart.length > 0 && (
+            <Button variant="dark" size="xs" onClick={handleSendKOT} disabled={unsentKOTCount === 0} title="Send to kitchen">
+              <ChefHat /> Send KOT{unsentKOTCount > 0 ? ` (${unsentKOTCount})` : ''}
+            </Button>
+          )}
+          {cart.length > 0 && (
+            <Button variant="secondary" size="xs" onClick={holdSale} title="Hold sale">Hold</Button>
+          )}
         </div>
 
         {/* Parked / held sales — tap to resume. */}
         {parked.length > 0 && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-accent-signature/5 border-b border-accent-signature/20 overflow-x-auto">
-            <span className="text-[9px] font-semibold uppercase tracking-widest text-accent-signature-hover shrink-0">Held · {parked.length}</span>
+          <div className="flex items-center gap-1.5 px-[18px] pb-3 overflow-x-auto no-scrollbar">
+            <span className={cn(secHead, 'shrink-0 mr-0.5')}>Held · {parked.length}</span>
             {parked.map(p => (
-              <button key={p.id} onClick={() => resumeSale(p)}
-                className="flex items-center gap-1.5 shrink-0 px-2.5 py-1 rounded-pill bg-card border border-accent-signature/25 text-[11px] font-semibold text-foreground hover:border-accent-signature/70 transition-colors">
+              <button key={p.id} type="button" onClick={() => resumeSale(p)} title="Resume this sale"
+                className="m-press inline-flex items-center gap-1.5 shrink-0 rounded-pill bg-tile px-2.5 py-[5px] font-tight text-[12px] font-semibold text-ink-2 hover:bg-well">
                 {p.label}
-                <span onClick={(e) => { e.stopPropagation(); persistParked(parked.filter(x => x.id !== p.id)); }} className="text-muted-foreground hover:text-red-500">✕</span>
+                <span role="button" aria-label="Remove held sale" title="Remove held sale"
+                  onClick={(e) => { e.stopPropagation(); persistParked(parked.filter(x => x.id !== p.id)); }}
+                  className="text-mute hover:text-bad-text"><X size={12} /></span>
               </button>
             ))}
           </div>
         )}
 
-        {/* Column headers */}
-        {cart.length > 0 && (
-          <div className="grid grid-cols-[1fr_120px_80px_64px_20px] gap-2 px-4 py-2 bg-canvas/50 border-b border-border/60">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Product</span>
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest text-center">Qty</span>
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest text-right">Unit Price</span>
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest text-right">Total</span>
-            <span />
-          </div>
-        )}
+        {/* Client — Walk-in by default; search, pick, or add a new one. */}
+        <div ref={clientDropRef} className="relative mx-[18px] mb-1.5">
+          {selectedClientId !== 'WALKIN' && !clientDropOpen ? (
+            <>
+              <div className="flex items-center gap-2.5 rounded-xl bg-tile px-3 py-2.5">
+                <span className="grid place-items-center w-8 h-8 shrink-0 rounded-full bg-amber-soft font-tight text-[12px] font-semibold text-amber-text">{initialsOf(selectedClient?.name)}</span>
+                <span className="min-w-0 flex-1">
+                  <b className="block font-tight text-[13.5px] font-semibold text-ink truncate">{selectedClient?.name || 'Unknown'}</b>
+                  {(selectedClient?.phone || selectedClient?.address) && (
+                    <small className="block text-[12px] text-mute truncate">{selectedClient?.phone || selectedClient?.address}</small>
+                  )}
+                </span>
+                <Button variant="link" size="xs" className="px-0 h-auto"
+                  onClick={() => { setClientDropOpen(true); setTimeout(() => clientInputRef.current?.focus(), 0); }}>
+                  Change
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => { setSelectedClientId('WALKIN'); setClientSearch(''); setClientDropOpen(false); }}
+                  aria-label="Back to walk-in" title="Back to walk-in"
+                  className="m-press grid place-items-center w-6 h-6 rounded-xl bg-well text-mute hover:text-ink shrink-0"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+              {Number(selectedClient?.outstanding_balance) > 0 && (
+                <div className="mt-1 pl-0.5 text-[12px] text-amber-text tabular-nums">
+                  Already owes {formatCurrency(selectedClient.outstanding_balance)}
+                </div>
+              )}
+            </>
+          ) : (
+            /* Search input — always visible when no client selected or editing */
+            <div className="relative">
+              <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-mute pointer-events-none" />
+              <input
+                ref={clientInputRef}
+                type="text"
+                aria-label="Client"
+                placeholder="Walk-in. Search a client by name or phone"
+                className={cn(fieldCls, 'h-10 rounded-xl bg-tile pl-9 pr-8 shadow-none')}
+                value={clientSearch}
+                onChange={e => { setClientSearch(e.target.value); setClientDropOpen(true); }}
+                onFocus={() => setClientDropOpen(true)}
+              />
+              {clientSearch && (
+                <button
+                  type="button"
+                  onClick={() => { setClientSearch(''); setClientDropOpen(false); }}
+                  aria-label="Clear search"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-mute hover:text-ink"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          )}
 
-        <div ref={cartScrollRef} className="flex-1 overflow-y-auto scroll-smooth">
+          {/* Dropdown results */}
+          {clientDropOpen && (
+            <div className="m-dialog absolute z-50 top-full mt-1 left-0 right-0 bg-surface rounded-xl shadow-[0_0_0_1px_var(--color-line),0_16px_40px_-16px_rgba(17,20,24,0.35)] overflow-hidden">
+              <div className="max-h-52 overflow-y-auto">
+                {/* Walk-in option */}
+                <button
+                  type="button"
+                  onClick={() => { setSelectedClientId('WALKIN'); setClientDropOpen(false); setClientSearch(''); }}
+                  className={cn('w-full text-left px-3.5 py-2.5 font-tight text-[13px] font-semibold flex items-center justify-between hover:bg-tile border-b border-sep',
+                    selectedClientId === 'WALKIN' ? 'text-amber-text bg-amber-soft/50' : 'text-ink-2')}
+                >
+                  Walk-in, no client
+                  {selectedClientId === 'WALKIN' && <Check size={13} />}
+                </button>
+
+                {/* Filtered clients */}
+                {allClients
+                  .filter(c =>
+                    !clientSearch ||
+                    (c.name || '').toLowerCase().includes(clientSearch.toLowerCase()) ||
+                    (c.phone || '').toLowerCase().includes(clientSearch.toLowerCase()) ||
+                    (c.address || '').toLowerCase().includes(clientSearch.toLowerCase())
+                  )
+                  .map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => { setSelectedClientId(c.id); setClientDropOpen(false); setClientSearch(''); }}
+                      className={cn('w-full text-left px-3.5 py-2 flex items-center justify-between hover:bg-tile', selectedClientId === c.id && 'bg-amber-soft/50')}
+                    >
+                      <span className="flex flex-col min-w-0 flex-1">
+                        <span className={cn('font-tight text-[13px] font-semibold truncate', selectedClientId === c.id ? 'text-amber-text' : 'text-ink')}>
+                          {c.name || 'Unnamed'}
+                        </span>
+                        {(c.phone || c.address) && (
+                          <span className="text-[11.5px] text-mute truncate">
+                            {c.phone || c.address}
+                          </span>
+                        )}
+                      </span>
+                      {Number(c.outstanding_balance) > 0 && (
+                        <Badge tone="warn" className="ml-2 shrink-0">Due {formatCurrency(c.outstanding_balance)}</Badge>
+                      )}
+                      {selectedClientId === c.id && <Check size={13} className="shrink-0 text-amber-text ml-2" />}
+                    </button>
+                  ))
+                }
+
+                {/* Empty state */}
+                {clientSearch && allClients.filter(c =>
+                  (c.name || '').toLowerCase().includes(clientSearch.toLowerCase()) ||
+                  (c.phone || '').toLowerCase().includes(clientSearch.toLowerCase())
+                ).length === 0 && (
+                  <div className="px-4 py-4 text-center text-[12px] text-mute">No clients match "{clientSearch}"</div>
+                )}
+              </div>
+
+              {/* Add new customer */}
+              {!showAddCust ? (
+                <button
+                  type="button"
+                  onClick={() => { setShowAddCust(true); setNewCust(n => ({ ...n, name: clientSearch.trim() })); }}
+                  className="w-full text-left px-3.5 py-2.5 font-tight text-[13px] font-semibold flex items-center gap-2 text-amber-text hover:bg-amber-soft/50 border-t border-sep"
+                >
+                  <Plus size={14} /> Add new customer
+                </button>
+              ) : (
+                <div className="p-3 border-t border-sep bg-tile space-y-2">
+                  <div className="flex gap-1 rounded-pill bg-well p-[3px]" role="group" aria-label="Customer type">
+                    {[['B2C', 'Individual'], ['B2B', 'Business']].map(([v, label]) => (
+                      <button key={v} type="button" onClick={() => setNewCust(n => ({ ...n, type: v }))} aria-pressed={newCust.type === v}
+                        className={cn('m-press flex-1 px-3 py-1.5 rounded-pill font-tight text-[12.5px] font-semibold',
+                          newCust.type === v ? 'bg-surface text-ink shadow-[0_1px_2px_rgba(17,20,24,0.12)]' : 'text-body hover:text-ink')}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <input value={newCust.name} onChange={e => setNewCust(n => ({ ...n, name: e.target.value }))}
+                    placeholder="Customer name*" aria-label="Customer name"
+                    className={fieldCls} />
+                  <input value={newCust.phone} onChange={e => setNewCust(n => ({ ...n, phone: e.target.value }))}
+                    inputMode="numeric" placeholder="Phone number*" aria-label="Phone number"
+                    className={fieldCls} />
+                  {newCust.type === 'B2C' ? (
+                    <input value={newCust.aadhaar} onChange={e => setNewCust(n => ({ ...n, aadhaar: e.target.value }))}
+                      inputMode="numeric" placeholder="Aadhaar, optional, 12 digits" aria-label="Aadhaar"
+                      className={fieldCls} />
+                  ) : (
+                    <input value={newCust.gstin} onChange={e => setNewCust(n => ({ ...n, gstin: e.target.value.toUpperCase() }))}
+                      placeholder="GSTIN, optional, 15 characters" aria-label="GSTIN"
+                      className={fieldCls} />
+                  )}
+                  <div key={custShake ? custErr : 'ok'} className={custShake}><FieldError message={custErr} /></div>
+                  <div className="flex gap-2 pt-0.5">
+                    <Button variant="secondary" size="sm" className="flex-1 bg-surface" onClick={() => setShowAddCust(false)}>Cancel</Button>
+                    <Button size="sm" className="flex-1" onClick={saveNewCustomer} disabled={savingCust}>
+                      {savingCust ? 'Saving' : 'Save and select'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Lines */}
+        <div ref={cartScrollRef} className="flex-1 min-h-[120px] overflow-y-auto scroll-smooth px-[18px] pt-1">
           {cart.map(item => {
             const cost = fifoCosts[item.productId] ?? 0;
             const belowCost = cost > 0 && item.price <= cost;
@@ -1324,22 +1481,22 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               <div
                 key={k}
                 data-cart-row={k}
-                className={`grid grid-cols-[1fr_120px_80px_64px_20px] gap-2 items-center px-4 py-2.5 border-b border-border/60 last:border-0 transition-colors ${
-                  belowCost ? 'bg-red-50/60' : 'hover:bg-canvas/40'
-                }`}
+                className={cn('grid grid-cols-[minmax(0,1fr)_auto] gap-x-2.5 gap-y-1.5 py-[11px] border-t border-sep first:border-t-0',
+                  belowCost && 'bg-bad-soft -mx-2 px-2 rounded-lg')}
               >
                 {/* Product name + modifiers + below-cost hint + unit toggle */}
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-foreground truncate uppercase">{item.name}</div>
+                  <b className="block font-tight text-[13.5px] font-semibold text-ink truncate">{item.name}</b>
                   {item.modLabel && (
-                    <div className="text-[11px] font-semibold text-accent-signature-hover truncate">+ {item.modLabel}</div>
+                    <div className="text-[12px] font-medium text-amber-text truncate">+ {item.modLabel}</div>
                   )}
                   {/* Sell by base unit or alternate (packet). Only shown when the
                       product carries an alt unit. Deducts base either way. */}
                   {convOf(item.productId) > 0 && (
                     <button
+                      type="button"
                       onClick={() => toggleLineUnit(k)}
-                      className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-semibold text-accent-signature-hover hover:underline"
+                      className="mt-0.5 inline-flex items-center gap-1 font-tight text-[11.5px] font-semibold text-amber-text hover:underline"
                       title={`1 ${productById[item.productId].secondary_unit} = ${convOf(item.productId)} ${unitOf(item.productId)}`}
                     >
                       {isAlt(item)
@@ -1348,80 +1505,81 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     </button>
                   )}
                   {belowCost && (
-                    <div className="text-xs font-semibold text-red-500 mt-0.5">
+                    <div className="text-[12px] font-semibold text-bad-text mt-0.5 tabular-nums">
                       Min cost: {formatCurrency(cost)}
                     </div>
                   )}
                 </div>
 
-                {/* Quantity. The control is its own component because what
-                    was here -- a number input with the browser's spinners, a
-                    20px stepper either side, and a write-through that deleted
-                    the line the moment the box read 0 -- was three problems in
-                    one cell. See QtyField. */}
-                <div className="flex flex-col items-center gap-0.5">
-                  <QtyField
-                    value={toDispQty(item)}
-                    unit={dispUnit(item)}
-                    onStep={(d) => updateQuantity(k, d)}
-                    onCommit={(text) => setQuantityDirect(k, text)}
-                  />
-                  {!isAlt(item) && subQtyLabel(item.quantity, unitOf(item.productId)) && (
-                    <div className="text-[10px] text-muted-foreground tabular-nums leading-none">
-                      {subQtyLabel(item.quantity, unitOf(item.productId))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Unit price input */}
-                <div className="relative">
-                  <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-semibold pointer-events-none">₹</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={toDispPrice(item)}
-                    onChange={e => setItemPrice(k, e.target.value)}
-                    className={`w-full pl-4 pr-1 py-1 text-sm font-semibold bg-canvas rounded-lg outline-none focus:ring-1 tabular-nums border ${
-                      belowCost
-                        ? 'border-red-300 text-red-600 focus:ring-red-300/40'
-                        : 'border-border text-foreground focus:ring-accent-signature/30'
-                    }`}
-                  />
-                </div>
-
                 {/* Line total */}
-                <div className="tabular-nums text-sm font-semibold text-foreground tabular-nums text-right">
+                <div className="font-tight text-[14px] font-semibold text-ink tabular-nums text-right">
                   {formatCurrency(item.price * item.quantity)}
+                </div>
+
+                {/* Quantity, price, remove. The quantity control is its own
+                    component: see QtyField for why. */}
+                <div className="flex items-start gap-2 text-[12px] text-mute">
+                  <div className="flex flex-col items-center gap-0.5">
+                    <QtyField
+                      value={toDispQty(item)}
+                      unit={dispUnit(item)}
+                      onStep={(d) => updateQuantity(k, d)}
+                      onCommit={(text) => setQuantityDirect(k, text)}
+                    />
+                    {!isAlt(item) && subQtyLabel(item.quantity, unitOf(item.productId)) && (
+                      <div className="text-[10.5px] text-mute tabular-nums leading-none">
+                        {subQtyLabel(item.quantity, unitOf(item.productId))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="relative w-[84px]">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12.5px] text-mute pointer-events-none">₹</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      aria-label={`Price of ${item.name}`}
+                      value={toDispPrice(item)}
+                      onChange={e => setItemPrice(k, e.target.value)}
+                      className={cn('w-full h-7 pl-5 pr-1.5 rounded-lg bg-surface font-tight text-[12.5px] font-medium tabular-nums outline-none transition-shadow duration-(--dur-press)',
+                        belowCost
+                          ? 'text-bad-text shadow-[inset_0_0_0_1px_#F5C2C2] focus:shadow-[inset_0_0_0_2px_var(--color-bad)]'
+                          : 'text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)] focus:shadow-[inset_0_0_0_2px_var(--color-ink)]')}
+                    />
+                  </div>
+                  <span className="h-7 leading-7">each</span>
                 </div>
 
                 {/* Remove */}
                 <button
+                  type="button"
                   onClick={() => setCart(prev => prev.filter(i => (i.uid || i.productId) !== k))}
-                  className="text-muted-foreground hover:text-red-400 transition-colors flex items-center justify-center"
+                  aria-label={`Remove ${item.name}`} title="Remove"
+                  className="justify-self-end self-start mt-1 text-faint hover:text-bad-text transition-colors duration-(--dur-press)"
                 >
-                  <X size={11} strokeWidth={2.5} />
+                  <X size={14} strokeWidth={2} />
                 </button>
               </div>
             );
           })}
           {cart.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center p-6 text-center">
-              <Package size={40} className="mb-3 opacity-20" />
-              <div className="text-sm text-muted-foreground mb-5">Cart is empty</div>
+            <div className="flex flex-col items-center justify-center py-6 text-center">
+              <Package size={32} className="mb-2 text-faint" />
+              <div className="text-[13px] text-body mb-4">Cart is empty</div>
               {quickAddProducts.length > 0 && (
-                <div className="w-full">
-                  <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2.5">Quick add</div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div className="w-full text-left">
+                  <div className={cn(secHead, 'mb-2')}>Quick add</div>
+                  <div className="grid grid-cols-2 gap-2">
                     {quickAddProducts.map(p => (
                       <button
                         key={p.id}
                         type="button"
+                        data-card
                         onClick={() => addToCart(p)}
-                        className="px-3 py-2.5 rounded-pill border border-border bg-card hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-colors text-left"
+                        className="m-press rounded-xl px-3 py-2.5 text-left bg-surface shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile"
                       >
-                        <div className="text-xs font-semibold text-foreground truncate">{p.name}</div>
-                        <div className="text-[11px] font-semibold text-muted-foreground tabular-nums mt-0.5">{formatCurrency(p.sellingPrice)}</div>
+                        <div className="font-tight text-[13px] font-semibold text-ink truncate">{p.name}</div>
+                        <div className="font-tight text-[12px] font-medium text-body tabular-nums mt-0.5">{formatCurrency(p.sellingPrice)}</div>
                       </button>
                     ))}
                   </div>
@@ -1431,180 +1589,16 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
           )}
         </div>
 
-        <div className="p-6 border-t border-border/60 bg-canvas/10">
-          {/* Client picker — combobox, always-visible search */}
-          <div className="mb-4">
-            <label className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">
-              <User size={12} /> Client
-            </label>
-            <div ref={clientDropRef} className="relative">
-
-              {/* Selected client chip — shown when a real client is picked */}
-              {selectedClientId !== 'WALKIN' && !clientDropOpen ? (() => {
-                const sel = allClients.find(c => c.id === selectedClientId);
-                return (
-                  <div className="w-full bg-accent-signature/5 border border-accent-signature/20 rounded-xl px-4 py-3 flex items-center justify-between gap-2">
-                    <span className="flex flex-col min-w-0 flex-1">
-                      <span className="text-xs font-semibold text-foreground uppercase tracking-tight truncate">{(sel?.name || 'Unknown').toUpperCase()}</span>
-                      {(sel?.phone || sel?.address) && (
-                        <span className="text-[9px] text-muted-foreground font-medium truncate mt-0.5">{sel?.phone || sel?.address}</span>
-                      )}
-                    </span>
-                    {Number(sel?.outstanding_balance) > 0 && (
-                      <span className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-red-50 text-red-500 whitespace-nowrap">
-                        Due {formatCurrency(sel.outstanding_balance)}
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => { setSelectedClientId('WALKIN'); setClientSearch(''); setClientDropOpen(false); }}
-                      className="w-6 h-6 rounded-xl bg-black/5 flex items-center justify-center text-muted-foreground hover:bg-black/10 shrink-0"
-                    >
-                      <X size={10} />
-                    </button>
-                  </div>
-                );
-              })() : (
-                /* Search input — always visible when no client selected or editing */
-                <div className="relative">
-                  <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                  <input
-                    type="text"
-                    placeholder="Type client name to search…"
-                    className="w-full bg-card rounded-xl py-3 pl-9 pr-4 border border-border outline-none focus:ring-2 focus:ring-accent-signature/20 text-xs font-semibold text-foreground placeholder:text-muted-foreground placeholder:font-normal"
-                    value={clientSearch}
-                    onChange={e => { setClientSearch(e.target.value); setClientDropOpen(true); }}
-                    onFocus={() => setClientDropOpen(true)}
-                  />
-                  {clientSearch && (
-                    <button
-                      type="button"
-                      onClick={() => { setClientSearch(''); setClientDropOpen(false); }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground"
-                    >
-                      <X size={11} />
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* Dropdown results */}
-              {clientDropOpen && (
-                <div className="absolute z-50 bottom-full mb-1 left-0 right-0 bg-card border border-border rounded-xl shadow-xl overflow-hidden">
-                  <div className="max-h-52 overflow-y-auto">
-                    {/* Walk-in option */}
-                    <button
-                      type="button"
-                      onClick={() => { setSelectedClientId('WALKIN'); setClientDropOpen(false); setClientSearch(''); }}
-                      className={`w-full text-left px-4 py-3 text-xs font-semibold uppercase tracking-tight flex items-center justify-between hover:bg-canvas transition-colors border-b border-border/60 ${selectedClientId === 'WALKIN' ? 'text-accent-signature bg-accent-signature/5' : 'text-muted-foreground'}`}
-                    >
-                      Walk-in / No client
-                      {selectedClientId === 'WALKIN' && <Check size={12} />}
-                    </button>
-
-                    {/* Filtered clients */}
-                    {allClients
-                      .filter(c =>
-                        !clientSearch ||
-                        (c.name || '').toLowerCase().includes(clientSearch.toLowerCase()) ||
-                        (c.phone || '').toLowerCase().includes(clientSearch.toLowerCase()) ||
-                        (c.address || '').toLowerCase().includes(clientSearch.toLowerCase())
-                      )
-                      .map(c => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => { setSelectedClientId(c.id); setClientDropOpen(false); setClientSearch(''); }}
-                          className={`w-full text-left px-4 py-2.5 flex items-center justify-between hover:bg-canvas transition-colors ${selectedClientId === c.id ? 'bg-accent-signature/5' : ''}`}
-                        >
-                          <span className="flex flex-col min-w-0 flex-1">
-                            <span className={`text-xs font-semibold uppercase tracking-tight truncate ${selectedClientId === c.id ? 'text-accent-signature' : 'text-foreground'}`}>
-                              {(c.name || 'Unnamed').toUpperCase()}
-                            </span>
-                            {(c.phone || c.address) && (
-                              <span className="text-[9px] text-muted-foreground font-medium truncate mt-0.5">
-                                {c.phone || c.address}
-                              </span>
-                            )}
-                          </span>
-                          {Number(c.outstanding_balance) > 0 && (
-                            <span className="shrink-0 ml-2 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-red-50 text-red-500">
-                              Due {formatCurrency(c.outstanding_balance)}
-                            </span>
-                          )}
-                          {selectedClientId === c.id && <Check size={12} className="shrink-0 text-accent-signature ml-2" />}
-                        </button>
-                      ))
-                    }
-
-                    {/* Empty state */}
-                    {clientSearch && allClients.filter(c =>
-                      (c.name || '').toLowerCase().includes(clientSearch.toLowerCase()) ||
-                      (c.phone || '').toLowerCase().includes(clientSearch.toLowerCase())
-                    ).length === 0 && (
-                      <div className="px-4 py-5 text-center text-[10px] text-muted-foreground">No clients match "{clientSearch}"</div>
-                    )}
-                  </div>
-
-                  {/* Add new customer */}
-                  {!showAddCust ? (
-                    <button
-                      type="button"
-                      onClick={() => { setShowAddCust(true); setNewCust(n => ({ ...n, name: clientSearch.trim() })); }}
-                      className="w-full text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-tight flex items-center gap-2 text-accent-signature hover:bg-accent-signature/5 border-t border-border/60"
-                    >
-                      <Plus size={13} /> Add new customer
-                    </button>
-                  ) : (
-                    <div className="p-3 border-t border-border/60 bg-canvas/40 space-y-2">
-                      <div className="flex gap-1 bg-card rounded-lg p-0.5 border border-border/60">
-                        {[['B2C', 'Individual'], ['B2B', 'Business']].map(([v, label]) => (
-                          <button key={v} type="button" onClick={() => setNewCust(n => ({ ...n, type: v }))}
-                            className={`flex-1 h-7 rounded-pill text-[11px] font-semibold transition-all ${newCust.type === v ? 'bg-accent-signature text-button-text' : 'text-muted-foreground'}`}>
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                      <input value={newCust.name} onChange={e => setNewCust(n => ({ ...n, name: e.target.value }))}
-                        placeholder="Customer name*"
-                        className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature/40" />
-                      <input value={newCust.phone} onChange={e => setNewCust(n => ({ ...n, phone: e.target.value }))}
-                        inputMode="numeric" placeholder="Phone number*"
-                        className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature/40" />
-                      {newCust.type === 'B2C' ? (
-                        <input value={newCust.aadhaar} onChange={e => setNewCust(n => ({ ...n, aadhaar: e.target.value }))}
-                          inputMode="numeric" placeholder="Aadhaar (optional, 12 digits)"
-                          className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature/40" />
-                      ) : (
-                        <input value={newCust.gstin} onChange={e => setNewCust(n => ({ ...n, gstin: e.target.value.toUpperCase() }))}
-                          placeholder="GSTIN (optional, 15 chars)"
-                          className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature/40" />
-                      )}
-                      <div key={custShake ? custErr : 'ok'} className={custShake}><FieldError message={custErr} /></div>
-                      <div className="flex gap-2 pt-0.5">
-                        <button type="button" onClick={() => setShowAddCust(false)}
-                          className="flex-1 h-8 rounded-pill text-[11px] font-semibold text-muted-foreground border border-border hover:bg-card">Cancel</button>
-                        <button type="button" onClick={saveNewCustomer} disabled={savingCust}
-                          className="flex-1 h-8 rounded-pill text-[11px] font-semibold bg-accent-signature text-button-text disabled:opacity-50">
-                          {savingCust ? 'Saving…' : 'Save & select'}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
+        <div className="px-[18px] pb-[18px] border-t border-line">
           {/* Service charge (restaurant) */}
           {isRestoPOS && (
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Service</span>
+            <div className="flex items-center gap-2 mt-3">
+              <span className={cn(secHead, 'w-14')}>Service</span>
               <div className="flex gap-1 flex-1">
                 {[0, 5, 10].map(pct => (
-                  <button key={pct} type="button" onClick={() => setServiceChargePct(pct)}
-                    className={`flex-1 h-8 rounded-pill text-[12px] font-semibold transition-all ${
-                      Number(serviceChargePct) === pct ? 'bg-accent-signature text-white' : 'bg-black/[0.04] text-muted-foreground hover:text-foreground'
-                    }`}>
+                  <button key={pct} type="button" onClick={() => setServiceChargePct(pct)} aria-pressed={Number(serviceChargePct) === pct}
+                    className={cn('m-press flex-1 px-2 py-1.5 rounded-pill font-tight text-[12.5px] font-semibold',
+                      Number(serviceChargePct) === pct ? 'bg-ink text-white' : 'bg-well text-body hover:text-ink')}>
                     {pct === 0 ? 'None' : `${pct}%`}
                   </button>
                 ))}
@@ -1613,65 +1607,69 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
           )}
           {/* Split bill (restaurant) — equal split display aid */}
           {isRestoPOS && total > 0 && (
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Split</span>
-              <div className="flex items-center gap-1 bg-black/[0.04] rounded-lg p-0.5">
-                <button type="button" onClick={() => setSplitN(n => Math.max(1, n - 1))} className="w-7 h-7 rounded grid place-items-center hover:bg-card"><Minus size={12} /></button>
-                <span className="w-7 text-center text-[13px] font-semibold tabular-nums">{splitN}</span>
-                <button type="button" onClick={() => setSplitN(n => n + 1)} className="w-7 h-7 rounded grid place-items-center hover:bg-card"><Plus size={12} /></button>
+            <div className="flex items-center gap-2 mt-3">
+              <span className={cn(secHead, 'w-14')}>Split</span>
+              <div className="flex items-center rounded-pill bg-well">
+                <button type="button" onClick={() => setSplitN(n => Math.max(1, n - 1))} aria-label="Fewer guests" className="m-press grid place-items-center w-7 h-7 rounded-xl text-ink-2 hover:bg-[#E8E8E7]"><Minus size={12} /></button>
+                <span className="min-w-[22px] text-center font-tight text-[13px] font-semibold tabular-nums">{splitN}</span>
+                <button type="button" onClick={() => setSplitN(n => n + 1)} aria-label="More guests" className="m-press grid place-items-center w-7 h-7 rounded-xl text-ink-2 hover:bg-[#E8E8E7]"><Plus size={12} /></button>
               </div>
               {splitN > 1 && (
-                <span className="text-[12px] font-semibold text-accent-signature-hover ml-auto">
-                  {formatCurrency(total / splitN)} <span className="text-muted-foreground font-normal">/ guest</span>
+                <span className="font-tight text-[12.5px] font-semibold text-amber-text ml-auto tabular-nums">
+                  {formatCurrency(total / splitN)} <span className="text-mute font-normal">per guest</span>
                 </span>
               )}
             </div>
           )}
           {/* Order discount (flat amount) */}
-          <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-black/[0.03] border border-border focus-within:border-accent-signature/70">
-            <span className="text-accent-signature text-sm font-semibold">%</span>
-            <input
-              type="number" min="0" inputMode="decimal" placeholder="Discount (flat ₹)"
-              className="flex-1 bg-transparent outline-none text-[13px] font-semibold tabular-nums text-foreground placeholder:text-muted-foreground placeholder:font-sans"
-              value={discount}
-              onChange={e => setDiscount(e.target.value)}
-            />
-            {discountAmt > 0 && (
-              <button onClick={() => setDiscount('')} className="text-muted-foreground hover:text-red-500"><X size={13} /></button>
-            )}
-          </div>
-          <div className="space-y-2 mb-6">
-            <div className="flex justify-between text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-              <span>{taxInclusive ? 'Subtotal (excl. tax)' : 'Subtotal'}</span>
-              <span className="tabular-nums">{formatCurrency(taxableAmount)}</span>
+          <div className="flex items-center justify-between gap-2.5 mt-3 text-[13px] text-body">
+            <label htmlFor="pos-discount">Discount, flat ₹</label>
+            <div className="relative w-[120px]">
+              <input
+                id="pos-discount"
+                type="number" min="0" inputMode="decimal" placeholder="0"
+                className={cn(fieldCls, 'text-right', discountAmt > 0 && 'pr-8')}
+                value={discount}
+                onChange={e => setDiscount(e.target.value)}
+              />
+              {discountAmt > 0 && (
+                <button type="button" onClick={() => setDiscount('')} aria-label="Clear discount"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-mute hover:text-bad-text"><X size={13} /></button>
+              )}
             </div>
-            <div className="flex justify-between text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-              <span>Tax{taxInclusive ? ' (included)' : ''}</span>
-              <span className="tabular-nums">{formatCurrency(tax)}</span>
+          </div>
+          <div className="mt-3 pt-3 border-t border-line">
+            <div className="flex justify-between py-[3px] text-[13px] text-body">
+              <span>{taxInclusive ? 'Subtotal, without tax' : 'Subtotal'}</span>
+              <span className="font-tight font-medium text-ink-2 tabular-nums">{formatCurrency(taxableAmount)}</span>
+            </div>
+            <div className="flex justify-between py-[3px] text-[13px] text-body">
+              <span>{taxInclusive ? 'Tax, included' : 'Tax'}</span>
+              <span className="font-tight font-medium text-ink-2 tabular-nums">{formatCurrency(tax)}</span>
             </div>
             {serviceChargeAmt > 0 && (
-              <div className="flex justify-between text-xs font-semibold text-muted-foreground uppercase tracking-widest">
+              <div className="flex justify-between py-[3px] text-[13px] text-body">
                 <span>Service charge ({serviceChargePct}%)</span>
-                <span className="tabular-nums">{formatCurrency(serviceChargeAmt)}</span>
+                <span className="font-tight font-medium text-ink-2 tabular-nums">{formatCurrency(serviceChargeAmt)}</span>
               </div>
             )}
             {discountAmt > 0 && (
-              <div className="flex justify-between text-xs font-semibold text-red-500 uppercase tracking-widest">
+              <div className="flex justify-between py-[3px] text-[13px] text-body">
                 <span>Discount</span>
-                <span className="tabular-nums">−{formatCurrency(discountAmt)}</span>
+                <span className="font-tight font-medium text-bad-text tabular-nums">−{formatCurrency(discountAmt)}</span>
               </div>
             )}
-            <div className="flex justify-between text-xl font-semibold text-foreground pt-2 border-t border-border/60">
-              <span>Total</span>
-              <RollingNumber text={formatCurrency(total)} />
+            <div className="flex justify-between items-baseline mt-2 pt-2.5 border-t border-sep font-tight font-semibold text-ink">
+              <span className="text-[15px]">Total</span>
+              <span className="text-[24px] tracking-[-0.02em] tabular-nums"><RollingNumber text={formatCurrency(total)} /></span>
             </div>
             {taxInclusive && (
-              <p className="text-[10px] text-muted-foreground font-medium text-right">
-                Listed prices include GST — subtotal shown net of tax.
+              <p className="mt-1 text-[12px] text-mute">
+                Listed prices include GST, so the subtotal is shown without tax.
               </p>
             )}
           </div>
-          
+
           {/* Below-cost hard block */}
           {(() => {
             const belowCostItems = cart.filter(item => {
@@ -1685,164 +1683,140 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             return (
               <>
                 {belowCostItems.length > 0 && (
-                  <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-red-50 border border-red-300 text-red-700 mb-2">
+                  <div className="flex items-start gap-2 mt-3 px-3 py-2.5 rounded-xl bg-bad-soft text-bad-text">
                     <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-                    <p className="text-xs font-semibold leading-snug">
-                      {isOwner ? 'At or below purchase cost' : 'Cannot sell at or below purchase cost'}. {belowCostItems.map(i => i.name).join(', ')}.{isOwner ? ' Owner override — you may still checkout.' : ''}
+                    <p className="text-[12.5px] font-medium leading-snug">
+                      {isOwner ? 'At or below purchase cost' : 'Cannot sell at or below purchase cost'}. {belowCostItems.map(i => i.name).join(', ')}.{isOwner ? ' Owner override, you may still checkout.' : ''}
                     </p>
                   </div>
                 )}
                 {hasFloorWarn && belowCostItems.length === 0 && (
-                  <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 mb-2">
+                  <div className="flex items-start gap-2 mt-3 px-3 py-2.5 rounded-xl bg-amber-soft text-amber-text">
                     <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-                    <p className="text-xs font-semibold leading-snug">
+                    <p className="text-[12.5px] font-medium leading-snug">
                       Some items are below your minimum margin floor.
                     </p>
                   </div>
                 )}
                 <Button
+                  size="lg"
                   disabled={cart.length === 0 || (belowCostItems.length > 0 && !isOwner)}
                   onClick={() => setShowCheckout(true)}
-                  className="w-full !rounded-xl !h-14 shadow-xl"
-                  icon={ArrowRight}
+                  className="w-full mt-3.5 justify-between px-5"
                 >
-                  Checkout
+                  <span>Checkout</span>
+                  <span className="tabular-nums">{formatCurrency(total)}</span>
                 </Button>
               </>
             );
           })()}
         </div>
-      </div>
+      </aside>
+    </div>
 
       {/* Full-page Checkout */}
       {showCheckout && (
-      <div className="fixed inset-0 z-50 bg-canvas flex flex-col">
+      <section aria-label="Checkout">
         {/* Header */}
-        <div className="flex items-center gap-4 px-6 py-4 bg-card border-b border-border/60 shrink-0">
+        <div className="m-rise flex items-center gap-3.5 mb-[18px]">
           <button
+            type="button"
             onClick={() => setShowCheckout(false)}
-            className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+            className="inline-flex items-center gap-1.5 font-tight text-[13px] font-semibold text-body hover:text-ink transition-colors duration-(--dur-press)"
           >
-            <ChevronLeft size={16} /> Back to Cart
+            <ChevronLeft size={15} /> Back to cart
           </button>
-          <div className="flex-1" />
-          <h1 className="text-base font-semibold text-foreground tracking-tight">
-            Checkout<span className="text-accent-signature">.</span>
-          </h1>
-          <div className="flex-1" />
-          <span className="text-xs font-semibold text-muted-foreground">{cart.length} item{cart.length !== 1 ? 's' : ''}</span>
+          <h3 className="font-tight text-[20px] font-semibold tracking-[-0.02em] text-ink">Checkout</h3>
+          <span className="text-[13px] text-body">{itemWord(cart.length)}</span>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-5xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px] gap-5 items-start">
 
             {/* Left: Order Summary */}
-            <div className="space-y-4">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Order Summary</p>
-              <div className="bg-card rounded-2xl border border-border/60 overflow-hidden">
-                {cart.map((item, idx) => (
-                  <div key={item.uid || item.productId} className={`flex items-center gap-4 px-5 py-3.5 ${idx !== cart.length - 1 ? 'border-b border-border/60' : ''}`}>
-                    <div className="w-8 h-8 rounded-lg bg-card border border-border shadow-sm flex items-center justify-center shrink-0">
-                      <Package size={14} className="text-muted-foreground" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-foreground truncate">{item.name}</div>
-                      {item.modLabel && <div className="text-[10px] text-accent-signature-hover font-semibold truncate">+ {item.modLabel}</div>}
-                      <div className="text-[10px] text-muted-foreground font-medium">{formatCurrency(item.price)} × {item.quantity}</div>
-                    </div>
-                    <div className="text-sm font-semibold text-foreground tabular-nums shrink-0">
-                      {formatCurrency(item.price * item.quantity)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Totals */}
-              <div className="bg-card rounded-2xl border border-border/60 p-5 space-y-2">
-                <div className="flex items-center justify-between mb-1">
-                  <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full ${taxInclusive ? 'bg-blue-50 text-blue-600' : 'bg-muted text-muted-foreground'}`}>
-                    {taxInclusive ? 'TAX INCLUSIVE' : 'TAX EXCLUSIVE'}
-                  </span>
-                </div>
-                <div className="flex justify-between text-xs font-semibold text-muted-foreground">
-                  <span>{taxInclusive ? 'Taxable (extracted)' : 'Subtotal'}</span>
-                  <span className="tabular-nums">{formatCurrency(taxableAmount)}</span>
-                </div>
-                {tax > 0 && (
-                  <div className="flex justify-between text-xs font-semibold text-muted-foreground">
-                    <span>GST {taxInclusive ? '(incl.)' : ''}</span><span className="tabular-nums">{formatCurrency(tax)}</span>
-                  </div>
-                )}
-                {deliveryFeeAmt > 0 && (
-                  <div className="flex justify-between text-xs font-semibold text-muted-foreground items-center">
-                    <span className="flex items-center gap-1"><Truck size={11} /> Delivery Fee</span>
-                    <span className="tabular-nums">+ {formatCurrency(deliveryFeeAmt)}</span>
-                  </div>
-                )}
-                {discountAmt > 0 && (
-                  <div className="flex justify-between text-xs font-semibold text-red-500 items-center">
-                    <span>Discount</span>
-                    <span className="tabular-nums">− {formatCurrency(discountAmt)}</span>
-                  </div>
-                )}
-                <div className="border-t border-border pt-2 flex justify-between text-base font-semibold text-foreground">
-                  <span>Total</span><span className="tabular-nums">{formatCurrency(total)}</span>
-                </div>
-              </div>
-
-              {/* Client info summary */}
-              {selectedClientId !== 'WALKIN' && (() => {
-                const client = allClients.find(c => c.id === selectedClientId);
-                return client ? (
-                  <div className="bg-card rounded-2xl border border-border/60 p-4 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-accent-signature/10 border border-accent-signature/20 flex items-center justify-center text-sm font-semibold text-foreground shrink-0">
-                      {client.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-foreground truncate">{client.name}</div>
-                      {client.phone && <div className="text-[10px] text-muted-foreground font-medium">{client.phone}</div>}
-                    </div>
-                  </div>
-                ) : null;
-              })()}
-
-              {/* What this customer already owes, and what this bill makes it.
-                  Whether to extend more credit is decided by the total
-                  exposure, not by this bill alone — and the old chip showed
-                  only the existing due, so the cashier still had to add it up
-                  in their head at the counter. */}
-              {selectedClientId !== 'WALKIN' && (() => {
-                const client = allClients.find(c => c.id === selectedClientId);
-                const due = Number(client?.outstanding_balance) || 0;
-                if (due <= 0.01) return null;
-                return (
-                  <div className="rounded-2xl border border-red-100 bg-red-50 p-4">
-                    <div className="flex items-start justify-between gap-3">
+            <div className="space-y-4 min-w-0">
+              <Card className="m-rise" style={{ '--i': 1 }}>
+                <CardHeader title="Order summary" aside={
+                  <Badge tone={taxInclusive ? 'info' : 'neutral'}>{taxInclusive ? 'Prices include GST' : 'Tax exclusive'}</Badge>
+                } />
+                <div className="mt-2">
+                  {cart.map((item) => (
+                    <div key={item.uid || item.productId} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 py-[9px] border-t border-sep first:border-t-0">
                       <div className="min-w-0">
-                        <div className="text-[10px] font-semibold uppercase tracking-wider text-red-400">
-                          Already owes
-                        </div>
-                        <div className="text-xl font-bold tabular-nums text-red-600 mt-0.5">
-                          {formatCurrency(due)}
-                        </div>
+                        <div className="text-[13.5px] text-ink truncate">{item.name}</div>
+                        {item.modLabel && <div className="text-[12px] font-medium text-amber-text truncate">+ {item.modLabel}</div>}
+                        <small className="block text-[12px] text-mute tabular-nums">{formatCurrency(item.price)} × {item.quantity}</small>
                       </div>
-                      <div className="text-right shrink-0">
-                        <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                          With this bill
-                        </div>
-                        <div className="text-base font-bold tabular-nums text-foreground mt-0.5">
-                          {formatCurrency(due + total)}
-                        </div>
+                      <div className="font-tight text-[13.5px] font-medium text-ink tabular-nums">
+                        {formatCurrency(item.price * item.quantity)}
                       </div>
                     </div>
+                  ))}
+                </div>
+
+                {/* Totals */}
+                <div className="mt-3.5 rounded-xl bg-tile px-3.5 py-3">
+                  <div className="flex justify-between py-[3px] text-[13px] text-body">
+                    <span>{taxInclusive ? 'Taxable, taken out of the prices' : 'Subtotal'}</span>
+                    <span className="font-tight font-medium text-ink-2 tabular-nums">{formatCurrency(taxableAmount)}</span>
                   </div>
+                  {tax > 0 && (
+                    <div className="flex justify-between py-[3px] text-[13px] text-body">
+                      <span>{taxInclusive ? 'GST, included' : 'GST'}</span><span className="font-tight font-medium text-ink-2 tabular-nums">{formatCurrency(tax)}</span>
+                    </div>
+                  )}
+                  {deliveryFeeAmt > 0 && (
+                    <div className="flex justify-between py-[3px] text-[13px] text-body">
+                      <span className="flex items-center gap-1"><Truck size={12} /> Delivery fee</span>
+                      <span className="font-tight font-medium text-ink-2 tabular-nums">+{formatCurrency(deliveryFeeAmt)}</span>
+                    </div>
+                  )}
+                  {discountAmt > 0 && (
+                    <div className="flex justify-between py-[3px] text-[13px] text-body">
+                      <span>Discount</span>
+                      <span className="font-tight font-medium text-bad-text tabular-nums">−{formatCurrency(discountAmt)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between mt-1.5 pt-[9px] border-t border-line font-tight text-[14px] font-semibold text-ink">
+                    <span>Total</span><span className="tabular-nums">{formatCurrency(total)}</span>
+                  </div>
+                </div>
+              </Card>
+
+              {/* The client, what they already owe, and what this bill makes
+                  it. Whether to extend more credit is decided by the total
+                  exposure, not by this bill alone, so the cashier should not
+                  have to add it up in their head at the counter. */}
+              {selectedClient && (() => {
+                const due = Number(selectedClient?.outstanding_balance) || 0;
+                return (
+                  <Card className="m-rise" style={{ '--i': 2 }}>
+                    <div className="flex items-center gap-2.5">
+                      <span className="grid place-items-center w-8 h-8 shrink-0 rounded-full bg-amber-soft font-tight text-[12px] font-semibold text-amber-text">{initialsOf(selectedClient.name)}</span>
+                      <div className="min-w-0">
+                        <h3 className="font-tight text-[15px] font-semibold text-ink truncate">{selectedClient.name}</h3>
+                        {selectedClient.phone && <div className="text-[12.5px] text-body">{selectedClient.phone}</div>}
+                      </div>
+                    </div>
+                    {due > 0.01 && (
+                      <div className="grid grid-cols-2 gap-2.5 mt-3">
+                        <div className="rounded-xl bg-tile px-3.5 py-3">
+                          <span className={secHead}>Already owes</span>
+                          <b className="block mt-0.5 font-tight text-[18px] font-semibold text-ink tabular-nums">{formatCurrency(due)}</b>
+                        </div>
+                        <div className="rounded-xl bg-amber-soft px-3.5 py-3">
+                          <span className={cn(secHead, 'text-amber-text')}>With this bill</span>
+                          <b className="block mt-0.5 font-tight text-[18px] font-semibold text-ink tabular-nums">{formatCurrency(due + total)}</b>
+                        </div>
+                      </div>
+                    )}
+                  </Card>
                 );
               })()}
             </div>
 
             {/* Right: Fulfillment + Payment */}
-            <div className="space-y-4">
+            <div className="min-w-0">
 
               {/* The figure the cashier acts on — deliberately the largest
                   thing in the panel, and it renames itself as the sale
@@ -1850,69 +1824,52 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   `checkoutMoney`. */}
               {(() => {
                 const tone = {
-                  due:    'bg-ink-primary text-white',
-                  credit: 'bg-ink-primary text-white',
-                  change: 'bg-emerald-600 text-white',
-                  exact:  'bg-emerald-600 text-white',
-                  short:  'bg-amber-500 text-white',
+                  due:    'bg-ink text-white',
+                  credit: 'bg-ink text-white',
+                  change: 'bg-good text-white',
+                  exact:  'bg-good text-white',
+                  short:  'bg-amber text-white',
                   // Green says "hand it back, done". This one is an open
                   // decision, not a completed action, so it reads neutral.
-                  'change-or-credit': 'bg-ink-primary text-white',
+                  'change-or-credit': 'bg-ink text-white',
                   // Fall back rather than render `undefined` as a class, which
                   // paints white text on a transparent panel.
-                }[money.tone] || 'bg-ink-primary text-white';
+                }[money.tone] || 'bg-ink text-white';
                 return (
-                  <div className={`rounded-2xl px-5 py-4 ${tone}`}>
-                    <div className="text-[10px] font-semibold uppercase tracking-widest text-white/60">
+                  <div className={cn('m-rise rounded-[14px] px-5 py-[18px]', tone)} style={{ '--i': 1 }} aria-live="polite">
+                    <div className="font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-white/70">
                       {money.label}
                     </div>
-                    <div className="text-[34px] leading-[1.1] font-bold tabular-nums tracking-tight mt-0.5">
+                    <div className="mt-2 mb-1.5 font-tight text-[36px] leading-[1.05] font-semibold tracking-[-0.03em] tabular-nums">
                       {formatCurrency(money.value)}
                     </div>
                     {money.sub && (
-                      <div className="text-[11px] font-medium text-white/70 mt-1">{money.sub}</div>
+                      <div className="text-[12.5px] leading-[1.4] text-white/80">{money.sub}</div>
                     )}
                   </div>
                 );
               })()}
 
+              <div className="m-rise" style={{ '--i': 2 }}>
               {/* Fulfillment */}
-              <div>
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">Fulfillment</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { key: 'PICKUP',   label: 'Store Pickup', icon: <Store size={20} />,  desc: 'Collect from store' },
-                    { key: 'DELIVERY', label: 'Delivery',     icon: <Truck size={20} />,  desc: 'Van delivery' },
-                  ].map(({ key, label, icon, desc }) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setFulfillmentType(key)}
-                      className={`p-4 rounded-pill border-2 transition-all flex flex-col items-center gap-2 ${
-                        fulfillmentType === key
-                          ? 'border-accent-signature bg-accent-signature/5'
-                          : 'border-border bg-card hover:border-black/15'
-                      }`}
-                    >
-                      <div className={`p-2 rounded-xl ${fulfillmentType === key ? 'bg-accent-signature text-button-text' : 'bg-canvas text-muted-foreground'}`}>
-                        {icon}
-                      </div>
-                      <span className="text-xs font-semibold uppercase tracking-widest">{label}</span>
-                      <span className="text-[9px] text-muted-foreground">{desc}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <div className={cn(secHead, 'mt-[18px] mb-2')}>Fulfilment</div>
+              <OptionGroup cols={2} aria-label="Fulfilment">
+                {[
+                  { key: 'PICKUP',   label: 'Store pickup', icon: <Store />,  desc: 'Collect from store' },
+                  { key: 'DELIVERY', label: 'Delivery',     icon: <Truck />,  desc: 'Van delivery' },
+                ].map(({ key, label, icon, desc }) => (
+                  <OptionCard key={key} selected={fulfillmentType === key} onClick={() => setFulfillmentType(key)}
+                    icon={icon} title={label} hint={desc} />
+                ))}
+              </OptionGroup>
 
               {/* Delivery Details */}
               {fulfillmentType === 'DELIVERY' && (
-                <div className="bg-card rounded-2xl border border-border/60 p-4 space-y-3">
-                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Delivery Details</p>
-
+                <div className="mt-2.5 rounded-xl border border-line p-3.5 space-y-3">
                   {/* Address — pre-filled from client, user can pick or override */}
                   <div>
-                    <label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest block mb-1.5 flex items-center gap-1">
-                      <MapPin size={9} /> Delivery Address
+                    <label htmlFor="co-del-address" className="flex items-center gap-1 mb-1.5 font-tight text-[12.5px] font-semibold text-ink-2">
+                      <MapPin size={12} /> Delivery address
                     </label>
                     {/* Client address shortcut */}
                     {selectedClientId !== 'WALKIN' && (() => {
@@ -1920,62 +1877,64 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                       return client?.address && deliveryDetails.address !== client.address ? (
                         <button
                           type="button"
+                          data-card
                           onClick={() => setDeliveryDetails(p => ({ ...p, address: client.address }))}
-                          className="w-full mb-2 flex items-center gap-2 p-2.5 rounded-pill bg-accent-signature/5 border border-accent-signature/20 text-left hover:bg-accent-signature/10 transition-all"
+                          className="m-press w-full mb-2 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-amber-soft text-left hover:bg-amber-soft/70"
                         >
-                          <MapPin size={11} className="text-accent-signature shrink-0" />
+                          <MapPin size={13} className="text-amber-text shrink-0" />
                           <div className="min-w-0">
-                            <div className="text-[8px] font-semibold text-accent-signature uppercase tracking-wider">Use client address</div>
-                            <div className="text-[10px] font-semibold text-foreground truncate">{client.address}</div>
+                            <div className="font-tight text-[12px] font-semibold text-amber-text">Use client address</div>
+                            <div className="text-[12px] text-ink truncate">{client.address}</div>
                           </div>
-                          <Check size={11} className="text-accent-signature shrink-0 ml-auto" />
+                          <Check size={13} className="text-amber-text shrink-0 ml-auto" />
                         </button>
                       ) : null;
                     })()}
                     <textarea
+                      id="co-del-address"
                       rows={2}
-                      placeholder="Full delivery address…"
+                      placeholder="Full delivery address"
                       value={deliveryDetails.address}
                       onChange={e => setDeliveryDetails(p => ({ ...p, address: e.target.value }))}
-                      className="w-full bg-card border border-border shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 resize-none"
+                      className={cn(fieldCls, 'h-auto py-2 resize-none')}
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest block mb-1.5">Zone / Area</label>
-                      <input type="text" placeholder="e.g. North Zone"
+                      <label htmlFor="co-del-zone" className="block mb-1.5 font-tight text-[12.5px] font-semibold text-ink-2">Zone or area</label>
+                      <input id="co-del-zone" type="text" placeholder="e.g. North zone"
                         value={deliveryDetails.zone}
                         onChange={e => setDeliveryDetails(p => ({ ...p, zone: e.target.value }))}
-                        className="w-full bg-card border border-border shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+                        className={fieldCls}
                       />
                     </div>
                     <div>
-                      <label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest block mb-1.5 flex items-center gap-1"><Calendar size={9} /> Date</label>
-                      <input type="date"
+                      <label htmlFor="co-del-date" className="flex items-center gap-1 mb-1.5 font-tight text-[12.5px] font-semibold text-ink-2"><Calendar size={12} /> Date</label>
+                      <input id="co-del-date" type="date"
                         value={deliveryDetails.date}
                         min={new Date().toISOString().split('T')[0]}
                         onChange={e => setDeliveryDetails(p => ({ ...p, date: e.target.value }))}
-                        className="w-full bg-card border border-border shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+                        className={fieldCls}
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest block mb-1.5 flex items-center gap-1"><DollarSign size={9} /> Delivery Fee</label>
-                      <input type="number" placeholder="0" min="0"
+                      <label htmlFor="co-del-fee" className="block mb-1.5 font-tight text-[12.5px] font-semibold text-ink-2">Delivery fee</label>
+                      <input id="co-del-fee" type="number" placeholder="0" min="0"
                         value={deliveryDetails.fee}
                         onChange={e => setDeliveryDetails(p => ({ ...p, fee: e.target.value }))}
-                        className="w-full bg-card border border-border shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+                        className={fieldCls}
                       />
                     </div>
                     <div>
-                      <label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest block mb-1.5 flex items-center gap-1"><MessageSquare size={9} /> Notes</label>
-                      <input type="text" placeholder="e.g. Call before"
+                      <label htmlFor="co-del-notes" className="flex items-center gap-1 mb-1.5 font-tight text-[12.5px] font-semibold text-ink-2"><MessageSquare size={12} /> Notes</label>
+                      <input id="co-del-notes" type="text" placeholder="e.g. Call before"
                         value={deliveryDetails.notes}
                         onChange={e => setDeliveryDetails(p => ({ ...p, notes: e.target.value }))}
-                        className="w-full bg-card border border-border shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+                        className={fieldCls}
                       />
                     </div>
                   </div>
@@ -1984,12 +1943,12 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
               {/* IMEI / serial capture for serialized products */}
               {serialLines.length > 0 && (
-                <div className="rounded-2xl border border-accent-signature/25 bg-accent-signature/5 p-3">
-                  <p className="text-[10px] font-semibold text-accent-signature-hover uppercase tracking-widest mb-2">IMEI / Serial Number</p>
+                <div className="mt-3 rounded-xl bg-amber-soft p-3.5">
+                  <div className={cn(secHead, 'text-amber-text mb-2')}>IMEI or serial number</div>
                   <div className="space-y-3">
                     {serialLines.map(l => (
                       <div key={l.uid}>
-                        <div className="text-[11px] font-semibold text-foreground mb-1">{l.name} · {formatQtyWithUnit(l.quantity, unitOf(l.productId))}</div>
+                        <div className="font-tight text-[12.5px] font-semibold text-ink mb-1">{l.name} · {formatQtyWithUnit(l.quantity, unitOf(l.productId))}</div>
                         <div className="space-y-1.5">
                           {Array.from({ length: Math.max(1, Math.ceil(l.quantity)) }).map((_, idx) => (
                             <input
@@ -1997,8 +1956,9 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                               value={(lineImeis[l.uid] || [])[idx] || ''}
                               onChange={e => setImei(l.uid, idx, e.target.value)}
                               inputMode="numeric"
-                              placeholder={`Unit ${idx + 1} — scan or type IMEI/serial`}
-                              className="w-full bg-card border border-accent-signature/25 rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature/70"
+                              aria-label={`${l.name}, unit ${idx + 1} IMEI or serial`}
+                              placeholder={`Unit ${idx + 1}, scan or type the IMEI or serial`}
+                              className={fieldCls}
                             />
                           ))}
                         </div>
@@ -2009,95 +1969,69 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               )}
 
               {/* Payment Method */}
-              <div>
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">Payment Method</p>
+              <div className={cn(secHead, 'mt-[18px] mb-2')}>Payment method</div>
+              {(() => {
+                const groups = typeGroups.length > 0
+                  ? typeGroups
+                  : [
+                      { type: 'CASH', accs: [], defaultAcc: null },
+                      { type: 'UPI',  accs: [], defaultAcc: null },
+                      { type: 'BANK', accs: [], defaultAcc: null },
+                    ];
+                return (
+                  <OptionGroup cols={groups.length >= 4 ? 4 : groups.length} aria-label="Payment method">
+                    {groups.map(({ type, defaultAcc }) => {
+                      const icon = type === 'CASH' ? <Banknote /> : type === 'UPI' ? <Smartphone /> : type === 'CARD' ? <CreditCard /> : <Landmark />;
+                      const label = type === 'CASH' ? 'Cash' : type === 'UPI' ? 'UPI' : type === 'CARD' ? 'Card' : 'Bank';
+                      return (
+                        <OptionCard key={type} selected={paymentMethod === type} icon={icon} title={label}
+                          className="flex-col gap-[5px] px-1.5 py-3 text-center"
+                          onClick={() => {
+                            setPaymentMethod(type);
+                            setPaymentAccountId(defaultAcc ? defaultAcc.id : null);
+                          }} />
+                      );
+                    })}
+                  </OptionGroup>
+                );
+              })()}
 
-                {/* Type pills — one per type (CASH / UPI / BANK / CARD) */}
-                <div className="flex flex-wrap gap-2">
-                  {(typeGroups.length > 0
-                    ? typeGroups
-                    : [
-                        { type: 'CASH', accs: [], defaultAcc: null },
-                        { type: 'UPI',  accs: [], defaultAcc: null },
-                        { type: 'BANK', accs: [], defaultAcc: null },
-                      ]
-                  ).map(({ type, accs, defaultAcc }) => {
-                    const icon = type === 'CASH' ? <Banknote size={15} /> : type === 'UPI' ? <Smartphone size={15} /> : type === 'CARD' ? <CreditCard size={15} /> : <Landmark size={15} />;
-                    const label = type === 'CASH' ? 'Cash' : type === 'UPI' ? 'UPI' : type === 'CARD' ? 'Card' : 'Bank';
-                    const isActive = paymentMethod === type;
-                    return (
-                      <button key={type} type="button"
-                        onClick={() => {
-                          setPaymentMethod(type);
-                          setPaymentAccountId(defaultAcc ? defaultAcc.id : null);
-                        }}
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-pill border-2 transition-all ${
-                          isActive
-                            ? 'border-accent-signature bg-accent-signature/5'
-                            : 'border-border bg-card hover:border-black/15'
-                        }`}
+              {/* Client Credit — full-width row */}
+              <OptionCard
+                className={cn('mt-2', selectedClientId === 'WALKIN' && 'opacity-50 cursor-not-allowed')}
+                selected={paymentMethod === 'CREDIT'}
+                icon={<FileText />}
+                title="Client credit"
+                hint={selectedClientId === 'WALKIN' ? 'Select a client first' : `Add the bill to ${selectedClient?.name || 'the client'}'s account`}
+                onClick={() => {
+                  if (selectedClientId === 'WALKIN') { addNotification('Select a client before choosing Credit.', 'info'); return; }
+                  setPaymentMethod('CREDIT');
+                }}
+              />
+
+              {/* Account sub-selector — only when active type has >1 account */}
+              {(() => {
+                const activeGroup = typeGroups.find(g => g.type === paymentMethod);
+                if (!activeGroup || activeGroup.accs.length <= 1) return null;
+                return (
+                  <div className="mt-2.5 flex items-center gap-2 text-[12.5px] text-body">
+                    <span id="co-account-label">Account</span>
+                    <div className="relative">
+                      <select
+                        aria-labelledby="co-account-label"
+                        value={paymentAccountId || activeGroup.defaultAcc.id}
+                        onChange={e => setPaymentAccountId(e.target.value)}
+                        className="appearance-none rounded-pill bg-surface pl-3 pr-8 py-[5px] font-tight text-[12.5px] font-semibold text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)] outline-none cursor-pointer"
                       >
-                        <span className={`shrink-0 ${isActive ? 'text-accent-signature' : 'text-muted-foreground'}`}>{icon}</span>
-                        <span className="text-xs font-semibold uppercase tracking-widest leading-none">{label}</span>
-                        {isActive && <Check size={12} className="text-accent-signature shrink-0" />}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Account sub-selector — only when active type has >1 account */}
-                {(() => {
-                  const activeGroup = typeGroups.find(g => g.type === paymentMethod);
-                  if (!activeGroup || activeGroup.accs.length <= 1) return null;
-                  return (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest self-center mr-1">Account:</span>
-                      {activeGroup.accs.map(a => {
-                        const isSelected = paymentAccountId === a.id || (!paymentAccountId && a.id === activeGroup.defaultAcc.id);
-                        return (
-                          <button key={a.id} type="button"
-                            onClick={() => setPaymentAccountId(a.id)}
-                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-pill text-[11px] font-semibold border transition-all ${
-                              isSelected
-                                ? 'border-accent-signature text-accent-signature bg-accent-signature/5'
-                                : 'border-border text-muted-foreground hover:border-black/20 bg-card'
-                            }`}
-                          >
-                            {a.name}
-                            {a.is_default && (
-                              <span className={`text-[7px] font-semibold uppercase tracking-wider px-1 py-0.5 rounded ${
-                                isSelected ? 'bg-accent-signature/20 text-accent-signature' : 'bg-black/5 text-muted-foreground'
-                              }`}>DEFAULT</span>
-                            )}
-                          </button>
-                        );
-                      })}
+                        {activeGroup.accs.map(a => (
+                          <option key={a.id} value={a.id}>{a.name}{a.is_default ? ' (Default)' : ''}</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-mute pointer-events-none" />
                     </div>
-                  );
-                })()}
-
-                {/* Client Credit — full-width compact row */}
-                <button type="button"
-                  onClick={() => {
-                    if (selectedClientId === 'WALKIN') { addNotification('Select a client before choosing Credit.', 'info'); return; }
-                    setPaymentMethod('CREDIT');
-                  }}
-                  className={`mt-2 w-full flex items-center gap-3 px-4 py-2.5 rounded-pill border-2 transition-all ${
-                    selectedClientId === 'WALKIN'
-                      ? 'opacity-40 cursor-not-allowed border-border bg-card'
-                      : paymentMethod === 'CREDIT'
-                      ? 'border-accent-signature bg-accent-signature/5'
-                      : 'border-border bg-card hover:border-black/15'
-                  }`}
-                >
-                  <CreditCard size={15} className={paymentMethod === 'CREDIT' ? 'text-accent-signature' : 'text-muted-foreground'} />
-                  <div className="flex-1 text-left">
-                    <div className="text-xs font-semibold uppercase tracking-widest leading-none">Client Credit</div>
-                    {selectedClientId === 'WALKIN' && <div className="text-[9px] text-muted-foreground mt-0.5">Select a client first</div>}
                   </div>
-                  {paymentMethod === 'CREDIT' && <Check size={13} className="text-accent-signature shrink-0" />}
-                </button>
-              </div>
+                );
+              })()}
 
               {/* UPI QR — shown when UPI selected. Cashier sees it inline;
                   "Show on customer screen" pops out a full-screen QR to
@@ -2111,8 +2045,8 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 const upiId = selectedUpiAcc?.upi_id || businessProfile?.upi_id;
                 if (!upiId) {
                   return (
-                    <div className="rounded-2xl border-2 border-accent-signature/25 bg-accent-signature/10 p-4 text-xs font-semibold text-accent-signature-hover">
-                      Add a UPI ID to this account (Settings → Cash & Bank) to show a payment QR.
+                    <div className="mt-3 rounded-xl bg-amber-soft px-3.5 py-3 text-[12.5px] font-medium text-amber-text">
+                      Add a UPI ID to this account (Settings, Cash and Bank) to show a payment QR.
                     </div>
                   );
                 }
@@ -2129,55 +2063,52 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   `&tn=${encodeURIComponent(note)}` +
                   `&cur=${encodeURIComponent(businessProfile?.currencySymbol || '₹')}`;
                 return (
-                  <div className="rounded-2xl border-2 border-accent-signature/20 bg-accent-signature/5 p-4 flex flex-col items-center gap-3">
-                    <div className="bg-card p-3 rounded-xl border border-border/60">
+                  <div className="m-dialog mt-3 rounded-xl border border-line p-4 flex flex-col items-center gap-2.5">
+                    <div className="bg-surface p-3 rounded-xl shadow-[0_0_0_1px_var(--color-line)]">
                       <QRCodeSVG value={upiUri} size={150} level="M" includeMargin={false} />
                     </div>
-                    <div className="text-sm font-semibold text-foreground tabular-nums">
+                    <div className="font-tight text-[15px] font-semibold text-ink tabular-nums">
                       {formatCurrency(total)}
                     </div>
-                    <div className="text-[10px] text-muted-foreground">
-                      UPI: <b>{upiId}</b><CopyButton value={upiId} label="Copy UPI ID" size={12} className="ml-1 align-middle" />
-                      {selectedUpiAcc && <span className="text-muted-foreground"> · {selectedUpiAcc.name}</span>}
+                    <div className="text-[12px] text-body">
+                      UPI: <b className="font-semibold text-ink">{upiId}</b><CopyButton value={upiId} label="Copy UPI ID" size={12} className="ml-1 align-middle" />
+                      {selectedUpiAcc && <span className="text-mute"> · {selectedUpiAcc.name}</span>}
                     </div>
-                    <button
-                      type="button"
+                    <Button variant="link" size="xs" className="px-0 h-auto"
                       onClick={() => window.open(
                         popoutUrl, 'payqr',
                         'width=520,height=720,menubar=no,toolbar=no,location=no,status=no'
                       )}
-                      className="text-xs font-semibold text-accent-signature underline"
                     >
-                      Show on customer screen ↗
-                    </button>
+                      Show on customer screen <ArrowUpRight />
+                    </Button>
                   </div>
                 );
               })()}
 
               {/* Amount Received — partial pay + change calc */}
-              <div>
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">
-                  {paymentMethod === 'CREDIT' ? 'Part Payment Now (optional)' : 'Amount Received (optional)'}
-                </p>
-                <input
-                  type="number" step="0.01" min="0"
-                  placeholder={paymentMethod === 'CREDIT' ? 'e.g. 100 — rest to credit' : 'Leave blank if paid in full'}
-                  value={amountReceived}
-                  onChange={(e) => setAmountReceived(e.target.value)}
-                  className="w-full bg-card border border-border shadow-sm rounded-xl px-3 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
-                />
-                {/* The change / balance chip that used to sit here is gone: the
-                    block at the top of this panel now carries it at a size that
-                    can be read across a counter. Repeating it small underneath
-                    would just be a second place to look. */}
-              </div>
+              <label htmlFor="co-amount" className={cn(secHead, 'block mt-[18px] mb-2')}>
+                {paymentMethod === 'CREDIT' ? 'Part payment now, optional' : 'Amount received, optional'}
+              </label>
+              <input
+                id="co-amount"
+                type="number" step="0.01" min="0"
+                placeholder={paymentMethod === 'CREDIT' ? 'e.g. 100, the rest goes to credit' : 'Leave blank if paid in full'}
+                value={amountReceived}
+                onChange={(e) => setAmountReceived(e.target.value)}
+                className={cn(fieldCls, 'h-10 text-[14px]')}
+              />
+              {/* The change / balance chip that used to sit here is gone: the
+                  block at the top of this panel now carries it at a size that
+                  can be read across a counter. Repeating it small underneath
+                  would just be a second place to look. */}
 
               {/* Confirm */}
               <SaveButton
+                variant="amber"
                 onClick={handleCompleteSale}
                 disabled={isSubmitting || cart.length === 0}
-                className="w-full !h-14 !rounded-2xl !text-sm"
-                icon={Check}
+                className="w-full mt-4 !h-[52px] !text-[15.5px] font-tight !font-semibold"
                 status={saveState.status}
                 savingLabel="Processing"
                 /* Say what pressing this does, not just the bill amount. When
@@ -2190,14 +2121,13 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                          against the client's dues instead, and promising a
                          refund here gets the cash counted out first. */
                       ? `Complete · ${formatCurrency(money.value)} over`
-                      : `Confirm & Pay ${formatCurrency(total)}`}
+                      : `Confirm and pay ${formatCurrency(total)}`}
               />
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+      </section>
     )}
-  </div>
 
     {/* The camera scanner. Commits through commitCode, exactly as a typed
         code does, and stays open so a basket can be scanned in one go. */}
@@ -2241,70 +2171,77 @@ function OutstandingPromptModal({ clientId, clientName, outstanding, excess, pay
   };
 
   const methods = ['CASH', 'UPI', 'BANK'];
+  const methodLabel = { CASH: 'Cash', UPI: 'UPI', BANK: 'Bank' };
+  const initials = String(clientName || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
 
+  // Escape, the scrim and the close button all mean "not now" (the same as
+  // Skip / Give as change), but never while a payment is being recorded: the
+  // answer, and any error, has to land somewhere the cashier can see it.
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-      <div className="dialog-pop bg-card rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
-
-        {/* Header */}
-        <div className="px-6 pt-6 pb-4 border-b border-border/60">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-accent-signature/10 flex items-center justify-center text-lg font-semibold text-accent-signature">
-              {clientName.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <p className="font-semibold text-sm text-foreground leading-tight">{clientName}</p>
-              <p className="text-xs text-red-500 font-semibold">{fmt(outstanding)} outstanding</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="px-6 py-5 space-y-4">
+    <Dialog
+      open
+      onClose={() => { if (!busy) onClose(); }}
+      title={
+        <span className="flex items-center gap-3">
+          <span className="grid place-items-center w-10 h-10 shrink-0 rounded-full bg-amber-soft font-tight text-[13px] font-semibold text-amber-text">{initials}</span>
+          <span className="min-w-0">
+            <span className="block truncate">{clientName}</span>
+            <span className="block mt-0.5 font-ui text-[13px] font-normal tracking-normal text-amber-text tabular-nums">{fmt(outstanding)} outstanding</span>
+          </span>
+        </span>
+      }
+    >
           {excess > 0 ? (
             /* ── Excess mode ── */
             <>
-              <p className="text-sm text-ink-secondary">
-                Customer paid <span className="font-semibold text-foreground">{fmt(excess)}</span> extra.
-                Apply to their balance?
+              <p className="text-[14.5px] text-ink-2">
+                Customer paid <b className="font-tight font-semibold text-ink tabular-nums">{fmt(excess)}</b> extra.
+                Apply it to their balance?
               </p>
 
-              {/* Apply to outstanding */}
-              <button
-                onClick={() => collect(excess)}
-                disabled={busy}
-                className="w-full text-left rounded-pill border-2 border-signature p-4 hover:bg-signature/5 transition-colors disabled:opacity-50"
-              >
-                <p className="font-semibold text-sm text-foreground">Apply {fmt(excess)} to outstanding</p>
-                <p className="text-xs text-ink-secondary mt-0.5">
-                  Balance: {fmt(outstanding)} → {fmt(outstanding - excess)} · Change: {currency}0
-                </p>
-              </button>
+              <div className="mt-2 space-y-2">
+                {/* Apply to outstanding */}
+                <OptionCard
+                  variant="choice"
+                  primary
+                  disabled={busy}
+                  onClick={() => collect(excess)}
+                  title={`Apply ${fmt(excess)} to outstanding`}
+                  hint={`Balance ${fmt(outstanding)} → ${fmt(outstanding - excess)} · change ${currency}0`}
+                />
 
-              {/* Give change */}
-              <button
-                onClick={onClose}
-                disabled={busy}
-                className="w-full text-left rounded-pill border border-border p-4 hover:bg-canvas transition-colors disabled:opacity-50"
-              >
-                <p className="font-semibold text-sm text-foreground">Give {fmt(excess)} as change</p>
-                <p className="text-xs text-ink-secondary mt-0.5">Outstanding stays {fmt(outstanding)}</p>
-              </button>
+                {/* Give change */}
+                <OptionCard
+                  variant="choice"
+                  disabled={busy}
+                  onClick={onClose}
+                  title={`Give ${fmt(excess)} as change`}
+                  hint={`Outstanding stays ${fmt(outstanding)}`}
+                />
+              </div>
+              <FieldError message={collectErr} />
+
+              {/* Cancel for excess mode */}
+              <div className="flex mt-4">
+                <Button variant="secondary" onClick={onClose} disabled={busy}>Cancel</Button>
+              </div>
             </>
           ) : (
             /* ── Collect mode ── */
             <>
-              <p className="text-sm text-ink-secondary">Collect outstanding payment now?</p>
+              <p className="text-[14.5px] text-ink-2">Collect outstanding payment now?</p>
 
               {/* Amount */}
-              <div>
-                <p className="text-xs font-semibold text-ink-tertiary uppercase tracking-wider mb-1.5">Amount</p>
-                <div className="flex items-center border border-border rounded-xl px-3 py-2.5 bg-canvas">
-                  <span className="text-sm font-semibold text-signature mr-1">{currency}</span>
-                  <input
+              <div className="mt-3.5">
+                <label htmlFor="collect-amt" className="block mb-1.5 font-tight text-[12.5px] font-semibold text-ink-2">Amount</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13.5px] text-mute pointer-events-none">{currency}</span>
+                  <Input
+                    id="collect-amt"
                     type="number"
                     value={collectAmt}
                     onChange={e => setCollectAmt(e.target.value)}
-                    className="flex-1 bg-transparent text-sm font-semibold text-foreground outline-none"
+                    className="pl-7"
                     min="0"
                     max={outstanding}
                   />
@@ -2312,58 +2249,46 @@ function OutstandingPromptModal({ clientId, clientName, outstanding, excess, pay
               </div>
 
               {/* Method */}
-              <div>
-                <p className="text-xs font-semibold text-ink-tertiary uppercase tracking-wider mb-1.5">Method</p>
-                <div className="flex gap-2">
+              <div className="mt-3.5">
+                <span className="block mb-1.5 font-tight text-[12.5px] font-semibold text-ink-2">Method</span>
+                <div className="inline-flex w-full rounded-pill bg-well p-[3px]" role="group" aria-label="Method">
                   {methods.map(m => (
                     <button
                       key={m}
+                      type="button"
                       onClick={() => setMethod(m)}
-                      className={`flex-1 py-2 rounded-pill text-xs font-semibold transition-colors ${
+                      aria-pressed={method === m}
+                      className={`m-press flex-1 px-3 py-[7px] rounded-pill font-tight text-[13px] font-semibold ${
                         method === m
-                          ? 'bg-signature text-white'
-                          : 'bg-canvas border border-border text-ink-secondary'
+                          ? 'bg-ink text-white'
+                          : 'text-body hover:text-ink'
                       }`}
                     >
-                      {m}
+                      {methodLabel[m]}
                     </button>
                   ))}
                 </div>
               </div>
 
               {/* Actions */}
-              <div className="flex gap-2 pt-1">
-                <button
-                  onClick={onClose}
-                  disabled={busy}
-                  className="flex-1 py-3 rounded-pill border border-border text-sm font-semibold text-ink-secondary hover:bg-canvas transition-colors"
-                >
+              <div className="flex gap-2 mt-5">
+                <Button variant="secondary" className="flex-1" onClick={onClose} disabled={busy}>
                   Skip
-                </button>
+                </Button>
                 <SaveButton
+                  variant="amber"
                   onClick={() => collect(Math.min(parseFloat(collectAmt) || 0, outstanding))}
                   disabled={busy || !parseFloat(collectAmt)}
                   status={collectState.status}
                   savingLabel="Recording"
                   idleLabel={`Collect ${fmt(Math.min(parseFloat(collectAmt)||0, outstanding))}`}
-                  className="flex-2 flex-grow"
+                  className="flex-[2] font-tight !font-semibold"
                 />
               </div>
               <FieldError message={collectErr} />
             </>
           )}
-        </div>
-
-        {/* Cancel for excess mode */}
-        {excess > 0 && (
-          <div className="px-6 pb-5">
-            <button onClick={onClose} className="w-full text-xs text-ink-tertiary hover:text-ink-secondary transition-colors py-2">
-              Cancel
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+    </Dialog>
   );
 }
 

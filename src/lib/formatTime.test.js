@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatTime } from './utils';
+import { formatTime, formatShortDateTime } from './utils';
 
 /**
  * formatTime prints on customer-facing documents — the thermal receipt and the
@@ -37,5 +37,25 @@ describe('formatTime', () => {
 
   it('pads the minute, so 09:05 never reads as 9:5', () => {
     expect(formatTime('2026-08-10T03:35:00Z')).toBe('9:05 am');
+  });
+});
+
+describe('formatShortDateTime', () => {
+  it('prints day, short month and the clock time in the app timezone', () => {
+    // 10:40 UTC is 4:10 pm IST.
+    expect(formatShortDateTime('2026-11-22T10:40:00Z')).toBe('22 Nov, 4:10 pm');
+  });
+
+  it('prints only the date for a date-only value', () => {
+    expect(formatShortDateTime('2026-11-22')).toBe('22 Nov');
+  });
+
+  it('crosses midnight in IST, not UTC', () => {
+    // 20:00 UTC on the 21st is 1:30 am on the 22nd in IST.
+    expect(formatShortDateTime('2026-11-21T20:00:00Z')).toBe('22 Nov, 1:30 am');
+  });
+
+  it('returns nothing for nothing or garbage', () => {
+    for (const v of [null, undefined, '', 'not a date']) expect(formatShortDateTime(v)).toBe('');
   });
 });

@@ -1,19 +1,18 @@
 import React from 'react';
-import { Calendar, Download } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { PRESETS } from './reportUtils';
+import { cn } from '../../lib/utils';
+import { ReportTitle, ReportRow, Seg, DateField, ReportButton, CustomIcon, ErrorBlock } from './frame';
 
 /**
- * ReportHeader — minimal shared report header: quiet title + period
- * subtitle, segmented preset control, optional custom range row, Export.
- * Theme tokens only. Replaces the loud per-file header (font-semibold title
- * with accent dot, bordered pill rows) across the preset-based reports.
+ * ReportHeader: the light report header (web redesign, reports-04, 15, 16):
+ * title + period line, Today · This Week · This Month · Quarter · This Year ·
+ * Custom, Export. Custom opens a from / to row with Apply, as before.
+ *
+ * `error`: a load failed. The header stays (so the period can be changed),
+ * the error state shows under it, and everything after the header in the
+ * report is hidden, so no figure of a failed load is ever on screen.
  */
-const seg = (active) =>
-  `px-3 py-1.5 rounded-md text-[11px] transition-colors ${
-    active
-      ? 'bg-card text-foreground font-semibold shadow-sm'
-      : 'text-muted-foreground font-medium hover:text-foreground'}`;
-
 const ReportHeader = ({
   title,
   subtitle,
@@ -27,46 +26,30 @@ const ReportHeader = ({
   onApplyCustom,
   onExport,
   exportLabel = 'Export',
+  actions = null,
+  error = null,
+  onRetry = null,
 }) => (
-  <div className="space-y-3">
-    <div className="flex items-center justify-between flex-wrap gap-3">
-      <div>
-        <h1 className="text-base font-semibold text-foreground tracking-tight">{title}</h1>
-        {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
-      </div>
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="flex items-center bg-muted rounded-lg p-0.5">
-          {PRESETS.map((p) => (
-            <button key={p.id} onClick={() => onPreset(p.id)} className={seg(preset === p.id)}>
-              {p.label}
-            </button>
-          ))}
-          <button onClick={() => onPreset('CUSTOM')} className={`flex items-center gap-1 ${seg(preset === 'CUSTOM')}`}>
-            <Calendar size={11} /> Custom
-          </button>
-        </div>
-        {onExport && (
-          <button onClick={onExport}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill border border-border bg-card text-[11px] font-medium text-foreground hover:bg-muted/60 transition-colors">
-            <Download size={12} /> {exportLabel}
-          </button>
-        )}
-      </div>
-    </div>
-
+  <div className={cn(error && '[&~*]:!hidden')} data-report-failed={error ? 'true' : undefined}>
+    <ReportTitle
+      title={title}
+      subtitle={subtitle}
+      actions={<>
+        <Seg ariaLabel="Period" value={preset} onChange={onPreset}
+          items={[...PRESETS.map((p) => ({ id: p.id, label: p.label })), { id: 'CUSTOM', label: 'Custom', icon: CustomIcon }]} />
+        {actions}
+        {onExport && !error && <ReportButton tone="ghost" icon={Download} onClick={onExport}>{exportLabel}</ReportButton>}
+      </>}
+    />
     {showCustom && (
-      <div className="flex items-center gap-2 flex-wrap">
-        <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)}
-          className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
-        <span className="text-muted-foreground text-xs">to</span>
-        <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)}
-          className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
-        <button onClick={onApplyCustom}
-          className="px-3.5 py-1.5 rounded-pill bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">
-          Apply
-        </button>
-      </div>
+      <ReportRow>
+        <DateField label="From" value={customStart} onChange={setCustomStart} />
+        <span className="text-[13px] text-mute">to</span>
+        <DateField label="To" value={customEnd} onChange={setCustomEnd} />
+        <ReportButton tone="primary" onClick={onApplyCustom}>Apply</ReportButton>
+      </ReportRow>
     )}
+    {error && <ErrorBlock title={`${title} could not load`} message={String(error)} onRetry={onRetry} />}
   </div>
 );
 

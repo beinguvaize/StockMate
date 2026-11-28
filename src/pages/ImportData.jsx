@@ -1,12 +1,18 @@
 import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { useTenant } from '../context/TenantContext';
 import { restInsert, restRpc } from '../lib/supabase';
 import { normalizeHsn } from '../lib/hsn';
 import { resolveHeaders, ITEM_COLUMNS, PARTY_COLUMNS, SUPPLIER_COLUMNS } from '../lib/importSheet';
+import { isTransportFailure } from '../lib/writeOutcome';
+import { applyMapping, defaultMapping, mappingProblems } from '../lib/importMapping';
+import { Button } from '../components/ui/button';
+import { FilterPills } from '../components/ui/Tabs';
+import { Note, Eyebrow, IconTile, ProgressBar, downloadCsv } from '../components/tools/parts';
+import { cn } from '../lib/utils';
 import {
-  Upload, Download, CheckCircle2, XCircle, AlertCircle,
-  Users, Package, Truck, Loader2, FileSpreadsheet, ChevronRight,
+  Upload, Download, Check, FileSpreadsheet, ArrowRight, ChevronDown, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
 
 // ─── Column definitions ───────────────────────────────────────────────────────
@@ -38,8 +44,8 @@ const PRODUCT_COLS = [
   { key: 'sellingPrice', label: 'Selling Price',  required: true,  type: 'number', mustBePositive: true },
   { key: 'costPrice',    label: 'Cost Price',     required: true,  type: 'number', mustBePositive: true },
   { key: 'stock',        label: 'Opening Stock',  required: false, type: 'number' },
-  { key: 'taxRate',      label: 'GST Rate (%)',   required: false, type: 'number', note: '0,5,12,18,28' },
-  { key: 'unit',         label: 'Unit',           required: false, type: 'string', note: 'e.g. pcs, kg, box' },
+  { key: 'taxRate',      label: 'GST Rate (%)',   required: false, type: 'number', note: '0, 5, 12, 18, 28' },
+  { key: 'unit',         label: 'Unit',           required: false, type: 'string', note: 'pcs, kg, box' },
   { key: 'hsn',          label: 'HSN Code',       required: false, type: 'string' },
   { key: 'barcode',      label: 'Barcode',        required: false, type: 'string' },
 ];
@@ -85,7 +91,11 @@ const buildTemplate = (cols, sheetName) => {
   XLSX.writeFile(wb, `${sheetName}_Import_Template.xlsx`);
 };
 
-const parseSheet = (file, cols, kind) =>
+// Reads the first sheet. Header matching is the same as before (resolveHeaders
+// knows other billing apps' spellings and still prefers our own labels); the
+// matches now come back to the screen so they can be checked and changed
+// before anything is read, instead of being applied silently.
+const readSheet = (file, cols, kind) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -94,35 +104,16 @@ const parseSheet = (file, cols, kind) =>
         const ws = wb.Sheets[wb.SheetNames[0]];
         const raw = XLSX.utils.sheet_to_json(ws, { defval: '' });
 
-        // ── Header matching ────────────────────────────────────────────
-        // This used to accept one spelling per column: its own label,
-        // lowercased. A sheet exported from another billing app says "Item
-        // Name" and "Sale Price" where ours say "Name" and "Selling Price", so
-        // every such file failed the header check and the shopkeeper had to
-        // rename columns by hand first -- which is where most migrations are
-        // abandoned. resolveHeaders knows the common spellings AND still
-        // prefers our own labels, so templates downloaded from here behave
-        // exactly as before.
         const aliasTable = kind === 'products' ? ITEM_COLUMNS
           : kind === 'suppliers' ? SUPPLIER_COLUMNS : PARTY_COLUMNS;
         const fileHeaders = raw.length > 0 ? Object.keys(raw[0]) : [];
-        const { headerToKey, missingRequired, ignored } = resolveHeaders(fileHeaders, aliasTable, cols);
+        const { headerToKey, missingRequired } = resolveHeaders(fileHeaders, aliasTable, cols);
 
         if (missingRequired.length > 0) {
           reject(new Error(`HEADER_MISMATCH:${missingRequired.map(m => `"${m}"`).join(', ')}`));
           return;
         }
-
-        const rows = raw.map(r => {
-          const out = {};
-          Object.entries(r).forEach(([k, v]) => {
-            const mapped = headerToKey[k];
-            if (mapped) out[mapped] = v;
-          });
-          return out;
-        });
-        rows.ignoredColumns = ignored;
-        resolve(rows);
+        resolve({ raw, headers: fileHeaders, mapping: defaultMapping(fileHeaders, headerToKey, cols) });
       } catch (err) {
         reject(err);
       }
@@ -136,423 +127,541 @@ const validate = (rows, cols) =>
     const errors = [];
     cols.forEach(c => {
       if (c.required && !String(row[c.key] ?? '').trim()) {
-        errors.push(`"${c.label}" required`);
+        errors.push(`"${c.label}" is empty`);
       }
       if (c.type === 'number' && row[c.key] !== '' && row[c.key] !== undefined) {
-        if (isNaN(Number(row[c.key]))) errors.push(`"${c.label}" must be number`);
-        else if (c.mustBePositive && !(Number(row[c.key]) > 0)) errors.push(`"${c.label}" must be > 0`);
+        if (isNaN(Number(row[c.key]))) errors.push(`"${c.label}" must be a number`);
+        else if (c.mustBePositive && !(Number(row[c.key]) > 0)) errors.push(`"${c.label}" must be more than 0`);
       }
     });
     return { row, errors, index: i + 2 }; // +2 for header row
   });
 
+const NOUN = { clients: 'clients', suppliers: 'suppliers', products: 'products' };
+const SHEET = { clients: 'Clients', suppliers: 'Suppliers', products: 'Products' };
+const OPEN_LIST = { clients: ['/clients', 'Open Clients'], suppliers: ['/suppliers', 'Open Suppliers'], products: ['/inventory', 'Open Inventory'] };
+const count = (n, noun) => `${n} ${n === 1 ? noun.replace(/s$/, '') : noun}`;
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-const StatusBadge = ({ count, label, color }) => (
-  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${color}`}>
-    {count} {label}
-  </span>
-);
-
 const PreviewTable = ({ validated, cols }) => {
-  const show = validated.slice(0, 10);
+  const [only, setOnly] = useState('all');
+  const errs = validated.filter(v => v.errors.length);
+  const list = only === 'errors' ? errs : validated;
+  const show = list.slice(0, 10);
+  const hiddenErrs = errs.filter(e => !show.includes(e));
   return (
-    <div className="overflow-x-auto rounded-xl border border-border">
-      <table className="min-w-full text-sm">
-        <thead>
-          <tr className="bg-muted">
-            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground w-8">#</th>
-            {cols.map(c => (
-              <th key={c.key} className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">
-                {c.label}{c.required ? ' *' : ''}
-              </th>
-            ))}
-            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Status</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100">
-          {show.map(({ row, errors, index }) => (
-            <tr key={index} className={errors.length ? 'bg-red-50' : 'bg-white'}>
-              <td className="px-3 py-2 text-muted-foreground text-xs">{index}</td>
+    <>
+      <div className="mb-3 flex flex-wrap items-center gap-2.5">
+        <FilterPills ariaLabel="Rows to show" value={only} onChange={setOnly}
+          items={[{ key: 'all', label: 'All', count: validated.length }, { key: 'errors', label: 'Only errors', count: errs.length }]} />
+        <span className="flex-1" />
+        <span className="text-[12px] text-mute">Row numbers match your Excel sheet</span>
+      </div>
+      <div className="overflow-x-auto rounded-[14px] border border-line bg-surface">
+        <table className="min-w-full border-collapse">
+          <thead>
+            <tr className="bg-tile">
+              <th className="px-3 py-[9px] text-left font-tight text-[11.5px] font-semibold text-ink-2">Row</th>
               {cols.map(c => (
-                <td key={c.key} className="px-3 py-2 text-ink-secondary whitespace-nowrap max-w-[140px] truncate">
-                  {String(row[c.key] ?? '')}
-                </td>
+                <th key={c.key} className={cn('whitespace-nowrap px-3 py-[9px] font-tight text-[11.5px] font-semibold text-ink-2', c.type === 'number' ? 'text-right' : 'text-left')}>
+                  {c.label}{c.required ? ' *' : ''}
+                </th>
               ))}
-              <td className="px-3 py-2">
-                {errors.length
-                  ? <span className="text-red-600 text-xs">{errors.join(', ')}</span>
-                  : <CheckCircle2 size={14} className="text-emerald-500" />
-                }
-              </td>
+              <th className="px-3 py-[9px] text-left font-tight text-[11.5px] font-semibold text-ink-2">Status</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-      {validated.length > 10 && (
-        <div className="px-4 py-2 text-xs text-muted-foreground bg-muted border-t border-border">
-          Showing 10 of {validated.length} rows
-        </div>
-      )}
-    </div>
+          </thead>
+          <tbody>
+            {show.map(({ row, errors, index }) => (
+              <tr key={index} className={cn('border-t border-sep', errors.length && 'bg-[#FFF8F8]')}>
+                <td className="px-3 py-[9px] font-tight text-[12px] font-medium text-mute">{index}</td>
+                {cols.map(c => (
+                  <td key={c.key} className={cn('max-w-[160px] truncate whitespace-nowrap px-3 py-[9px] text-[13px] text-ink', c.type === 'number' && 'text-right tabular-nums')}>
+                    {String(row[c.key] ?? '')}
+                  </td>
+                ))}
+                <td className="px-3 py-[9px]">
+                  {errors.length
+                    ? <span className="text-[12.5px] text-bad-text">{errors.join(', ')}</span>
+                    : <Check size={15} strokeWidth={2.4} className="text-good" aria-label="Ready" />}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {list.length > 10 && (
+          <div className="border-t border-line bg-tile px-3.5 py-[9px] text-[12px] text-mute">
+            Showing 10 of {list.length} rows
+            {hiddenErrs.length > 0 && ` · more errors on row${hiddenErrs.length === 1 ? '' : 's'} ${hiddenErrs.slice(0, 5).map(e => e.index).join(', ')}${hiddenErrs.length > 5 ? '…' : ''}`}
+          </div>
+        )}
+      </div>
+    </>
   );
 };
+
+const FileCard = ({ name, detail, onChange }) => (
+  <div className="mb-3.5 flex items-center gap-3 rounded-xl px-3.5 py-3 shadow-[inset_0_0_0_1px_var(--color-line)]">
+    <IconTile icon={FileSpreadsheet} />
+    <div className="min-w-0 flex-1">
+      <b className="block truncate font-tight text-[13.5px] font-semibold text-ink">{name}</b>
+      <small className="text-[12px] text-mute">{detail}</small>
+    </div>
+    {onChange && <button type="button" onClick={onChange} className="font-tight text-[13px] font-semibold text-amber-text hover:underline">Change file</button>}
+  </div>
+);
 
 // ─── Import panel (shared for both tabs) ─────────────────────────────────────
 
 const ImportPanel = ({ type, cols, tenantId, onDone }) => {
+  const navigate = useNavigate();
   const fileRef = useRef();
+  const [sheet, setSheet] = useState(null);         // { name, raw, headers, mapping }
   const [validated, setValidated] = useState(null);
-  const [status, setStatus] = useState('idle'); // idle | previewing | importing | done | error
+  const [status, setStatus] = useState('idle'); // idle | mapping | previewing | importing | done | error
   const [result, setResult] = useState({ inserted: 0, failed: 0 });
   const [errorMsg, setErrorMsg] = useState('');
+  const [progress, setProgress] = useState(0);
+  const [dragOver, setDragOver] = useState(false);
+  const importingRef = useRef(false);
 
-  const handleFile = async (e) => {
-    const file = e.target.files[0];
+  const handleFile = async (file) => {
     if (!file) return;
     try {
-      const rows = await parseSheet(file, cols, type);
-      if (!rows.length) { setErrorMsg('File is empty.'); setStatus('error'); return; }
-      setValidated(validate(rows, cols));
-      setStatus('previewing');
+      const read = await readSheet(file, cols, type);
+      if (!read.raw.length) { setErrorMsg('File is empty.'); setStatus('error'); return; }
+      setSheet({ name: file.name, ...read });
+      setStatus('mapping');
     } catch (err) {
       if (err.message?.startsWith('HEADER_MISMATCH:')) {
         const missing = err.message.replace('HEADER_MISMATCH:', '');
-        setErrorMsg(`Wrong template. Missing required columns: ${missing}. Download the correct template and try again.`);
+        setErrorMsg(`This file is missing columns we need: ${missing}. Download the template and try again.`);
       } else {
-        setErrorMsg('Could not parse file. Make sure it is .xlsx or .xls');
+        setErrorMsg('Could not read this file. Use .xlsx or .xls.');
       }
       setStatus('error');
     }
+  };
+
+  const setMap = (header, key) => setSheet(s => {
+    const mapping = { ...s.mapping };
+    // One file column per field: taking a field frees it from any other column.
+    if (key) for (const h of Object.keys(mapping)) if (mapping[h] === key) mapping[h] = '';
+    mapping[header] = key;
+    return { ...s, mapping };
+  });
+
+  const checkRows = () => {
+    setValidated(validate(applyMapping(sheet.raw, sheet.mapping), cols));
+    setStatus('previewing');
   };
 
   const validRows = validated?.filter(v => !v.errors.length) ?? [];
   const invalidCount = (validated?.length ?? 0) - validRows.length;
 
   const handleImport = async () => {
-    if (!validRows.length) return;
+    if (!validRows.length || importingRef.current) return;
+    importingRef.current = true;
     setStatus('importing');
+    setProgress(0);
     let inserted = 0, failed = 0;
     // HSN values dropped for not being a legal code — reported, never silent.
     const badHsn = [];
     // Products that imported but whose opening quantity did not land.
     const badStock = [];
+    // Per sheet row, for the result screen: which did not import and why, and
+    // which imported with a note. The writes below are unchanged.
+    const notImported = [];
+    const notes = [];
+    let done = 0;
 
-    for (const { row } of validRows) {
-      const id = generateId();
-      let payload;
+    try {
+      for (const { row, index } of validRows) {
+        const id = generateId();
+        let payload;
+        const rowName = String(row.name || '').trim();
+        const miss = (error) => notImported.push({ index, name: rowName, row, reason: String(error?.message || error || '').trim(), unsure: isTransportFailure(error) });
 
-      if (type === 'clients') {
-        payload = {
-          id,
-          tenant_id: tenantId,
-          name: String(row.name || '').trim(),
-          phone: String(row.phone || '').trim() || null,
-          email: String(row.email || '').trim() || null,
-          address: String(row.address || '').trim() || null,
-          gstin: String(row.gstin || '').trim() || null,
-          state: String(row.state || '').trim() || null,
-          state_code: String(row.state_code || '').trim() || null,
-          client_type: ['B2B', 'B2C'].includes(String(row.client_type || '').toUpperCase())
-            ? String(row.client_type).toUpperCase()
-            : 'B2C',
-          credit_days: Number(row.credit_days) || 0,
-        };
-        const { error } = await restInsert('clients', payload);
-        error ? failed++ : inserted++;
-      } else if (type === 'suppliers') {
-        payload = {
-          id,
-          tenant_id: tenantId,
-          name: String(row.name || '').trim(),
-          contact_person: String(row.contact_person || '').trim() || null,
-          phone: String(row.phone || '').trim() || null,
-          email: String(row.email || '').trim() || null,
-          address: String(row.address || '').trim() || null,
-          notes: String(row.notes || '').trim() || '',
-          created_at: new Date().toISOString(),
-        };
-        const { error } = await restInsert('suppliers', payload);
-        if (error) { console.error('Supplier import error:', error.message, payload); failed++; }
-        else inserted++;
-      } else {
-        payload = {
-          id,
-          tenant_id: tenantId,
-          name: String(row.name || '').trim(),
-          category: String(row.category || '').trim() || null,
-          sellingPrice: Number(row.sellingPrice) || 0,
-          costPrice: Number(row.costPrice) || 0,
-          // NOT stock. products.stock is a derived mirror of
-          // inventory_balances maintained by trg_sync_product_stock
-          // (20260730_products_stock_single_writer.sql). Writing it here set a
-          // number no location actually held: the opening quantity showed on
-          // the item and in no warehouse, and the next movement recomputed it
-          // from the balances and wiped it. The opening stock is applied below
-          // through adjust_inventory_atomic, which is how the stock screen
-          // does it and the only writer the trigger agrees with.
-          taxRate: Number(row.taxRate) || 0,
-          unit: String(row.unit || '').trim() || null,
-          // Only a real 4/6/8-digit code. A SKU in the HSN column used to be
-          // written through verbatim and then printed on invoices and filed in
-          // the GSTR-1 HSN summary.
-          hsn_code: (() => {
-            const h = normalizeHsn(row.hsn);
-            if (h.status === 'invalid') badHsn.push(`${String(row.name || '').trim()} (${h.raw})`);
-            return h.code;
-          })(),
-          barcode: String(row.barcode || '').trim() || null,
-        };
-        const { error } = await restInsert('products', payload);
-        if (error) { console.error('Product import error:', error.message, payload); failed++; }
-        else {
-          inserted++;
-          const opening = Number(row.stock) || 0;
-          if (opening > 0) {
-            const { error: stockErr } = await restRpc('adjust_inventory_atomic', {
-              p_product_id: id,
-              p_location_id: null,
-              p_amount: opening,
-              p_reason: 'Opening stock (import)',
-              p_user_id: null,
-              p_tenant_id: tenantId,
-              p_consume_batches: true,
-              // A cost on the opening quantity creates a real FIFO batch, so
-              // the first sale of an imported item has a COGS instead of
-              // falling back to costPrice.
-              p_unit_cost: Number(payload.costPrice) > 0 ? Number(payload.costPrice) : null,
-            });
-            // Never silent: the product exists but holds no stock, and only
-            // saying so lets anyone put that right.
-            if (stockErr) {
-              console.error('Opening stock failed:', stockErr.message, payload.name);
-              badStock.push(`${payload.name} (${opening})`);
+        if (type === 'clients') {
+          payload = {
+            id,
+            tenant_id: tenantId,
+            name: String(row.name || '').trim(),
+            phone: String(row.phone || '').trim() || null,
+            email: String(row.email || '').trim() || null,
+            address: String(row.address || '').trim() || null,
+            gstin: String(row.gstin || '').trim() || null,
+            state: String(row.state || '').trim() || null,
+            state_code: String(row.state_code || '').trim() || null,
+            client_type: ['B2B', 'B2C'].includes(String(row.client_type || '').toUpperCase())
+              ? String(row.client_type).toUpperCase()
+              : 'B2C',
+            credit_days: Number(row.credit_days) || 0,
+          };
+          const { error } = await restInsert('clients', payload);
+          if (error) { failed++; miss(error); } else inserted++;
+        } else if (type === 'suppliers') {
+          payload = {
+            id,
+            tenant_id: tenantId,
+            name: String(row.name || '').trim(),
+            contact_person: String(row.contact_person || '').trim() || null,
+            phone: String(row.phone || '').trim() || null,
+            email: String(row.email || '').trim() || null,
+            address: String(row.address || '').trim() || null,
+            notes: String(row.notes || '').trim() || '',
+            created_at: new Date().toISOString(),
+          };
+          const { error } = await restInsert('suppliers', payload);
+          if (error) { console.error('Supplier import error:', error.message, payload); failed++; miss(error); }
+          else inserted++;
+        } else {
+          payload = {
+            id,
+            tenant_id: tenantId,
+            name: String(row.name || '').trim(),
+            category: String(row.category || '').trim() || null,
+            sellingPrice: Number(row.sellingPrice) || 0,
+            costPrice: Number(row.costPrice) || 0,
+            // NOT stock. products.stock is a derived mirror of
+            // inventory_balances maintained by trg_sync_product_stock
+            // (20260730_products_stock_single_writer.sql). Writing it here set a
+            // number no location actually held: the opening quantity showed on
+            // the item and in no warehouse, and the next movement recomputed it
+            // from the balances and wiped it. The opening stock is applied below
+            // through adjust_inventory_atomic, which is how the stock screen
+            // does it and the only writer the trigger agrees with.
+            taxRate: Number(row.taxRate) || 0,
+            unit: String(row.unit || '').trim() || null,
+            // Only a real 4/6/8-digit code. A SKU in the HSN column used to be
+            // written through verbatim and then printed on invoices and filed in
+            // the GSTR-1 HSN summary.
+            hsn_code: (() => {
+              const h = normalizeHsn(row.hsn);
+              if (h.status === 'invalid') {
+                badHsn.push(`${String(row.name || '').trim()} (${h.raw})`);
+                notes.push({ index, name: rowName, why: `HSN ${h.raw} is not valid (4, 6 or 8 digits), left blank` });
+              }
+              return h.code;
+            })(),
+            barcode: String(row.barcode || '').trim() || null,
+          };
+          const { error } = await restInsert('products', payload);
+          if (error) { console.error('Product import error:', error.message, payload); failed++; miss(error); }
+          else {
+            inserted++;
+            const opening = Number(row.stock) || 0;
+            if (opening > 0) {
+              const { error: stockErr } = await restRpc('adjust_inventory_atomic', {
+                p_product_id: id,
+                p_location_id: null,
+                p_amount: opening,
+                p_reason: 'Opening stock (import)',
+                p_user_id: null,
+                p_tenant_id: tenantId,
+                p_consume_batches: true,
+                // A cost on the opening quantity creates a real FIFO batch, so
+                // the first sale of an imported item has a COGS instead of
+                // falling back to costPrice.
+                p_unit_cost: Number(payload.costPrice) > 0 ? Number(payload.costPrice) : null,
+              });
+              // Never silent: the product exists but holds no stock, and only
+              // saying so lets anyone put that right.
+              if (stockErr) {
+                console.error('Opening stock failed:', stockErr.message, payload.name);
+                badStock.push(`${payload.name} (${opening})`);
+                notes.push({
+                  index, name: rowName,
+                  why: isTransportFailure(stockErr)
+                    ? `Could not confirm its opening stock of ${opening} (connection dropped). Check the stock in Inventory before setting it`
+                    : `Imported without its opening stock of ${opening}. Set it in Inventory (${stockErr.message || 'no reason given'})`,
+                });
+              }
             }
           }
         }
+        done++;
+        setProgress(done);
       }
+    } finally {
+      importingRef.current = false;
     }
 
-    setResult({ inserted, failed, badHsn, badStock });
+    setResult({ inserted, failed, badHsn, badStock, notImported, notes });
     setStatus('done');
     if (inserted > 0) onDone?.();
   };
 
   const reset = () => {
     setValidated(null);
+    setSheet(null);
     setStatus('idle');
     setErrorMsg('');
     if (fileRef.current) fileRef.current.value = '';
   };
 
+  const noun = NOUN[type];
+  const downloadNotImported = () => {
+    downloadCsv(`import_${type}_not_imported.csv`, ['Row', ...cols.map(c => c.label), 'Reason'],
+      (result.notImported || []).map(n => [n.index, ...cols.map(c => n.row[c.key]), n.unsure ? `Not sure, may have imported: ${n.reason}` : n.reason]));
+  };
+
+  const mapped = sheet ? Object.values(sheet.mapping).filter(Boolean).length : 0;
+  const problems = sheet ? mappingProblems(sheet.mapping, cols) : [];
+  const firstRow = sheet?.raw[0] || {};
+  const field = 'h-[34px] w-full appearance-none rounded-[10px] bg-surface pl-3 pr-8 text-[13px] shadow-[inset_0_0_0_1px_var(--color-line)] outline-none focus:shadow-[inset_0_0_0_2px_var(--color-ink)]';
+
   return (
-    <div className="space-y-6">
-      {/* Template download */}
-      <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-100">
-        <div>
-          <p className="text-sm font-semibold text-blue-900">Download Template</p>
-          <p className="text-xs text-blue-600 mt-0.5">Use this template to prepare your data</p>
-        </div>
-        <button
-          onClick={() => buildTemplate(cols, type === 'clients' ? 'Clients' : type === 'suppliers' ? 'Suppliers' : 'Products')}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-pill hover:bg-blue-700 transition-colors"
-        >
-          <Download size={15} />
-          Template.xlsx
-        </button>
-      </div>
+    <div>
+      {/* Template + columns + upload */}
+      {(status === 'idle' || status === 'error') && (
+        <>
+          <div className="flex flex-wrap items-center gap-3.5 rounded-xl bg-tile px-4 py-3.5">
+            <IconTile icon={FileSpreadsheet} className="bg-white" />
+            <div className="min-w-0 flex-1">
+              <b className="block font-tight text-[14px] font-semibold text-ink">Start from our template</b>
+              <small className="text-[12.5px] text-body">{SHEET[type]}_Import_Template.xlsx · one example row filled in</small>
+            </div>
+            <Button variant="secondary" onClick={() => buildTemplate(cols, SHEET[type])}>
+              <Download aria-hidden="true" /> Download template
+            </Button>
+          </div>
 
-      {/* Column guide */}
-      <div>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Expected Columns</p>
-        <div className="flex flex-wrap gap-2">
-          {cols.map(c => (
-            <span
-              key={c.key}
-              className={`px-2 py-1 rounded-md text-xs font-medium border ${
-                c.required
-                  ? 'bg-red-50 border-red-200 text-red-700'
-                  : 'bg-muted border-border text-ink-secondary'
-              }`}
-            >
-              {c.label}{c.required ? ' *' : ''}{c.note ? ` (${c.note})` : ''}
-            </span>
-          ))}
-        </div>
-        <p className="text-xs text-muted-foreground mt-2">* Required fields</p>
-      </div>
+          <Eyebrow className="mt-[18px]">Columns we read</Eyebrow>
+          <div className="flex flex-wrap gap-1.5">
+            {cols.map(c => (
+              <span key={c.key}
+                className={cn('rounded-pill px-2.5 py-1 text-[12.5px] font-medium', c.required ? 'bg-amber-soft font-semibold text-amber-text' : 'bg-well text-ink-2')}>
+                {c.label}{c.required ? ' *' : ''}{c.note ? ` (${c.note})` : ''}
+              </span>
+            ))}
+          </div>
+          <p className="mt-2 text-[12px] text-mute">* must be filled. Headers from other billing apps (Item Name, Sale Price, Purchase Price…) are matched for you.</p>
 
-      {/* Upload zone */}
-      {status === 'idle' || status === 'error' ? (
-        <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-border rounded-xl cursor-pointer bg-muted hover:bg-muted hover:border-border transition-all">
-          <Upload size={28} className="text-muted-foreground mb-2" />
-          <p className="text-sm font-semibold text-ink-secondary">Click to upload .xlsx file</p>
-          <p className="text-xs text-muted-foreground mt-1">Excel files only (.xlsx, .xls)</p>
-          {status === 'error' && (
-            <p className="text-xs text-red-600 mt-2 font-medium">{errorMsg}</p>
+          <label
+            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={e => { e.preventDefault(); setDragOver(false); handleFile(e.dataTransfer.files?.[0]); }}
+            className={cn('mt-4 block cursor-pointer rounded-[14px] border-[1.5px] border-dashed px-5 py-[34px] text-center transition-colors duration-(--dur-press)',
+              status === 'error' ? 'border-[#F0B4B4] bg-[#FFFAFA]' : dragOver ? 'border-ink-2 bg-tile' : 'border-[#D6D5D2] bg-[#FCFCFB] hover:bg-tile')}>
+            <div className="mx-auto mb-2.5 grid h-[46px] w-[46px] place-items-center rounded-[14px] bg-white text-ink-2 shadow-[0_0_0_1px_var(--color-line)]">
+              <Upload size={20} strokeWidth={1.9} aria-hidden="true" />
+            </div>
+            <b className="block font-tight text-[14px] font-semibold text-ink">Choose an Excel file, or drop it here</b>
+            <small className="text-[12.5px] text-body">.xlsx or .xls · the first sheet is read</small>
+            {status === 'error' && <div role="alert" className="mt-2.5 text-[13px] font-medium text-bad-text">{errorMsg}</div>}
+            <input ref={fileRef} type="file" accept=".xlsx,.xls" className="sr-only" onChange={e => handleFile(e.target.files[0])} />
+          </label>
+        </>
+      )}
+
+      {/* Match columns */}
+      {status === 'mapping' && sheet && (
+        <>
+          <FileCard name={sheet.name} detail={`${sheet.raw.length} rows · ${sheet.headers.length} columns`} onChange={reset} />
+          <div className="mb-2.5 flex items-center gap-2.5">
+            <Eyebrow className="mb-0">Match your columns</Eyebrow>
+            <span className="flex-1" />
+            <span className="text-[12px] text-mute">{mapped} of {sheet.headers.length} columns will be read</span>
+          </div>
+          <div className="hidden grid-cols-[minmax(0,1fr)_28px_minmax(0,1fr)_minmax(0,1fr)_22px] gap-3 pb-2.5 font-tight text-[11.5px] font-semibold text-mute sm:grid">
+            <span>In your file</span><span /><span>Goes into</span><span>First row</span><span />
+          </div>
+          {sheet.headers.map(h => {
+            const key = sheet.mapping[h] || '';
+            return (
+              <div key={h} className="grid grid-cols-[minmax(0,1fr)_28px_minmax(0,1fr)] items-center gap-3 border-t border-sep py-2.5 text-[13px] sm:grid-cols-[minmax(0,1fr)_28px_minmax(0,1fr)_minmax(0,1fr)_22px]">
+                <span className={cn('justify-self-start truncate rounded-[7px] bg-tile px-[9px] py-[5px] font-mono text-[13px] font-semibold', key ? 'text-ink-2' : 'text-mute line-through')}>{h}</span>
+                <ArrowRight size={16} className="text-faint" aria-hidden="true" />
+                <div className="relative">
+                  <select value={key} onChange={e => setMap(h, e.target.value)} aria-label={`Field for ${h}`} className={cn(field, key ? 'text-ink' : 'text-mute')}>
+                    <option value="">Do not import</option>
+                    {cols.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                  </select>
+                  <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-mute" aria-hidden="true" />
+                </div>
+                <span className="hidden truncate text-[12.5px] text-mute sm:block">e.g. {String(firstRow[h] ?? '') || '—'}</span>
+                <span className="hidden sm:block">{key ? <Check size={16} strokeWidth={2.4} className="text-good" aria-label="Read" /> : <span className="text-mute">—</span>}</span>
+              </div>
+            );
+          })}
+          {sheet.headers.length - mapped > 0 && (
+            <Note tone="n" className="mt-3">
+              {sheet.headers.length - mapped} {sheet.headers.length - mapped === 1 ? 'column is' : 'columns are'} not read:{' '}
+              {sheet.headers.filter(h => !sheet.mapping[h]).join(', ')}. Pick a field for any you want brought in.
+            </Note>
           )}
-          <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFile} />
-        </label>
-      ) : null}
+          {problems.length > 0 && (
+            <Note tone="r" role="alert" className="mt-3">Pick a column for {problems.map(p => `"${p}"`).join(', ')}: {problems.length === 1 ? 'it has' : 'they have'} to be filled.</Note>
+          )}
+          <div className="mt-4 flex items-center gap-2.5">
+            <span className="flex-1" />
+            <Button variant="secondary" onClick={reset}>Back</Button>
+            <Button onClick={checkRows} disabled={problems.length > 0}>Check {sheet.raw.length} rows</Button>
+          </div>
+        </>
+      )}
 
       {/* Preview */}
-      {(status === 'previewing' || status === 'importing') && validated && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <FileSpreadsheet size={16} className="text-muted-foreground" />
-              <span className="text-sm font-semibold text-ink-secondary">{validated.length} rows detected</span>
-              <StatusBadge count={validRows.length} label="valid" color="bg-emerald-100 text-emerald-700" />
-              {invalidCount > 0 && (
-                <StatusBadge count={invalidCount} label="errors" color="bg-red-100 text-red-700" />
-              )}
-            </div>
-            <button onClick={reset} className="text-xs text-muted-foreground hover:text-ink-secondary underline">
-              Change file
-            </button>
+      {status === 'previewing' && validated && (
+        <>
+          <div className="mb-3 flex flex-wrap items-center gap-2 text-[13px] text-ink-2">
+            <FileSpreadsheet size={16} className="text-mute" aria-hidden="true" />
+            <b className="font-semibold">{validated.length} rows found</b>
+            <span className="rounded-pill bg-good-soft px-[9px] py-[3px] font-tight text-[11.5px] font-semibold text-good-text">{validRows.length} ready</span>
+            {invalidCount > 0 && <span className="rounded-pill bg-bad-soft px-[9px] py-[3px] font-tight text-[11.5px] font-semibold text-bad-text">{invalidCount} with errors</span>}
+            <span className="flex-1" />
+            <button type="button" onClick={() => setStatus('mapping')} className="font-tight text-[13px] font-semibold text-body hover:text-ink">Columns</button>
+            <button type="button" onClick={reset} className="font-tight text-[13px] font-semibold text-amber-text hover:underline">Change file</button>
           </div>
 
           <PreviewTable validated={validated} cols={cols} />
 
           {invalidCount > 0 && (
-            <div className="flex items-start gap-2 p-3 bg-accent-signature/10 border border-accent-signature/15 rounded-lg">
-              <AlertCircle size={15} className="text-accent-signature mt-0.5 shrink-0" />
-              <p className="text-xs text-accent-signature-hover">
-                {invalidCount} rows have errors and will be skipped. Fix your file and re-upload, or proceed to import only the {validRows.length} valid rows.
-              </p>
-            </div>
+            <Note tone="a" className="mt-3">
+              <b>{invalidCount} {invalidCount === 1 ? 'row has errors' : 'rows have errors'} and will be skipped.</b> Fix the file and choose it again, or go on and import only the {validRows.length} ready rows.
+            </Note>
           )}
 
-          <button
-            onClick={handleImport}
-            disabled={status === 'importing' || !validRows.length}
-            className="flex items-center gap-2 px-6 py-3 bg-gray-900 text-white text-sm font-semibold rounded-pill hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {status === 'importing'
-              ? <><Loader2 size={16} className="animate-spin" /> Importing…</>
-              : <><Upload size={16} /> Import {validRows.length} {type === 'clients' ? 'Clients' : type === 'suppliers' ? 'Suppliers' : 'Products'}</>
-            }
-          </button>
+          <div className="mt-4 flex items-center">
+            <span className="flex-1" />
+            <Button onClick={handleImport} disabled={!validRows.length}>
+              <Upload aria-hidden="true" /> Import {count(validRows.length, noun)}
+            </Button>
+          </div>
+        </>
+      )}
+
+      {/* Importing */}
+      {status === 'importing' && (
+        <div role="status">
+          <FileCard name={sheet?.name || 'Your file'} detail={`${validRows.length} rows going in${invalidCount ? ` · ${invalidCount} skipped for errors` : ''}`} />
+          <div className="mb-2 flex items-center gap-1.5 text-[13px]">
+            <b className="font-semibold text-ink">Importing {Math.min(progress + 1, validRows.length)} of {validRows.length}</b>
+            {type === 'products' && <span className="text-[12px] text-mute">· opening stock is added as each product goes in</span>}
+          </div>
+          <ProgressBar value={progress} max={validRows.length} label="Rows imported" />
+          <p className="mt-2.5 text-[12px] text-mute">Keep this tab open until it finishes.</p>
+          <div className="mt-4 flex">
+            <span className="flex-1" />
+            <Button disabled aria-busy="true">Importing…</Button>
+          </div>
         </div>
       )}
 
       {/* Result */}
-      {status === 'done' && (
-        <div className="space-y-4">
-          <div className="p-5 bg-emerald-50 border border-emerald-100 rounded-xl">
-            <div className="flex items-center gap-2 mb-3">
-              <CheckCircle2 size={20} className="text-emerald-600" />
-              <p className="text-sm font-bold text-emerald-800">Import Complete</p>
-            </div>
-            <div className="flex gap-6">
+      {status === 'done' && (() => {
+        const withProblems = result.failed > 0 || (result.notes?.length || 0) > 0;
+        const [to, openLabel] = OPEN_LIST[type];
+        return (
+          <div role="status">
+            <div className="mb-3 flex items-center gap-2.5">
+              <IconTile icon={withProblems ? AlertTriangle : CheckCircle2}
+                className={withProblems ? 'bg-amber-soft text-amber-text' : 'bg-good-soft text-good-text'} />
               <div>
-                <p className="text-2xl font-black text-emerald-700">{result.inserted}</p>
-                <p className="text-xs text-emerald-600">Successfully imported</p>
+                <h3 className="font-tight text-[17px] font-semibold text-ink">{withProblems ? 'Import finished, with problems' : 'Import finished'}</h3>
+                <p className="text-[13px] text-body">{sheet?.name || 'Your file'} · {validRows.length} rows sent{invalidCount ? `, ${invalidCount} skipped before import` : ''}</p>
               </div>
-              {result.failed > 0 && (
-                <div>
-                  <p className="text-2xl font-black text-red-600">{result.failed}</p>
-                  <p className="text-xs text-red-500">Failed (duplicate or DB error)</p>
-                </div>
-              )}
             </div>
-            {/* The product still imported; only the bad HSN was dropped. Name
-                the products so they can be corrected, rather than letting the
-                gap surface months later in a GSTR-1 filing. */}
-            {result.badHsn?.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-emerald-200">
-                <p className="text-xs font-semibold text-amber-700">
-                  {result.badHsn.length} HSN {result.badHsn.length === 1 ? 'code was' : 'codes were'} not valid and left blank
-                </p>
-                <p className="text-[11px] text-amber-600 mt-0.5 leading-relaxed">
-                  An HSN must be 4, 6 or 8 digits. {result.badHsn.slice(0, 6).join(', ')}
-                  {result.badHsn.length > 6 ? ` and ${result.badHsn.length - 6} more` : ''}.
-                </p>
-              </div>
+            <div className="mb-3.5 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+              <div className="rounded-xl bg-good-soft px-3.5 py-3"><b className="block font-tight text-[24px] font-semibold tabular-nums text-good-text">{result.inserted}</b><small className="text-[12.5px] text-body">Imported</small></div>
+              <div className={cn('rounded-xl px-3.5 py-3', result.failed ? 'bg-bad-soft' : 'bg-tile')}><b className={cn('block font-tight text-[24px] font-semibold tabular-nums', result.failed ? 'text-bad-text' : 'text-ink')}>{result.failed}</b><small className="text-[12.5px] text-body">Not imported</small></div>
+              <div className={cn('rounded-xl px-3.5 py-3', result.notes?.length ? 'bg-amber-soft' : 'bg-tile')}><b className={cn('block font-tight text-[24px] font-semibold tabular-nums', result.notes?.length ? 'text-amber-text' : 'text-ink')}>{new Set((result.notes || []).map(n => n.index)).size}</b><small className="text-[12.5px] text-body">Imported, with a note</small></div>
+            </div>
+
+            {result.notImported?.length > 0 && (
+              <>
+                <Eyebrow className="mt-[18px]">Rows not imported</Eyebrow>
+                {result.notImported.map(n => (
+                  <div key={n.index} className="grid grid-cols-[70px_minmax(0,1fr)] gap-3 border-t border-sep py-[9px] text-[13px] sm:grid-cols-[70px_minmax(0,1fr)_minmax(0,1.4fr)]">
+                    <span className="font-tight text-mute">Row {n.index}</span>
+                    <b className="truncate font-medium text-ink">{n.name}</b>
+                    <span className={n.unsure ? 'text-amber-text' : 'text-bad-text'}>
+                      {n.unsure
+                        ? `Not sure: the connection dropped before the shop answered, so it may have imported. Look for it before importing it again${n.reason ? ` (${n.reason})` : ''}.`
+                        : (n.reason || 'The shop refused it and gave no reason.')}
+                    </span>
+                  </div>
+                ))}
+              </>
             )}
-            {/* The product imported; its opening quantity did not. Saying so
-                is the difference between a shelf count somebody can fix and a
-                catalogue that quietly reads zero. */}
-            {result.badStock?.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-emerald-200">
-                <p className="text-xs font-semibold text-amber-700">
-                  {result.badStock.length} {result.badStock.length === 1 ? 'item' : 'items'} imported without the opening stock
-                </p>
-                <p className="text-[11px] text-amber-600 mt-0.5 leading-relaxed">
-                  Set the quantity from Inventory. {result.badStock.slice(0, 6).join(', ')}
-                  {result.badStock.length > 6 ? ` and ${result.badStock.length - 6} more` : ''}.
-                </p>
-              </div>
+
+            {result.notes?.length > 0 && (
+              <>
+                <Eyebrow className="mt-[18px]">Imported, but check these</Eyebrow>
+                {result.notes.map((n, i) => (
+                  <div key={`${n.index}-${i}`} className="grid grid-cols-[70px_minmax(0,1fr)] gap-3 border-t border-sep py-[9px] text-[13px] sm:grid-cols-[70px_minmax(0,1fr)_minmax(0,1.4fr)]">
+                    <span className="font-tight text-mute">Row {n.index}</span>
+                    <b className="truncate font-medium text-ink">{n.name}</b>
+                    <span className="text-amber-text">{n.why}</span>
+                  </div>
+                ))}
+              </>
             )}
+
+            <div className="mt-4 flex flex-wrap items-center gap-2.5">
+              {result.notImported?.length > 0 && (
+                <Button variant="secondary" onClick={downloadNotImported}><Download aria-hidden="true" /> Download rows not imported</Button>
+              )}
+              <span className="flex-1" />
+              <Button variant="secondary" onClick={reset}>Import another file</Button>
+              <Button onClick={() => navigate(to)}>{openLabel}</Button>
+            </div>
           </div>
-          <button
-            onClick={reset}
-            className="flex items-center gap-2 px-4 py-2 border border-border text-sm font-semibold text-ink-secondary rounded-pill hover:bg-muted transition-colors"
-          >
-            Import Another File
-          </button>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
+const TABS = [
+  { key: 'clients',   label: 'Clients',   cols: CLIENT_COLS   },
+  { key: 'suppliers', label: 'Suppliers', cols: SUPPLIER_COLS },
+  { key: 'products',  label: 'Products',  cols: PRODUCT_COLS  },
+];
+
+/** Dark pill switch (mockup `.seg.sm`). */
+export const DarkSeg = ({ value, onChange, options, ariaLabel, className }) => (
+  <div role="radiogroup" aria-label={ariaLabel} className={cn('inline-flex rounded-pill bg-well p-[3px]', className)}>
+    {options.map(([val, label]) => (
+      <button key={val} type="button" role="radio" aria-checked={value === val} onClick={() => onChange(val)}
+        className={cn('m-press rounded-pill px-[13px] py-1.5 font-tight text-[12.5px] font-semibold transition-colors duration-(--dur-press)',
+          value === val ? 'bg-ink text-white' : 'text-body hover:text-ink')}>
+        {label}
+      </button>
+    ))}
+  </div>
+);
+
 export default function ImportData({ modal = false }) {
   const { currentTenantId } = useTenant();
   const [tab, setTab] = useState('clients');
 
-  const tabs = [
-    { key: 'clients',   label: 'Clients',   icon: <Users size={16} />,   cols: CLIENT_COLS   },
-    { key: 'suppliers', label: 'Suppliers', icon: <Truck size={16} />,   cols: SUPPLIER_COLS },
-    { key: 'products',  label: 'Products',  icon: <Package size={16} />, cols: PRODUCT_COLS  },
-  ];
-
   return (
-    <div className={modal ? 'space-y-6' : 'max-w-3xl mx-auto px-4 py-8 space-y-6'}>
-      {/* Header — hide when embedded in modal (modal has its own header) */}
+    <div className={modal ? '' : 'mx-auto max-w-3xl px-4 py-8'}>
+      {/* Header — hidden when embedded (Data tools has its own header) */}
       {!modal && (
-        <div>
-          <h1 className="text-2xl font-black text-foreground tracking-tight">Bulk Import — Upload Excel</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Bulk import clients, suppliers and products via Excel. Data is isolated to your account.
-          </p>
+        <div className="mb-4">
+          <h1 className="font-tight text-[20px] font-semibold tracking-[-0.02em] text-ink">Bulk import · Upload Excel</h1>
+          <p className="mt-0.5 text-[13px] text-body">Bulk import clients, suppliers and products via Excel. Data is isolated to your account.</p>
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex gap-2 p-1 bg-muted rounded-xl w-fit">
-        {tabs.map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-pill text-sm font-semibold transition-all ${
-              tab === t.key
-                ? 'bg-white text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-ink-secondary'
-            }`}
-          >
-            {t.icon}
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <DarkSeg ariaLabel="What to import" className="mb-4" value={tab} onChange={setTab} options={TABS.map(t => [t.key, t.label])} />
 
-      {/* Panel */}
-      <div className="bg-white rounded-2xl border border-border p-6 shadow-sm">
-        {tabs.map(t =>
-          tab === t.key ? (
-            <ImportPanel
-              key={t.key}
-              type={t.key}
-              cols={t.cols}
-              tenantId={currentTenantId}
-              onDone={() => {}}
-            />
-          ) : null
-        )}
-      </div>
+      {TABS.map(t =>
+        tab === t.key ? (
+          <ImportPanel
+            key={t.key}
+            type={t.key}
+            cols={t.cols}
+            tenantId={currentTenantId}
+            onDone={() => {}}
+          />
+        ) : null
+      )}
     </div>
   );
 }

@@ -130,16 +130,31 @@ export const usePayroll = (tenantId) => {
 
   useRefetchOnFocus(fetchPayrollData);
 
+  /**
+   * Add an employee. The caller may pass the id (`employee.id`) and keep it
+   * for the life of the form: a second press after a dropped connection then
+   * collides with the row the first press already wrote, instead of adding the
+   * same person twice. That collision is checked by reading the id back, and
+   * reported as saved only when the row is really there.
+   */
   const addEmployee = async (employee) => {
-    const id = crypto.randomUUID();
+    const id = employee?.id || crypto.randomUUID();
     const row = toEmployeeRow(employee);
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('employees')
       .insert([{ id, ...row, tenant_id: tenantId }])
       .select().single();
-    if (error) console.error('addEmployee error:', error);
-    else await fetchPayrollData();
-    return { success: !error, error };
+    if (error) {
+      console.error('addEmployee error:', error);
+      if (error.code === '23505' && employee?.id) {
+        const { data: there } = await supabase.from('employees').select('id')
+          .eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+        if (there) { await fetchPayrollData(); return { success: true, error: null, id, replayed: true }; }
+      }
+      return { success: false, error, id };
+    }
+    await fetchPayrollData();
+    return { success: true, error: null, id };
   };
 
   const updateEmployee = async (employee) => {
@@ -156,8 +171,11 @@ export const usePayroll = (tenantId) => {
   };
 
   const deleteEmployee = async (id) => {
+    // A soft delete: the row stays, marked, so their pay runs and expenses keep
+    // the person they were paid to.
     const { error } = await supabase.from('employees').update({ deleted_at: new Date().toISOString() }).eq('id', id).eq('tenant_id', tenantId);
-    if (!error) setEmployees(prev => prev.filter(e => e.id !== id));
+    if (error) console.error('deleteEmployee error:', error);
+    else setEmployees(prev => prev.filter(e => e.id !== id));
     return { success: !error, error };
   };
 

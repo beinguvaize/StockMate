@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { isRaw, isStocked } from '../../lib/productTypes';
+import { isRaw } from '../../lib/productTypes';
+import { needsRestock } from '../../lib/stockLevels';
 import { isCountableSale } from './reportUtils';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import useDateWindow from './useDateWindow';
 import PremiumReportView from './PremiumReportView';
 import { parseLocalDate } from '../../lib/utils';
@@ -19,13 +21,13 @@ const InventoryReport = () => {
   // unfiltered and read the whole table on every load.
   const win = useDateWindow('YEAR');
   // 1. Fetch Master Data (Products & Sales for context)
-  const { data: products, loading: productsLoading } = useReportData({
+  const { data: products, loading: productsLoading, error: rdErr1, refetch: rdRe1 } = useReportData({
     table: 'products',
     select: '*',
     dateColumn: 'created_at', filters: win.filters
   });
 
-  const { data: salesRaw, loading: salesLoading } = useReportData({
+  const { data: salesRaw, loading: salesLoading, error: rdErr2, refetch: rdRe2 } = useReportData({
     table: 'sales',
     select: 'date, items, voided_at, status, paymentStatus',
     dateColumn: 'date', filters: win.filters
@@ -46,7 +48,7 @@ const InventoryReport = () => {
   // It matters past this page: an estimated cost becomes COGS the moment those
   // units sell, so the margin inherits the guess. The batches record it in
   // cost_basis; nothing surfaced it.
-  const { data: batchRows } = useReportData({
+  const { data: batchRows, error: rdErr3, refetch: rdRe3 } = useReportData({
     table: 'product_batches',
     select: 'product_id, qty_remaining, unit_cost, cost_basis',
     dateColumn: 'received_date',
@@ -83,7 +85,7 @@ const InventoryReport = () => {
     const totalPotential = sellable.reduce((acc, p) => acc + ((p.stock || 0) * (p.sellingPrice || 0)), 0);
     const totalProfit = totalPotential - sellableCost;
     // A service is never low on stock — it has none. See productTypes.js.
-    const lowStockItems = products.filter(p => isStocked(p) && (p.stock || 0) <= (p.lowStockThreshold || 5));
+    const lowStockItems = products.filter(p => needsRestock(p, Number(p.stock) || 0));
     const lowStockCount = lowStockItems.length;
 
     const categoryMap = products.reduce((acc, p) => {
@@ -148,11 +150,11 @@ const InventoryReport = () => {
       profit: valuationMetrics.totalPotential - valuationMetrics.totalCost
     },
     columns: [
-      { key: 'sku', label: 'SKU', sortable: true, width: 120, render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 uppercase font-semibold">{val || 'N/A'}</span> },
+      { key: 'sku', label: 'SKU', sortable: true, width: 120, render: (val) => <span className="tabular-nums text-[11.5px] bg-tile px-2 py-0.5 rounded border border-line uppercase font-semibold">{val || 'N/A'}</span> },
       { key: 'name', label: 'Product Name', sortable: true, width: 250 },
-      { key: 'category', label: 'Category', sortable: true, width: 140, render: (val) => <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest">{val || 'GENERAL'}</span> },
+      { key: 'category', label: 'Category', sortable: true, width: 140, render: (val) => <span className="text-[11.5px] font-semibold uppercase text-body tracking-[0.07em]">{val || 'GENERAL'}</span> },
       { key: 'stock', label: 'Quantity', align: 'right', sortable: true, width: 100, render: (val, row) => (
-        <span className={`font-semibold ${val <= (row.lowStockThreshold || 5) ? 'text-red-500' : 'text-emerald-600'}`}>
+        <span className={`font-semibold ${needsRestock(row, Number(val) || 0) ? 'text-bad-text' : 'text-good-text'}`}>
           {val} {row.unit || 'pcs'}
         </span>
       )},
@@ -166,7 +168,7 @@ const InventoryReport = () => {
       { key: 'profit', label: 'Projected Profit', align: 'right', width: 150,
         render: (_, row) => {
           const v = (row.stock || 0) * ((row.sellingPrice || 0) - (row.costPrice || 0));
-          const cls = v >= 0 ? 'text-emerald-600' : 'text-red-500';
+          const cls = v >= 0 ? 'text-good-text' : 'text-bad-text';
           const txt = '₹' + Math.abs(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
           return <span className={cls}>{v < 0 ? '−' : ''}{txt}</span>;
         } }
@@ -192,17 +194,17 @@ const InventoryReport = () => {
     columns: [
       { key: 'name', label: 'Unproductive Asset', sortable: true, width: 250, render: (val, row) => (
         <div className="flex flex-col">
-          <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>
-          <span className="text-[10px] font-semibold text-red-400 tabular-nums">{row.sku}</span>
+          <span className="font-semibold text-ink uppercase tracking-tight">{val}</span>
+          <span className="text-[11.5px] font-semibold text-bad-text tabular-nums">{row.sku}</span>
         </div>
       )},
       { key: 'category', label: 'Category', width: 140 },
-      { key: 'stock', label: 'Dormant Units', align: 'right', width: 120, render: (val) => <span className="tabular-nums text-red-500 font-semibold">{val} Units</span> },
+      { key: 'stock', label: 'Dormant Units', align: 'right', width: 120, render: (val) => <span className="tabular-nums text-bad-text font-semibold">{val} Units</span> },
       { key: 'costPrice', label: 'Frozen Value', align: 'right', width: 150,
         render: (val, row) => '₹' + ((val || 0) * (row.stock || 0))
           .toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
       { key: 'action', label: 'Action', width: 150, render: () => (
-        <button className="flex items-center gap-2 px-4 py-1.5 bg-red-50 text-red-600 rounded-pill text-[9px] font-semibold hover:bg-red-600 hover:text-white transition-all uppercase tracking-widest border border-red-100">
+        <button className="flex items-center gap-2 px-4 py-1.5 bg-bad-soft text-bad-text rounded-pill text-[12px] font-semibold hover:bg-red-600 hover:text-white transition-all uppercase tracking-[0.07em] border border-bad-soft">
           Liquidate <ArrowRight size={12} />
         </button>
       )}
@@ -233,12 +235,12 @@ const InventoryReport = () => {
       {/* A cost from a supplier bill and a cost somebody estimated look
           identical in the table below. This says which is which. */}
       {evidence && evidence.estimated > 0 && (
-        <div className="rounded-[10px] border border-border/60 bg-card p-4">
+        <div className="rounded-[14px] border border-line bg-surface p-4">
           <div className="flex items-baseline justify-between mb-2">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <span className="text-[12px] font-semibold uppercase tracking-[0.07em] text-body">
               What this value rests on
             </span>
-            <span className="text-[11px] font-semibold text-amber-700">
+            <span className="text-[12px] font-semibold text-amber-700">
               {evidence.pct.toFixed(0)}% not from a supplier bill
             </span>
           </div>
@@ -248,18 +250,18 @@ const InventoryReport = () => {
           </div>
           <div className="flex flex-wrap gap-x-6 gap-y-1 text-[12px]">
             <span><b className="tabular-nums">{money(evidence.billed)}</b>{' '}
-              <span className="text-muted-foreground">from supplier bills</span></span>
+              <span className="text-body">from supplier bills</span></span>
             <span><b className="tabular-nums text-amber-700">{money(evidence.estimated)}</b>{' '}
-              <span className="text-muted-foreground">estimated or last-known</span></span>
+              <span className="text-body">estimated or last-known</span></span>
           </div>
-          <p className="text-[11px] text-muted-foreground mt-2">
+          <p className="text-[12px] text-body mt-2">
             Estimated cost becomes cost of goods sold as soon as those units sell, so the
             margin carries the same uncertainty. Counting the shelf on the largest of them
             is what turns a guess into a figure.
           </p>
         </div>
       )}
-      <PremiumReportView dateWindow={win} title="Inventory Report" tabs={[valuationTab, deadStockTab]} initialTabId={sub} />
+      <PremiumReportView error={loadError(rdErr1, rdErr2, rdErr3)} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); }} dateWindow={win} title="Inventory Report" tabs={[valuationTab, deadStockTab]} initialTabId={sub} />
     </div>
   );
 };

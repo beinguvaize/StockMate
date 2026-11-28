@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import useDateWindow from './useDateWindow';
 import PremiumReportView from './PremiumReportView';
 import { BookOpen, TrendingUp, TrendingDown, Calendar, Receipt, Tag, Landmark } from 'lucide-react';
@@ -24,10 +25,10 @@ const GeneralLedgerReport = () => {
   // Financial year to date by default. These queries were previously
   // unfiltered and read the whole table on every load.
   const win = useDateWindow('YEAR');
-  const { data: sales, loading: l1 } = useReportData({ table: 'sales', select: 'id, date, totalAmount, totalCogs, paymentMethod, customerInfo, shopId, paymentStatus, status, voided_at', dateColumn: 'date', filters: win.filters });
-  const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: '*', dateColumn: 'date', filters: win.filters });
-  const { data: payroll, loading: l3 } = useReportData({ table: 'payroll', select: '*', dateColumn: 'processed_at', filters: win.filters });
-  const { data: purchases, loading: l4 } = useReportData({ table: 'purchases', select: 'id, date, total_amount, paid_amount, supplier_name, payment_type', dateColumn: 'date', filters: win.filters });
+  const { data: sales, loading: l1, error: rdErr1, refetch: rdRe1 } = useReportData({ table: 'sales', select: 'id, date, totalAmount, totalCogs, paymentMethod, customerInfo, shopId, paymentStatus, status, voided_at', dateColumn: 'date', filters: win.filters });
+  const { data: expenses, loading: l2, error: rdErr2, refetch: rdRe2 } = useReportData({ table: 'expenses', select: '*', dateColumn: 'date', filters: win.filters });
+  const { data: payroll, loading: l3, error: rdErr3, refetch: rdRe3 } = useReportData({ table: 'payroll', select: '*', dateColumn: 'processed_at', filters: win.filters });
+  const { data: purchases, loading: l4, error: rdErr4, refetch: rdRe4 } = useReportData({ table: 'purchases', select: 'id, date, total_amount, paid_amount, supplier_name, payment_type', dateColumn: 'date', filters: win.filters });
 
   const loading = l1 || l2 || l3 || l4;
 
@@ -210,14 +211,14 @@ const GeneralLedgerReport = () => {
 
   const renderTypeBadge = (val) => {
     const colors = {
-      SALE: 'bg-emerald-50 text-emerald-600',
-      COGS: 'bg-accent-signature/10 text-accent-signature',
-      EXPENSE: 'bg-rose-50 text-rose-600',
-      PAYROLL: 'bg-accent-signature/10 text-accent-signature',
-      PURCHASE: 'bg-sky-50 text-sky-600',
+      SALE: 'bg-good-soft text-good-text',
+      COGS: 'bg-accent-signature/10 text-amber-text',
+      EXPENSE: 'bg-bad-soft text-bad-text',
+      PAYROLL: 'bg-accent-signature/10 text-amber-text',
+      PURCHASE: 'bg-info-soft text-info-text',
     };
     return (
-      <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-semibold uppercase ${colors[val] || 'bg-muted text-ink-secondary'}`}>
+      <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[12px] font-semibold uppercase ${colors[val] || 'bg-muted text-ink-2'}`}>
         {val}
       </span>
     );
@@ -232,14 +233,14 @@ const GeneralLedgerReport = () => {
     totals: { debit: totals.debit, credit: totals.credit },
     columns: [
       { key: 'date', label: 'Date', type: 'date', sortable: true, width: 120 },
-      { key: 'id', label: 'Entry #', sortable: true, width: 130, render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 font-semibold">{val}</span> },
-      { key: 'reference', label: 'Reference', sortable: true, width: 150, render: (val) => <span className="tabular-nums text-[10px] font-semibold text-muted-foreground">{val}</span> },
+      { key: 'id', label: 'Entry #', sortable: true, width: 130, render: (val) => <span className="tabular-nums text-[11.5px] bg-tile px-2 py-0.5 rounded border border-border/60 font-semibold">{val}</span> },
+      { key: 'reference', label: 'Reference', sortable: true, width: 150, render: (val) => <span className="tabular-nums text-[11.5px] font-semibold text-body">{val}</span> },
       { key: 'type', label: 'Type', width: 110, render: renderTypeBadge },
-      { key: 'accountCode', label: 'GL', width: 80, render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 font-semibold">{val}</span> },
-      { key: 'account', label: 'Account', sortable: true, width: 200, render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span> },
-      { key: 'description', label: 'Description', width: 220, render: (val) => <span className="text-[11px] text-ink-secondary">{val}</span> },
-      { key: 'debit', label: 'Debit', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => val > 0 ? <span className="font-semibold text-accent-signature">{formatINR(val)}</span> : <span className="text-muted-foreground">—</span> },
-      { key: 'credit', label: 'Credit', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => val > 0 ? <span className="font-semibold text-emerald-600">{formatINR(val)}</span> : <span className="text-muted-foreground">—</span> },
+      { key: 'accountCode', label: 'GL', width: 80, render: (val) => <span className="tabular-nums text-[11.5px] bg-tile px-2 py-0.5 rounded border border-border/60 font-semibold">{val}</span> },
+      { key: 'account', label: 'Account', sortable: true, width: 200, render: (val) => <span className="font-semibold text-ink uppercase tracking-tight">{val}</span> },
+      { key: 'description', label: 'Description', width: 220, render: (val) => <span className="text-[12px] text-ink-2">{val}</span> },
+      { key: 'debit', label: 'Debit', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => val > 0 ? <span className="font-semibold text-amber-text">{formatINR(val)}</span> : <span className="text-body">—</span> },
+      { key: 'credit', label: 'Credit', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => val > 0 ? <span className="font-semibold text-good-text">{formatINR(val)}</span> : <span className="text-body">—</span> },
     ],
     kpis: kpis,
     chartConfig: {
@@ -296,13 +297,13 @@ const GeneralLedgerReport = () => {
       balance: round2(totals.debit - totals.credit),
     },
     columns: [
-      { key: 'accountCode', label: 'Code', sortable: true, width: 100, render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 font-semibold">{val}</span> },
-      { key: 'account', label: 'Account Name', sortable: true, width: 280, render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span> },
-      { key: 'entries', label: 'Entries', align: 'right', sortable: true, width: 110, render: (val) => <span className="tabular-nums font-semibold text-muted-foreground">{val}</span> },
-      { key: 'debit', label: 'Total Debits', type: 'currency', align: 'right', sortable: true, width: 160, render: (val) => <span className="font-semibold text-accent-signature">{formatINR(val)}</span> },
-      { key: 'credit', label: 'Total Credits', type: 'currency', align: 'right', sortable: true, width: 160, render: (val) => <span className="font-semibold text-emerald-600">{formatINR(val)}</span> },
+      { key: 'accountCode', label: 'Code', sortable: true, width: 100, render: (val) => <span className="tabular-nums text-[11.5px] bg-tile px-2 py-0.5 rounded border border-border/60 font-semibold">{val}</span> },
+      { key: 'account', label: 'Account Name', sortable: true, width: 280, render: (val) => <span className="font-semibold text-ink uppercase tracking-tight">{val}</span> },
+      { key: 'entries', label: 'Entries', align: 'right', sortable: true, width: 110, render: (val) => <span className="tabular-nums font-semibold text-body">{val}</span> },
+      { key: 'debit', label: 'Total Debits', type: 'currency', align: 'right', sortable: true, width: 160, render: (val) => <span className="font-semibold text-amber-text">{formatINR(val)}</span> },
+      { key: 'credit', label: 'Total Credits', type: 'currency', align: 'right', sortable: true, width: 160, render: (val) => <span className="font-semibold text-good-text">{formatINR(val)}</span> },
       { key: 'balance', label: 'Net Balance', type: 'currency', align: 'right', sortable: true, width: 160, render: (val) => (
-        <span className={`font-semibold ${val >= 0 ? 'text-foreground' : 'text-rose-500'}`}>{formatINR(val)}</span>
+        <span className={`font-semibold ${val >= 0 ? 'text-ink' : 'text-bad-text'}`}>{formatINR(val)}</span>
       )},
     ],
     kpis: kpis,
@@ -322,7 +323,7 @@ const GeneralLedgerReport = () => {
     ],
   };
 
-  return <PremiumReportView dateWindow={win} title="General Ledger" tabs={[journalTab, accountTab]} />;
+  return <PremiumReportView error={loadError(rdErr1, rdErr2, rdErr3, rdErr4)} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); rdRe4(); }} dateWindow={win} title="General Ledger" tabs={[journalTab, accountTab]} />;
 };
 
 export default GeneralLedgerReport;

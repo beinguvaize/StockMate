@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../context/TenantContext';
 
@@ -11,13 +11,16 @@ import { useTenant } from '../../context/TenantContext';
  * Reimplementing that here would be a second, drifting definition of profit —
  * which is how a report can quietly disagree with the books.
  *
- * Returns { pl, loading }; pl is null until loaded, then:
+ * Returns { pl, loading, error, refetch }; pl is null until loaded, then:
  * { revenue_net, output_gst, cogs, returns_total, expenses, gross_profit, net_profit }
  */
 export default function usePLRanged(from, to) {
   const { currentTenantId } = useTenant();
   const [pl, setPl] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Kept so a caller can say "could not load" instead of showing a zero.
+  const [error, setError] = useState(null);
+  const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     if (!currentTenantId || !from || !to) return undefined;
@@ -31,10 +34,18 @@ export default function usePLRanged(from, to) {
         // strip that looks like "no trade this period" rather than a failure.
         if (error) console.error('[usePLRanged] get_pl_ranged failed:', error.message, error);
         setPl(error ? null : (Array.isArray(data) ? data[0] : data));
+        setError(error ? (error.message || 'Read failed') : null);
+        setLoading(false);
+      }, (err) => {
+        if (dead) return;
+        console.error('[usePLRanged] get_pl_ranged threw:', err?.message || err, err);
+        setPl(null);
+        setError(err?.message || 'Read failed');
         setLoading(false);
       });
     return () => { dead = true; };
-  }, [currentTenantId, from, to]);
+  }, [currentTenantId, from, to, nonce]);
 
-  return { pl, loading };
+  const refetch = useCallback(() => setNonce(n => n + 1), []);
+  return { pl, loading, error, refetch };
 }

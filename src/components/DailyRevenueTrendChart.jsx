@@ -12,13 +12,14 @@ import { useSales } from '../hooks/useSales';
 import { useTenant } from '../context/TenantContext';
 import { usePeople } from '../hooks/usePeople';
 import { parseLocalDate } from '../lib/utils';
+import { Card, CardHeader } from './ui/card';
 
 /**
  * DailyRevenueTrendChart
  * A stacked bar chart showing Daily Cash vs Credit sales over the last 14 days.
- * Follows the high-performance"Obsidian-glass" aesthetic.
+ * Drawn in the web redesign's card (Dashboard, "Last 14 days").
  */
-const DailyRevenueTrendChart = () => {
+const DailyRevenueTrendChart = ({ playing = false, className = '', style }) => {
  const { currentTenantId, businessProfile } = useTenant();
  const { sales } = useSales(currentTenantId, { lean: true });
  const { employees } = usePeople(currentTenantId);
@@ -84,106 +85,51 @@ const DailyRevenueTrendChart = () => {
 
  const CustomTooltip = ({ active, payload, label}) => {
  if (active && payload && payload.length) {
+ const cash = payload.find(p => p.dataKey === 'cash')?.value || 0;
+ const credit = payload.find(p => p.dataKey === 'credit')?.value || 0;
  return (
- <div className="bg-white/90 backdrop-blur-xl border border-black/5 p-4 rounded-lg shadow-2xl text-ink-primary">
- <p className="text-ink-secondary text-xs font-bold mb-2">{label}</p>
- <div className="space-y-1">
- <p className="flex justify-between gap-5 text-sm">
- <span className="flex items-center gap-2">
- <div className="w-2 h-2 rounded-full bg-[#7F77DD]" />
- Credit
- </span>
- <span className="font-bold">{currency}{payload[1].value.toLocaleString()}</span>
- </p>
- <p className="flex justify-between gap-5 text-sm">
- <span className="flex items-center gap-2">
- <div className="w-2 h-2 rounded-full bg-[#378ADD]" />
- Cash
- </span>
- <span className="font-bold">{currency}{payload[0].value.toLocaleString()}</span>
- </p>
- <div className="h-[1px] bg-black/5 my-1" />
- <p className="flex justify-between gap-5 text-sm font-semibold">
- <span>Total</span>
- <span className="text-blue-600">{currency}{(payload[0].value + payload[1].value).toLocaleString()}</span>
- </p>
- </div>
+ <div className="rounded-[10px] bg-ink px-3 py-2 text-[12px] leading-snug text-white shadow-lg">
+ <p className="text-white/70 mb-1">{label}</p>
+ <p className="flex justify-between gap-5"><span className="flex items-center gap-1.5"><i className="size-2 rounded-[2px] bg-[#9AA0A8]" />Cash</span><span className="font-tight font-semibold tabular-nums">{currency}{cash.toLocaleString()}</span></p>
+ <p className="flex justify-between gap-5"><span className="flex items-center gap-1.5"><i className="size-2 rounded-[2px] bg-amber" />Credit</span><span className="font-tight font-semibold tabular-nums">{currency}{credit.toLocaleString()}</span></p>
+ <p className="flex justify-between gap-5 mt-1 pt-1 border-t border-white/15"><span>Total</span><span className="font-tight font-semibold tabular-nums">{currency}{(cash + credit).toLocaleString()}</span></p>
  </div>
  );
 }
  return null;
 };
 
+ // Web redesign: "Last 14 days", stacked bars, cash in ink, credit in amber.
+ // Same days and the same cash / credit rule as before.
  return (
- <div className="bg-white p-5 rounded-[2rem] shadow-premium border border-black/5 flex flex-col h-[400px] overflow-hidden">
- {/* Legend & Header */}
- <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
- <div>
- <h2 className="text-xl font-bold text-ink-primary mb-1">Revenue Trend</h2>
- <p className="text-ink-secondary text-xs font-semibold leading-none">Last 14 days</p>
- </div>
- 
- <div className="flex items-center gap-4 text-[10px] md:text-xs">
- <div className="flex items-center gap-2">
- <div className="w-3 h-3 rounded-sm bg-[#378ADD]" />
- <span className="font-bold text-ink-secondary">Cash Sales</span>
- </div>
- <div className="flex items-center gap-2">
- <div className="w-3 h-3 rounded-sm bg-[#7F77DD]" />
- <span className="font-bold text-ink-secondary">Credit Sales</span>
- </div>
- </div>
- </div>
+ <Card className={`flex flex-col ${className}`} style={style}>
+ <CardHeader title="Last 14 days" aside={
+ <>
+ <span className="flex items-center gap-1.5 text-body"><i className="size-2.5 rounded-[3px] bg-ink-2" />Cash sales</span>
+ <span className="flex items-center gap-1.5 text-body"><i className="size-2.5 rounded-[3px] bg-amber" />Credit sales</span>
+ </>
+ } />
 
- <div className="relative flex-1">
+ <div className="relative mt-3.5 h-[190px]">
  {!hasData ? (
- <div className="absolute inset-0 flex items-center justify-center">
- <p className="text-ink-secondary font-medium italic">No sales data yet</p>
- </div>
+ <div className="absolute inset-0 flex items-center justify-center text-[13px] text-mute">No sales in the last 14 days yet</div>
  ) : (
- <ResponsiveContainer width="100%" height="100%" debounce={50} minHeight={300}>
- <BarChart
- data={data}
- margin={{ top: 10, right: 10, left: -20, bottom: 20}}
- >
- <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
- <XAxis 
- dataKey="date" 
- axisLine={false} 
- tickLine={false} 
- tick={{ fill: '#6B7280', fontSize: 11, fontWeight: 700}}
- angle={-45}
- textAnchor="end"
- interval={0}
- />
- <YAxis 
- axisLine={false} 
- tickLine={false} 
- tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}}
- tickFormatter={formatYAxis}
- />
- <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.02)'}} />
- <Bar 
- dataKey="cash" 
- stackId="a" 
- fill="#378ADD" 
- radius={[0, 0, 0, 0]}
- animationDuration={1000}
- animationEasing="ease-out"
- />
- <Bar 
- dataKey="credit" 
- stackId="a" 
- fill="#7F77DD" 
- radius={[4, 4, 0, 0]}
- animationDuration={1000}
- animationEasing="ease-out"
- />
+ <ResponsiveContainer width="100%" height="100%" debounce={50}>
+ <BarChart data={data} margin={{ top: 6, right: 0, left: -14, bottom: 0}} barCategoryGap="22%">
+ <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#F0EFED" />
+ <XAxis dataKey="date" axisLine={false} tickLine={false} interval="preserveStartEnd"
+ tick={{ fill: '#8A9099', fontSize: 11 }} tickFormatter={(v) => String(v).replace(/^\D+\s*/, '')} />
+ <YAxis axisLine={false} tickLine={false} tick={{ fill: '#8A9099', fontSize: 11 }} tickFormatter={formatYAxis} width={52} />
+ <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(17,20,24,0.03)'}} />
+ <Bar dataKey="cash" stackId="a" fill="#2E343B" radius={[0, 0, 1, 1]} maxBarSize={22}
+ isAnimationActive={playing} animationBegin={200} animationDuration={280} animationEasing="ease-out" />
+ <Bar dataKey="credit" stackId="a" fill="#E8890C" radius={[3, 3, 0, 0]} maxBarSize={22}
+ isAnimationActive={playing} animationBegin={200} animationDuration={280} animationEasing="ease-out" />
  </BarChart>
  </ResponsiveContainer>
  )}
  </div>
- </div>
+ </Card>
  );
 };
 

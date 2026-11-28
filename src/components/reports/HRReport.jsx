@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import useDateWindow from './useDateWindow';
 import PremiumReportView from './PremiumReportView';
 import { 
@@ -12,14 +13,14 @@ const HRReport = () => {
   // dateColumn without filters, so they read the whole table each load.
   const win = useDateWindow('YEAR');
   // 1. Fetch Employees & Payroll Data
-  const { data: employees, loading: employeesLoading } = useReportData({
+  const { data: employees, loading: employeesLoading, error: rdErr1, refetch: rdRe1 } = useReportData({
     table: 'employees',
     select: '*',
     // Dimension table: never date-windowed. Filtering by created_at would
     // drop everyone hired before the window from the roster.
   });
 
-  const { data: payroll, loading: payrollLoading } = useReportData({
+  const { data: payroll, loading: payrollLoading, error: rdErr2, refetch: rdRe2 } = useReportData({
     table: 'payroll',
     select: '*',
     dateColumn: 'processed_at', filters: win.filters
@@ -76,14 +77,14 @@ const HRReport = () => {
     columns: [
       { key: 'name', label: 'Personnel Entity', sortable: true, width: 220, render: (val, row) => (
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-accent-signature/10 flex items-center justify-center text-accent-signature font-semibold text-[10px] uppercase">{val.slice(0, 1)}</div>
-          <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>
+          <div className="w-8 h-8 rounded-full bg-accent-signature/10 flex items-center justify-center text-amber-text font-semibold text-[11.5px] uppercase">{val.slice(0, 1)}</div>
+          <span className="font-semibold text-ink uppercase tracking-tight">{val}</span>
         </div>
       )},
-      { key: 'department', label: 'Operational Node', sortable: true, width: 150, render: (val) => <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest">{val || 'OPERATIONS'}</span> },
+      { key: 'department', label: 'Operational Node', sortable: true, width: 150, render: (val) => <span className="text-[11.5px] font-semibold uppercase text-body tracking-[0.07em]">{val || 'OPERATIONS'}</span> },
       { key: 'salary', label: 'Monthly Delta (Salary)', type: 'currency', align: 'right', sortable: true, width: 180 },
       { key: 'status', label: 'Integrity', width: 120, render: (val) => (
-        <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[9px] font-semibold uppercase w-fit border border-emerald-100">
+        <div className="flex items-center gap-2 px-3 py-1 bg-good-soft text-good-text rounded-full text-[12px] font-semibold uppercase w-fit border border-good-soft">
           <div className="w-1 h-1 rounded-full bg-emerald-600" /> ACTIVE
         </div>
       )}
@@ -104,10 +105,10 @@ const HRReport = () => {
     totals: { amount: payrollMetrics.totalDisbursed },
     columns: [
       { key: 'processed_at', label: 'Sync Date', type: 'date', sortable: true, width: 150 },
-      { key: 'employeeId', label: 'Personnel Reference', width: 200, render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 uppercase font-semibold">{(val || '').slice(0, 10)}</span> },
-      { key: 'month', label: 'Fiscal Period', width: 120, render: (val) => <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest">{val || 'CURRENT'}</span> },
+      { key: 'employeeId', label: 'Personnel Reference', width: 200, render: (val) => <span className="tabular-nums text-[11.5px] bg-tile px-2 py-0.5 rounded border border-border/60 uppercase font-semibold">{(val || '').slice(0, 10)}</span> },
+      { key: 'month', label: 'Fiscal Period', width: 120, render: (val) => <span className="text-[11.5px] font-semibold uppercase text-body tracking-[0.07em]">{val || 'CURRENT'}</span> },
       { key: 'amount', label: 'Magnitude', type: 'currency', align: 'right', sortable: true, width: 160 },
-      { key: 'processed_by', label: 'Validator', width: 140, render: (val) => <span className="text-[10px] font-semibold text-muted-foreground tabular-nums uppercase">{val || 'SYSTEM'}</span> }
+      { key: 'processed_by', label: 'Validator', width: 140, render: (val) => <span className="text-[11.5px] font-semibold text-body tabular-nums uppercase">{val || 'SYSTEM'}</span> }
     ],
     kpis: payrollMetrics.kpis,
     chartConfig: { 
@@ -116,7 +117,7 @@ const HRReport = () => {
     }
   };
 
-  return <PremiumReportView dateWindow={win} title="HR & Payroll" tabs={[workforceTab, auditTab]} />;
+  return <PremiumReportView error={loadError(rdErr1, rdErr2)} onRetry={() => { rdRe1(); rdRe2(); }} dateWindow={win} title="HR & Payroll" tabs={[workforceTab, auditTab]} />;
 };
 
 export default HRReport;

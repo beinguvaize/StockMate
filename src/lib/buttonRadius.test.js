@@ -15,6 +15,13 @@ import { fileURLToPath } from 'node:url';
  * happens to be a <button> -- have no fill and no border and are not controls
  * with edges, so they are not covered.
  *
+ * A third shape came with the web redesign: a CARD that is a button -- an
+ * option card (payment method, "what next" after a sale;
+ * src/components/ui/OptionCard.jsx) or a full-width alert row on the
+ * dashboard -- holds a line or two of text in a 12-14px box, and a pill
+ * would cut it. Such a button says so with `data-card`, and keeps a card radius.
+ * Opt-in and visible at the call site, so it cannot hide a stray pill.
+ *
  * This is a test and not a lint rule because it needs to understand the shape
  * of a button, not just match a class name.
  */
@@ -59,6 +66,7 @@ describe('button radius', () => {
       const isAction = /\bp[xy]?-|\bh-\d/.test(attrs) && /\bbg-|\bborder\b/.test(attrs);
       const radii = attrs.match(RADIUS);
       if (!isAction || !radii) continue;
+      if (/\bdata-card\b/.test(attrs)) continue;
 
       const iconOnly = /\bw-\d/.test(attrs) && /\bh-\d/.test(attrs) && !/\bpx-/.test(attrs);
       const want = iconOnly ? 'rounded-xl' : 'rounded-pill';

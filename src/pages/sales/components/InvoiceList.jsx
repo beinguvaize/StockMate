@@ -1,25 +1,29 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import Tooltip from '../../../components/motion/Tooltip';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import CopyButton from '../../../components/motion/CopyButton';
 import HoldButton from '../../../components/motion/HoldButton';
+import SegmentedTabs from '../../../components/motion/SegmentedTabs';
 import {
-  Search, Trash2, Printer, Receipt, Package, Wallet, CreditCard, Landmark,
-  Download, X, User, Clock, Calendar, CheckCircle2, AlertCircle, RotateCcw, Truck, PackageCheck,
-  FileText, Pencil
+  Search, Trash2, Printer, Receipt, Download, CheckCircle2, RotateCcw, Truck, PackageCheck,
+  FileText, Pencil, ChevronDown
 } from 'lucide-react';
-import Table from '../../../shared/Table';
-import Modal from '../../../shared/Modal';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../../../components/ui/table';
+import { Badge } from '../../../components/ui/badge';
+import { Button } from '../../../components/ui/button';
+import { Input } from '../../../components/ui/input';
+import { FilterPills } from '../../../components/ui/Tabs';
+import { FigureStrip, Figure } from '../../../components/ui/FigureStrip';
+import SidePanel from '../../../components/ui/SidePanel';
 import { supabase } from '../../../lib/supabase';
-import { formatCurrency, formatDate, formatDateTime, todayISOInAppTZ, getAppTimezone, getAppLocale } from '../../../lib/utils';
+import { formatCurrency, formatShortDateTime, formatTime as timeOf, todayISOInAppTZ, getAppTimezone, getAppLocale } from '../../../lib/utils';
 import { surplusLabel } from '../lib/checkoutMoney';
+import { Card } from '../../../components/ui/card';
+import { rankTopSelling } from '../../../lib/topSelling';
+import { minutesOfDay, revenueComparison, inComparison, revenueChange } from '../../../lib/salesComparison';
 
-// Payment method -> icon.
-const PAY_ICON = {
-  CASH: Wallet,
-  CARD: CreditCard,
-  UPI: Landmark,
-  CREDIT: CreditCard,
-};
+// Payment method -> how it reads under the client name.
+const PAY_LABEL = { CASH: 'Cash', CARD: 'Card', UPI: 'UPI', BANK: 'Bank', CREDIT: 'Credit' };
 
 // ------------------------------------------------------------------
 // Helpers
@@ -74,10 +78,19 @@ const downloadCSV = (rows, filename) => {
 // Component
 // ------------------------------------------------------------------
 const DELIVERY_BADGE = {
-  PENDING:    { bg: 'bg-accent-signature/10',   text: 'text-accent-signature-hover',   ring: 'ring-accent-signature/20',   dot: 'bg-accent-signature/70',   label: 'Awaiting Dispatch' },
-  IN_TRANSIT: { bg: 'bg-blue-50',    text: 'text-blue-700',    ring: 'ring-blue-200/60',    dot: 'bg-blue-500',    label: 'In Transit'        },
-  DELIVERED:  { bg: 'bg-emerald-50', text: 'text-emerald-700', ring: 'ring-emerald-200/60', dot: 'bg-emerald-500', label: 'Delivered'         },
-  FAILED:     { bg: 'bg-red-50',     text: 'text-red-700',     ring: 'ring-red-200/60',     dot: 'bg-red-400',     label: 'Failed'            },
+  PENDING:    { tone: 'warn', label: 'Awaiting dispatch' },
+  IN_TRANSIT: { tone: 'info', label: 'In transit'        },
+  DELIVERED:  { tone: 'good', label: 'Delivered'         },
+  FAILED:     { tone: 'bad',  label: 'Failed delivery'   },
+};
+
+// Date from the sale's own date (a back-dated or edited sale keeps it), time
+// from when it was rung up: "22 Nov, 4:10 pm".
+const whenOf = (sale) => {
+  const day = formatShortDateTime(String(sale.date || '').slice(0, 10));
+  if (!day) return formatShortDateTime(sale.created_at) || '—';
+  const t = timeOf(sale.created_at);
+  return t ? `${day}, ${t}` : day;
 };
 
 const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [], returnedSaleIds = null, onDelete, onPrint, onSettle, onReturn, onEdit, onDispatch, onConvertToInvoice }) => {
@@ -179,6 +192,32 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
     return { revenue, paid, pending, pendingAmt, failed, count: paid + pending + failed };
   }, [sales, inDateRange]);
 
+  // ---------- Revenue compared with the period before ----------
+  // Same rule as Revenue above (failed bills left out), over the earlier
+  // window lib/salesComparison picks: today against the same weekday last
+  // week up to the same time; a longer window against the one before it.
+  const revenueCmp = useMemo(() => {
+    const tz = getAppTimezone();
+    const cmp = revenueComparison(dateFilter, todayISOInAppTZ(), minutesOfDay(new Date(), tz) ?? 24 * 60, customRange);
+    if (!cmp) return null;
+    let prior = 0;
+    for (const s of sales) {
+      if (!inComparison(s, cmp, tz)) continue;
+      if (isVoidStatus(getStatus(s))) continue;
+      prior += Number(s.totalAmount) || 0;
+    }
+    return { ...cmp, prior, change: revenueChange(summary.revenue, prior) };
+  }, [sales, dateFilter, customRange, summary.revenue]);
+
+  // ---------- Best sellers ----------
+  // lib/topSelling: the Dashboard's "Top-selling items" ranking, over the
+  // same date window as the list, so both pages agree for the same period.
+  const [bestBy, setBestBy] = useState('value');
+  const best = useMemo(
+    () => rankTopSelling(sales.filter(inDateRange), { by: bestBy, limit: 5 }),
+    [sales, inDateRange, bestBy],
+  );
+
   // ---------- Filtered rows ----------
   const filteredSales = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
@@ -222,15 +261,6 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
 
   const toggleSort = (key) => setSort(prev =>
     prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: ['date', 'amount', 'items'].includes(key) ? 'desc' : 'asc' }
-  );
-
-  const SortLabel = ({ k, children }) => (
-    <button onClick={() => toggleSort(k)} className="inline-flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer select-none">
-      {children}
-      <span className={`text-[9px] leading-none ${sort.key === k ? 'text-accent-signature' : 'text-muted-foreground'}`}>
-        {sort.key === k ? (sort.dir === 'asc' ? '▲' : '▼') : '▲▼'}
-      </span>
-    </button>
   );
 
   // Distinct cashiers / methods present in the current date window (for dropdowns).
@@ -280,16 +310,49 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
     setDetailSale(null);
   };
 
-  const headers = [
-    { label: <SortLabel k="date">Date / Time</SortLabel> },
-    { label: <SortLabel k="invoice">Invoice</SortLabel> },
-    { label: <SortLabel k="client">Client</SortLabel> },
-    { label: <SortLabel k="cashier">Cashier</SortLabel> },
-    { label: <SortLabel k="items">Items</SortLabel>, className: 'text-center' },
-    { label: <SortLabel k="amount">Amount</SortLabel>, className: 'text-right' },
-    { label: <SortLabel k="status">Status</SortLabel>, className: 'text-center' },
-    { label: '', className: 'text-right' },
-  ];
+  // The status cell's pills: paid / pending / failed, then delivery, dispatch
+  // and return, each when it applies. Shared by the row and the detail panel.
+  const statusPills = (sale) => {
+    const status = getStatus(sale);
+    const paid = isPaidStatus(status);
+    const voided = isVoidStatus(status);
+    const isReturned = returnedSaleIds ? returnedSaleIds.has(sale.id) : false;
+    // Delivery status from linked invoice
+    const linkedInvoice = invoices.find(i => i.sale_id === sale.id && i.delivery_required);
+    const deliveryStatus = linkedInvoice?.delivery_status?.toUpperCase();
+    const deliveryBadge = deliveryStatus ? DELIVERY_BADGE[deliveryStatus] : null;
+    return (
+      <>
+        <Badge tone={voided ? 'bad' : paid ? 'good' : 'neutral'}>{voided ? 'Failed' : paid ? 'Paid' : 'Pending'}</Badge>
+        {deliveryBadge && <Badge tone={deliveryBadge.tone}><Truck size={11} />{deliveryBadge.label}</Badge>}
+        {sale.fulfillment_status === 'PENDING_DISPATCH' && <Badge tone="warn">Pending dispatch</Badge>}
+        {sale.fulfillment_status === 'DISPATCHED' && <Badge tone="good">Dispatched</Badge>}
+        {isReturned && <Badge tone="bad">Returned</Badge>}
+      </>
+    );
+  };
+
+  // What can be done to a sale, with the rules for when each one is offered.
+  // The row's "···" menu and the detail panel read the same list.
+  const actionsFor = (sale) => {
+    const status = getStatus(sale);
+    const paid = isPaidStatus(status);
+    const voided = isVoidStatus(status);
+    const isReturned = returnedSaleIds ? returnedSaleIds.has(sale.id) : false;
+    // Editing is blocked once a sale has a return or a real GST invoice — the
+    // edit_sale RPC refuses these too (would double-count stock / break filing).
+    const canEdit = !!onEdit && !voided && !isReturned && !sale.invoice_id;
+    return {
+      settle:   !paid && !voided && !!onSettle,
+      dispatch: !!onDispatch && sale.fulfillment_status === 'PENDING_DISPATCH',
+      edit:     canEdit,
+      ret:      !!onReturn && Array.isArray(sale.items) && sale.items.length > 0 && !isReturned,
+      convert:  !!onConvertToInvoice,
+      converted: !!sale.invoice_id,
+    };
+  };
+
+  const closeDetail = () => { setDetailSale(null); setSettleInput(''); };
 
   const renderRow = (sale) => {
     const clientName = getClientName(sale);
@@ -297,331 +360,300 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
     const paid = isPaidStatus(status);
     const voided = isVoidStatus(status);
     const payMethod = (sale.paymentMethod || '').toUpperCase();
-    const PayIcon = PAY_ICON[payMethod] || Wallet;
     const qty = itemCount(sale);
     const outstanding = outstandingOf(sale);
     const cashier = getCashier(sale);
-    const isReturned = returnedSaleIds ? returnedSaleIds.has(sale.id) : false;
-    // Editing is blocked once a sale has a return or a real GST invoice — the
-    // edit_sale RPC refuses these too (would double-count stock / break filing).
-    const canEdit = !!onEdit && !voided && !isReturned && !sale.invoice_id;
-    // Delivery status from linked invoice
-    const linkedInvoice = invoices.find(i => i.sale_id === sale.id && i.delivery_required);
-    const deliveryStatus = linkedInvoice?.delivery_status?.toUpperCase();
-    const deliveryBadge = deliveryStatus ? DELIVERY_BADGE[deliveryStatus] : null;
+    const can = actionsFor(sale);
 
     return (
-      <tr
+      <TableRow
         key={sale.id}
         onClick={() => setDetailSale(sale)}
-        className="group hover:bg-canvas/70 transition-colors cursor-pointer"
+        data-state={detailSale?.id === sale.id ? 'selected' : undefined}
+        className="cursor-pointer"
       >
-        <td className="px-4 py-4">
-          <div className="text-sm font-semibold text-foreground">{formatDate(sale.date)}</div>
-          {sale.created_at && (
-            <div className="text-[11px] font-medium text-muted-foreground mt-0.5">{formatTime(sale.created_at)}</div>
-          )}
-        </td>
-        <td className="px-4 py-4">
-          <div className="text-sm font-semibold text-foreground tracking-tight inline-flex items-center gap-1">#{shortRef(sale.id)}<CopyButton value={shortRef(sale.id)} label="Copy invoice no." size={12} /></div>
-        </td>
-        <td className="px-4 py-4">
-          <div className="text-sm font-semibold text-foreground">{clientName}</div>
-          <div className="flex items-center gap-1.5 mt-0.5 text-[11px] font-medium text-muted-foreground">
-            <PayIcon size={12} />
-            <span>{payMethod || '—'}</span>
-          </div>
-        </td>
-        <td className="px-4 py-4">
-          <div className="text-xs font-semibold text-muted-foreground">{cashier || '—'}</div>
-        </td>
-        <td className="px-4 py-4 text-center">
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground">
-            <Package size={12} className="opacity-60" /> {qty || 0}
+        <TableCell className="whitespace-nowrap text-ink-2">{whenOf(sale)}</TableCell>
+        <TableCell>
+          <span className="inline-flex items-center gap-1.5 font-tight text-[13.5px] font-semibold text-ink whitespace-nowrap">
+            {shortRef(sale.id)}<CopyButton value={shortRef(sale.id)} label="Copy bill number" size={12} />
           </span>
-        </td>
-        <td className="px-4 py-4 text-right">
-          <div className={`text-sm font-semibold tabular-nums ${voided ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{formatCurrency(sale.totalAmount)}</div>
+        </TableCell>
+        <TableCell>
+          <span className="block font-tight text-[14px] font-semibold text-ink">{clientName}</span>
+          <small className="text-[12px] text-mute">{PAY_LABEL[payMethod] || payMethod || '—'}</small>
+        </TableCell>
+        <TableCell className="text-ink-2">{cashier || '—'}</TableCell>
+        <TableCell numeric>{qty || 0}</TableCell>
+        <TableCell numeric className="whitespace-nowrap">
+          <span className={voided ? 'text-mute line-through' : 'text-ink'}>{formatCurrency(sale.totalAmount)}</span>
           {!paid && !voided && outstanding > 0 && (
-            <div className="text-[11px] font-semibold text-accent-signature tabular-nums mt-0.5">
-              Due: {formatCurrency(outstanding)}
-            </div>
-          )}
-        </td>
-        <td className="px-4 py-4 text-center">
-          <div className="flex flex-col items-center gap-1">
-            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-              voided
-                ? 'bg-red-50 text-red-700 ring-1 ring-red-200/60'
-                : paid
-                ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60'
-                : 'bg-accent-signature/10 text-accent-signature-hover ring-1 ring-accent-signature/20'
-            }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${voided ? 'bg-red-500' : paid ? 'bg-emerald-500' : 'bg-accent-signature'}`} />
-              {voided ? 'Failed' : paid ? 'Paid' : 'Pending'}
+            <span className="block mt-px font-tight text-[12px] font-semibold text-amber-text tabular-nums">
+              Due {formatCurrency(outstanding)}
             </span>
-            {deliveryBadge && (
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold ring-1 ${deliveryBadge.bg} ${deliveryBadge.text} ${deliveryBadge.ring}`}>
-                <Truck size={9} />
-                {deliveryBadge.label}
-              </span>
+          )}
+        </TableCell>
+        <TableCell>
+          <div className="flex flex-wrap gap-1">{statusPills(sale)}</div>
+        </TableCell>
+        <TableCell numeric className="w-12" onClick={e => e.stopPropagation()}>
+          <RowMenu label={`Actions for ${shortRef(sale.id)}`}>
+            {(close) => (
+              <>
+                {can.settle && (
+                  <MenuItem icon={CheckCircle2} onClick={() => { close(); setDetailSale(sale); setSettleInput(String(outstanding)); }}>
+                    Record payment
+                  </MenuItem>
+                )}
+                {can.dispatch && (
+                  <MenuItem icon={PackageCheck} title="Mark as dispatched, deducts stock" onClick={() => { close(); onDispatch(sale.id); }}>
+                    Mark as dispatched
+                  </MenuItem>
+                )}
+                {can.edit && (
+                  <MenuItem icon={Pencil} title="Edit sale, stock and balance re-sync" onClick={() => { close(); onEdit(sale); }}>
+                    Edit sale
+                  </MenuItem>
+                )}
+                {can.ret && (
+                  <MenuItem icon={RotateCcw} onClick={() => { close(); onReturn(sale); }}>
+                    Return items
+                  </MenuItem>
+                )}
+                {can.convert && (
+                  <MenuItem icon={FileText} disabled={can.converted}
+                    title={can.converted ? 'GST invoice already issued' : 'Convert to GST invoice'}
+                    onClick={() => { close(); onConvertToInvoice(sale); }}>
+                    {can.converted ? 'GST invoice issued' : 'Issue GST invoice'}
+                  </MenuItem>
+                )}
+                <MenuItem icon={Printer} onClick={() => { close(); onPrint(sale); }}>Print</MenuItem>
+                <div className="my-1 h-px bg-sep" />
+                <HoldButton onConfirm={() => { close(); onDelete(sale.id); }} title="Hold 1.5s to delete this bill"
+                  className="w-full rounded-pill px-3 py-2 text-left font-tight text-[13px] font-semibold text-bad-text hover:bg-bad-soft">
+                  <Trash2 size={15} /> Hold to delete
+                </HoldButton>
+              </>
             )}
-            {sale.fulfillment_status === 'PENDING_DISPATCH' && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold ring-1 bg-orange-50 text-orange-700 ring-orange-200/60">
-                <PackageCheck size={9} />
-                Pending Dispatch
-              </span>
-            )}
-            {sale.fulfillment_status === 'DISPATCHED' && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold ring-1 bg-emerald-50 text-emerald-700 ring-emerald-200/60">
-                <PackageCheck size={9} />
-                Dispatched
-              </span>
-            )}
-            {isReturned && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold ring-1 bg-rose-50 text-rose-700 ring-rose-200/60">
-                <RotateCcw size={9} />
-                Returned
-              </span>
-            )}
-          </div>
-        </td>
-        <td className="px-4 py-4 text-right" onClick={e => e.stopPropagation()}>
-          <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
-            {!paid && !voided && onSettle && (
-              <button
-                onClick={() => { setDetailSale(sale); setSettleInput(String(outstanding)); }}
-                title="Settle Payment"
-                className="p-2 rounded-pill hover:bg-emerald-50 text-muted-foreground hover:text-emerald-600 transition-colors"
-              >
-                <CheckCircle2 size={15} />
-              </button>
-            )}
-            {onDispatch && sale.fulfillment_status === 'PENDING_DISPATCH' && (
-              <button
-                onClick={() => onDispatch(sale.id)}
-                title="Mark as Dispatched — deducts stock"
-                className="p-2 rounded-pill hover:bg-emerald-50 text-emerald-500 hover:text-emerald-700 transition-colors"
-              >
-                <PackageCheck size={15} />
-              </button>
-            )}
-            {canEdit && (
-              <button
-                onClick={() => onEdit(sale)}
-                title="Edit sale — stock & balance re-sync"
-                className="p-2 rounded-pill hover:bg-accent-signature/10 text-muted-foreground hover:text-accent-signature transition-colors"
-              >
-                <Pencil size={15} />
-              </button>
-            )}
-            {onReturn && Array.isArray(sale.items) && sale.items.length > 0 && !isReturned && (
-              <button
-                onClick={() => onReturn(sale)}
-                title="Process Return"
-                className="p-2 rounded-pill hover:bg-rose-50 text-muted-foreground hover:text-rose-600 transition-colors"
-              >
-                <RotateCcw size={15} />
-              </button>
-            )}
-            {onConvertToInvoice && (
-              <button
-                onClick={() => onConvertToInvoice(sale)}
-                title={sale.invoice_id ? 'GST Invoice already issued' : 'Convert to GST Invoice'}
-                disabled={!!sale.invoice_id}
-                className={`p-2 rounded-pill transition-colors ${sale.invoice_id
-                  ? 'text-emerald-500 cursor-default'
-                  : 'text-muted-foreground hover:bg-blue-50 hover:text-blue-600'}`}
-              >
-                <FileText size={15} />
-              </button>
-            )}
-            <Tooltip label="Print / View">
-              <button onClick={() => onPrint(sale)} aria-label="Print / View" className="p-2 rounded-pill hover:bg-card text-muted-foreground hover:text-foreground transition-colors">
-                <Printer size={15} />
-              </button>
-            </Tooltip>
-            <Tooltip label="Hold to delete bill">
-              <HoldButton onConfirm={() => onDelete(sale.id)} title="Hold 1.5s to delete this bill" className="p-2 rounded-pill hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors">
-                <Trash2 size={15} />
-              </HoldButton>
-            </Tooltip>
-          </div>
-        </td>
-      </tr>
+          </RowMenu>
+        </TableCell>
+      </TableRow>
     );
   };
 
-  const StatusTab = ({ k, label, count }) => (
-    <button
-      onClick={() => setStatusFilter(k)}
-      className={`px-3.5 py-1.5 rounded-pill text-xs font-semibold transition-colors ${
-        statusFilter === k
-          ? 'bg-ink-primary text-surface'
-          : 'bg-card text-muted-foreground hover:text-foreground border border-border/60'
-      }`}
-    >
-      {label}
-      {count != null && (
-        <span className={`ml-1.5 ${statusFilter === k ? 'opacity-70' : 'text-muted-foreground'}`}>{count}</span>
-      )}
-    </button>
-  );
-
-  const DateTab = ({ k, label }) => (
-    <button
-      onClick={() => setDateFilter(k)}
-      className={`px-3 py-1.5 rounded-pill text-xs font-semibold transition-colors ${
-        dateFilter === k
-          ? 'bg-accent-signature text-button-text'
-          : 'bg-card text-muted-foreground hover:text-foreground border border-border/60'
-      }`}
-    >
-      {label}
-    </button>
-  );
+  const dateLabel = { ALL: 'all time', TODAY: 'today', '7D': 'last 7 days', '30D': 'last 30 days', CUSTOM: 'in range' }[dateFilter];
 
   return (
-    <div className="space-y-5">
+    <div>
       {/* Summary strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <SummaryCard label="Sales" value={summary.count} />
-        <SummaryCard label="Revenue" value={formatCurrency(summary.revenue)} />
-        <SummaryCard label="Paid" value={summary.paid} tone="emerald" />
-        <SummaryCard
+      <FigureStrip cols={4} className="m-rise mb-5" style={{ '--i': 1 }}>
+        <Figure label="Sales" value={summary.count} sub={`bills ${dateLabel}`} />
+        <Figure label="Revenue" value={formatCurrency(summary.revenue)}
+          sub={revenueCmp?.change ? <RevenueChange change={revenueCmp.change} label={revenueCmp.label} /> : 'failed bills left out'}
+          cap={revenueCmp?.change ? `${revenueCmp.detail}: ${formatCurrency(revenueCmp.prior)} · failed bills left out` : null} />
+        <Figure label="Paid" value={<span className="text-good-text">{summary.paid}</span>} sub="bills" />
+        <Figure
           label="Pending"
-          value={summary.pending}
-          sub={summary.pending > 0 ? `Due ${formatCurrency(summary.pendingAmt)}` : null}
-          tone="amber"
+          value={<span className="text-amber-text">{summary.pending}</span>}
+          sub={summary.pending > 0 ? `due ${formatCurrency(summary.pendingAmt)}` : 'bills'}
         />
-      </div>
+      </FigureStrip>
 
-      {/* Date range */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Calendar size={14} className="text-muted-foreground" />
-        <DateTab k="ALL" label="All time" />
-        <DateTab k="TODAY" label="Today" />
-        <DateTab k="7D" label="7 days" />
-        <DateTab k="30D" label="30 days" />
-        <DateTab k="CUSTOM" label="Custom" />
+      {/* Date range, method, cashier, export */}
+      <div className="m-rise flex flex-wrap items-center gap-2.5 mb-3" style={{ '--i': 2 }}>
+        <div className="max-w-full overflow-x-auto no-scrollbar">
+          <SegmentedTabs
+            items={[
+              { key: 'ALL', label: 'All time' },
+              { key: 'TODAY', label: 'Today' },
+              { key: '7D', label: '7 days' },
+              { key: '30D', label: '30 days' },
+              { key: 'CUSTOM', label: 'Custom' },
+            ]}
+            value={dateFilter}
+            onChange={setDateFilter}
+            trackClass="bg-well"
+            indicatorClass="bg-ink"
+            activeClass="text-white"
+            className="[&_button]:font-tight [&_button]:text-[12.5px] [&_button]:font-semibold [&_button]:px-[13px] [&_button]:h-[30px] [&_button:not([aria-selected=true])]:text-body"
+          />
+        </div>
         {dateFilter === 'CUSTOM' && (
-          <div className="flex items-center gap-2 ml-2">
-            <input
-              type="date"
-              value={customRange.from}
-              onChange={e => setCustomRange(r => ({ ...r, from: e.target.value }))}
-              className="px-2.5 py-1.5 rounded-lg border border-border text-xs font-semibold bg-card"
-            />
-            <span className="text-xs text-muted-foreground">to</span>
-            <input
-              type="date"
-              value={customRange.to}
-              onChange={e => setCustomRange(r => ({ ...r, to: e.target.value }))}
-              className="px-2.5 py-1.5 rounded-lg border border-border text-xs font-semibold bg-card"
-            />
+          <div className="flex items-center gap-2">
+            <Input type="date" aria-label="From" value={customRange.from}
+              onChange={e => setCustomRange(r => ({ ...r, from: e.target.value }))} className="h-8 w-auto text-[12.5px]" />
+            <span className="text-[12.5px] text-mute">to</span>
+            <Input type="date" aria-label="To" value={customRange.to}
+              onChange={e => setCustomRange(r => ({ ...r, to: e.target.value }))} className="h-8 w-auto text-[12.5px]" />
           </div>
         )}
+        <div className="flex-1" />
+        <MenuSelect label="Method" value={payFilter} onChange={setPayFilter}
+          options={[{ value: 'ALL', label: 'All' }, ...payOptions.map(m => ({ value: m, label: PAY_LABEL[m] || m }))]} />
+        {cashierOptions.length > 1 && (
+          <MenuSelect label="Cashier" value={cashierFilter} onChange={setCashierFilter}
+            options={[{ value: 'ALL', label: 'All' }, ...cashierOptions.map(c => ({ value: c, label: c }))]} />
+        )}
+        <Button variant="secondary" size="sm" onClick={handleExport} disabled={!sortedSales.length} title="Export CSV">
+          <Download /> Export
+        </Button>
       </div>
 
-      {/* Search + status tabs + export */}
-      <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-        <div className="relative flex-1 md:max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+      {/* Status pills + search */}
+      <div className="m-rise flex flex-wrap items-center gap-2.5 mb-3" style={{ '--i': 3 }}>
+        <FilterPills
+          ariaLabel="Status"
+          value={statusFilter}
+          onChange={setStatusFilter}
+          items={[
+            { key: 'ALL', label: 'All', count: summary.count },
+            { key: 'PAID', label: 'Paid', count: summary.paid },
+            { key: 'PENDING', label: 'Pending', count: summary.pending },
+            ...(summary.failed > 0 ? [{ key: 'FAILED', label: 'Failed', count: summary.failed }] : []),
+          ]}
+        />
+        <div className="relative w-full sm:w-[280px]">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-mute pointer-events-none" size={16} />
           <input
             type="text"
-            placeholder="Search invoice # or client…"
-            className="w-full bg-card rounded-xl py-2.5 pl-10 pr-4 border border-border/60 outline-none focus:ring-2 focus:ring-accent-signature/30 text-sm font-medium"
+            aria-label="Search bill number or client"
+            placeholder="Search bill number or client"
+            className="w-full h-9 rounded-pill bg-well pl-10 pr-4 text-[13px] text-ink outline-none placeholder:text-mute transition-shadow duration-(--dur-press) focus:shadow-[inset_0_0_0_2px_var(--color-ink)]"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex items-center gap-2">
-          <StatusTab k="ALL" label="All" count={summary.count} />
-          <StatusTab k="PAID" label="Paid" count={summary.paid} />
-          <StatusTab k="PENDING" label="Pending" count={summary.pending} />
-          {summary.failed > 0 && <StatusTab k="FAILED" label="Failed" count={summary.failed} />}
-          <select
-            value={payFilter}
-            onChange={e => setPayFilter(e.target.value)}
-            className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-card border border-border/60 text-muted-foreground outline-none cursor-pointer"
-            title="Payment method"
-          >
-            <option value="ALL">All methods</option>
-            {payOptions.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
-          {cashierOptions.length > 1 && (
-            <select
-              value={cashierFilter}
-              onChange={e => setCashierFilter(e.target.value)}
-              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-card border border-border/60 text-muted-foreground outline-none cursor-pointer"
-              title="Cashier"
-            >
-              <option value="ALL">All cashiers</option>
-              {cashierOptions.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          )}
-          <button
-            onClick={handleExport}
-            disabled={!sortedSales.length}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-xs font-semibold bg-card border border-border/60 text-ink-secondary hover:text-foreground hover:border-black/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            title="Export CSV"
-          >
-            <Download size={13} /> Export
-          </button>
-        </div>
       </div>
 
-      {/* Table */}
-      <Table
-        headers={headers}
-        rows={sortedSales}
-        renderRow={renderRow}
-        emptyMessage={
-          <div className="flex flex-col items-center gap-2 py-8 text-muted-foreground">
-            <Receipt size={24} className="opacity-40" />
-            <div className="text-sm font-semibold">No sales match</div>
-            <div className="text-xs">Adjust filters or date range.</div>
-          </div>
-        }
-      />
-
-      {/* Detail drawer */}
-      {detailSale && (
-        <Modal
-          isOpen={!!detailSale}
-          onClose={() => { setDetailSale(null); setSettleInput(''); }}
-          title={`Invoice #${shortRef(detailSale.id)}`}
-          subtitle={`${getClientName(detailSale)} · ${formatDate(detailSale.date)}`}
-          maxWidth="max-w-2xl"
-        >
-          {(() => {
-            // The client's TOTAL across all bills, so this one bill's balance
-            // isn't mistaken for the whole account.
-            const cid = detailSale.customerInfo?.id || detailSale.shopId || null;
-            const cli = cid ? (clients || []).find(c => c.id === cid) : null;
-            const clientOutstanding = Number(cli?.outstanding_balance) || 0;
-            const clientBills = cid
-              ? (invoices || []).filter(i => i.client_id === cid && !i.deleted_at && (i.payment_status || '').toUpperCase() !== 'PAID').length
-              : 0;
-            return (
-              <SaleDetail
-                sale={detailSale}
-                clientName={getClientName(detailSale)}
-                cashier={getCashier(detailSale)}
-                productNameOf={getProductName}
-                outstanding={outstandingOf(detailSale)}
-                clientName2={cli?.name}
-                clientOutstanding={clientOutstanding}
-                clientBills={clientBills}
-                settleInput={settleInput}
-                setSettleInput={setSettleInput}
-                onSettle={onSettle ? handleSettle : null}
-                onPrint={() => onPrint(detailSale)}
-              />
-            );
-          })()}
-        </Modal>
+      {/* Table, with the best sellers beside it from xl */}
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-5 items-start">
+      <div className="m-rise min-w-0" style={{ '--i': 4 }}>
+      <Table>
+        <TableHeader>
+          <tr>
+            <SortHead sort={sort} onSort={toggleSort} k="date">Date</SortHead>
+            <SortHead sort={sort} onSort={toggleSort} k="invoice">Bill</SortHead>
+            <SortHead sort={sort} onSort={toggleSort} k="client">Client</SortHead>
+            <SortHead sort={sort} onSort={toggleSort} k="cashier">Cashier</SortHead>
+            <SortHead sort={sort} onSort={toggleSort} k="items" numeric>Items</SortHead>
+            <SortHead sort={sort} onSort={toggleSort} k="amount" numeric>Amount</SortHead>
+            <SortHead sort={sort} onSort={toggleSort} k="status">Status</SortHead>
+            <TableHead><span className="sr-only">Actions</span></TableHead>
+          </tr>
+        </TableHeader>
+        <TableBody>
+          {sortedSales.length > 0 ? sortedSales.map(renderRow) : (
+            <tr>
+              <td colSpan={8} className="px-4 py-14 text-center">
+                <Receipt size={24} className="mx-auto mb-2 text-faint" />
+                <div className="font-tight text-[14px] font-semibold text-ink">No sales match</div>
+                <div className="mt-0.5 text-[12.5px] text-body">Adjust filters or date range.</div>
+              </td>
+            </tr>
+          )}
+        </TableBody>
+      </Table>
+      </div>
+      <BestSellers best={best} by={bestBy} onBy={setBestBy} dateLabel={dateLabel} />
+      </div>
+      {sortedSales.length > 0 && (
+        <div className="m-rise px-1 pt-3.5 text-[13px] text-body" style={{ '--i': 5 }}>
+          {sortedSales.length.toLocaleString('en-IN')} {sortedSales.length === 1 ? 'sale' : 'sales'} shown · click a row for its detail
+        </div>
       )}
+
+      {/* Sale detail, as a panel from the right so the list stays in view */}
+      {detailSale && (() => {
+        const status = getStatus(detailSale);
+        const paid = isPaidStatus(status);
+        const voided = isVoidStatus(status);
+        const can = actionsFor(detailSale);
+        // The client's TOTAL across all bills, so this one bill's balance
+        // isn't mistaken for the whole account.
+        const cid = detailSale.customerInfo?.id || detailSale.shopId || null;
+        const cli = cid ? (clients || []).find(c => c.id === cid) : null;
+        const clientOutstanding = Number(cli?.outstanding_balance) || 0;
+        const clientBills = cid
+          ? (invoices || []).filter(i => i.client_id === cid && !i.deleted_at && (i.payment_status || '').toUpperCase() !== 'PAID').length
+          : 0;
+        const settleOpen = !paid && !voided && !!onSettle;
+        return (
+          <SidePanel
+            open
+            onClose={closeDetail}
+            eyebrow={<span className="flex flex-wrap gap-1.5 normal-case tracking-normal">{statusPills(detailSale)}</span>}
+            title={`Bill ${shortRef(detailSale.id)}`}
+            subtitle={`${getClientName(detailSale)} · ${whenOf(detailSale)}`}
+            footer={
+              <>
+                {settleOpen && <label htmlFor="settle-amt" className="block mb-1.5 font-tight text-[12.5px] font-semibold text-ink-2">Record a payment on this bill</label>}
+                <div className="flex items-center gap-2">
+                  {settleOpen && (
+                    <>
+                      <Input
+                        id="settle-amt"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={settleInput}
+                        onChange={e => setSettleInput(e.target.value)}
+                        placeholder="Amount"
+                        className="flex-1 h-10"
+                      />
+                      <Button onClick={handleSettle}>Record payment</Button>
+                    </>
+                  )}
+                  <Button variant="secondary" onClick={() => onPrint(detailSale)} className={settleOpen ? '' : 'w-full'}>
+                    <Printer /> Print
+                  </Button>
+                </div>
+              </>
+            }
+          >
+            <SaleDetail
+              sale={detailSale}
+              clientName={getClientName(detailSale)}
+              cashier={getCashier(detailSale)}
+              productNameOf={getProductName}
+              outstanding={outstandingOf(detailSale)}
+              when={whenOf(detailSale)}
+              clientName2={cli?.name}
+              clientOutstanding={clientOutstanding}
+              clientBills={clientBills}
+            />
+            <div className="flex flex-wrap gap-1.5 mt-3">
+              {can.dispatch && (
+                <Button variant="secondary" size="sm" title="Mark as dispatched, deducts stock"
+                  onClick={() => { onDispatch(detailSale.id); closeDetail(); }}>
+                  Mark as dispatched
+                </Button>
+              )}
+              {can.edit && (
+                <Button variant="secondary" size="sm" title="Edit sale, stock and balance re-sync"
+                  onClick={() => { const s = detailSale; closeDetail(); onEdit(s); }}>
+                  Edit sale
+                </Button>
+              )}
+              {can.ret && (
+                <Button variant="secondary" size="sm"
+                  onClick={() => { const s = detailSale; closeDetail(); onReturn(s); }}>
+                  Return items
+                </Button>
+              )}
+              {can.convert && (
+                <Button variant="secondary" size="sm" disabled={can.converted}
+                  title={can.converted ? 'GST invoice already issued' : 'Convert to GST invoice'}
+                  onClick={() => { const s = detailSale; closeDetail(); onConvertToInvoice(s); }}>
+                  {can.converted ? 'GST invoice issued' : 'Issue GST invoice'}
+                </Button>
+              )}
+              <HoldButton onConfirm={() => { const id = detailSale.id; closeDetail(); onDelete(id); }} title="Hold 1.5s to delete this bill"
+                className="m-press h-8 px-3.5 rounded-pill font-tight text-[13px] font-semibold text-bad-text shadow-[inset_0_0_0_1px_#F5C2C2] hover:bg-bad-soft">
+                Hold to delete
+              </HoldButton>
+            </div>
+          </SidePanel>
+        );
+      })()}
     </div>
   );
 };
@@ -629,24 +661,156 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
 // ------------------------------------------------------------------
 // Subcomponents
 // ------------------------------------------------------------------
-const SummaryCard = ({ label, value, sub, tone }) => {
-  const toneCls =
-    tone === 'emerald' ? 'text-emerald-600'
-    : tone === 'amber' ? 'text-accent-signature'
-    : 'text-foreground';
+
+/** "Label Value ▾" filter menu: a native select dressed as a pill. */
+/** A column head that sorts; the sorted one shows its direction in amber. */
+// "▲ ₹2,170 (13%) vs last Thursday": green up, red down, amber flat.
+const RevenueChange = ({ change, label }) => {
+  const tone = change.dir > 0 ? 'text-good-text' : change.dir < 0 ? 'text-bad-text' : 'text-amber-text';
+  const arrow = change.dir > 0 ? '▲' : change.dir < 0 ? '▼' : '';
   return (
-    <div className="bg-card rounded-2xl border border-border/60 px-4 py-3">
-      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</div>
-      <div className={`text-xl font-semibold mt-0.5 ${toneCls}`}>{value}</div>
-      {sub && <div className="text-[11px] font-semibold text-muted-foreground mt-0.5">{sub}</div>}
-    </div>
+    <span className={`font-tight text-[12px] font-semibold ${tone}`}>
+      {arrow} {formatCurrency(Math.abs(change.diff))} ({Math.round(Math.abs(change.pct))}%) {label}
+    </span>
   );
 };
 
+// Best sellers for the list's date window, by value or by quantity sold.
+const BestSellers = ({ best, by, onBy, dateLabel }) => {
+  const navigate = useNavigate();
+  return (
+  <Card role="complementary" className="m-rise !px-4 !py-4" style={{ '--i': 4 }} aria-label={`Best sellers ${dateLabel}`}>
+    <div className="mb-1.5 flex items-center gap-2">
+      <h3 className="font-tight text-[14.5px] font-semibold">Best sellers {dateLabel}</h3>
+      <div className="ml-auto inline-flex rounded-pill bg-well p-[3px]" role="group" aria-label="Rank by">
+        {[['value', 'Value'], ['quantity', 'Quantity']].map(([k, l]) => (
+          <button key={k} type="button" aria-pressed={by === k} onClick={() => onBy(k)}
+            className={`m-press rounded-pill px-3 py-1 font-tight text-[12px] font-semibold ${by === k ? 'bg-surface text-ink shadow-[0_1px_2px_rgba(17,20,24,0.12)]' : 'text-body hover:text-ink'}`}>
+            {l}
+          </button>
+        ))}
+      </div>
+    </div>
+    {best.rows.length === 0 ? (
+      <div className="grid min-h-[140px] place-items-center content-center gap-1 rounded-xl bg-tile p-3 text-center text-[13px] text-mute">
+        <b className="font-tight text-[14px] font-semibold text-ink-2">No items sold {dateLabel}</b>
+        Best sellers show here after a few sales
+      </div>
+    ) : (
+      <>
+        {best.rows.map(r => (
+          <div key={r.key} className="grid grid-cols-[20px_minmax(0,1fr)_auto] items-start gap-2.5 border-b border-sep py-2.5 text-[13px]">
+            <span className="pt-px font-tight text-[12px] font-semibold text-mute">{r.rank}</span>
+            <div className="min-w-0">
+              <span className="block truncate font-medium text-ink" title={r.name}>{r.name}</span>
+              <small className="mt-0.5 block text-[12px] text-mute tabular-nums">
+                {by === 'quantity' ? formatCurrency(r.value) : `${r.qty.toLocaleString('en-IN')} sold`}
+              </small>
+              <div className="mt-1.5 h-1 overflow-hidden rounded-pill bg-well" aria-hidden="true">
+                <i className="block h-full rounded-pill bg-ink-2" style={{ width: `${r.share}%` }} />
+              </div>
+            </div>
+            <span className="text-right font-tight text-[13px] font-semibold tabular-nums text-ink">
+              {by === 'quantity' ? `${r.qty.toLocaleString('en-IN')} sold` : formatCurrency(r.value)}
+            </span>
+          </div>
+        ))}
+        <div className="flex items-center justify-between pt-2.5 text-[12.5px] text-mute">
+          <span>Top {best.rows.length} made {formatCurrency(best.shownValue)} of {formatCurrency(best.totalValue)}</span>
+          <button type="button" onClick={() => navigate('/reports')}
+            className="font-tight text-[13px] font-semibold text-amber-text hover:underline underline-offset-4">All items</button>
+        </div>
+      </>
+    )}
+  </Card>
+  );
+};
+
+const SortHead = ({ k, sort, onSort, children, numeric }) => {
+  const on = sort.key === k;
+  return (
+    <TableHead numeric={numeric} aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button type="button" onClick={() => onSort(k)} className="inline-flex items-center gap-1 hover:text-ink transition-colors duration-(--dur-press) cursor-pointer select-none">
+        {children}
+        {on && <span className="text-amber" aria-hidden="true">{sort.dir === 'asc' ? '↑' : '↓'}</span>}
+      </button>
+    </TableHead>
+  );
+};
+
+const MenuSelect = ({ label, value, onChange, options }) => (
+  <label className="relative inline-flex items-center gap-1.5 rounded-pill pl-3.5 pr-8 py-[7px] font-tight text-[13px] font-semibold text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)] cursor-pointer hover:bg-tile transition-colors duration-(--dur-press)">
+    <em className="not-italic font-medium text-mute">{label}</em>
+    <select value={value} onChange={e => onChange(e.target.value)} title={label}
+      className="appearance-none bg-transparent outline-none cursor-pointer max-w-[140px] truncate">
+      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+    <ChevronDown size={14} className="absolute right-3 text-mute pointer-events-none" />
+  </label>
+);
+
+/**
+ * The row's "···" menu. Drawn in a portal at a fixed position under its
+ * button, so the table's own scroll box cannot clip it. Escape, a click
+ * elsewhere or a scroll closes it.
+ */
+const RowMenu = ({ label, children }) => {
+  const [pos, setPos] = useState(null);
+  const btnRef = useRef(null);
+  const menuRef = useRef(null);
+  const close = useCallback(() => setPos(null), []);
+  useEffect(() => {
+    if (!pos) return undefined;
+    const onDown = (e) => {
+      if (menuRef.current?.contains(e.target) || btnRef.current?.contains(e.target)) return;
+      close();
+    };
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); btnRef.current?.focus(); } };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey, true);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [pos, close]);
+  const toggle = () => {
+    if (pos) { close(); return; }
+    const r = btnRef.current.getBoundingClientRect();
+    const below = window.innerHeight - r.bottom > 320;
+    setPos({ right: window.innerWidth - r.right, ...(below ? { top: r.bottom + 4 } : { bottom: window.innerHeight - r.top + 4 }) });
+  };
+  return (
+    <>
+      <button ref={btnRef} type="button" onClick={toggle} aria-label={label} title="More" aria-haspopup="menu" aria-expanded={!!pos}
+        className="m-press inline-grid place-items-center w-8 h-7 rounded-xl text-mute hover:bg-well hover:text-ink font-tight text-[15px] font-bold tracking-[2px]">
+        ···
+      </button>
+      {pos && createPortal(
+        <div ref={menuRef} role="menu" aria-label={label} style={{ position: 'fixed', ...pos }}
+          className="m-dialog z-[140] w-[220px] rounded-xl bg-surface p-1 text-left shadow-[0_0_0_1px_var(--color-line),0_16px_40px_-16px_rgba(17,20,24,0.35)]">
+          {children(close)}
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+};
+
+const MenuItem = ({ icon: Icon, children, onClick, disabled, title }) => (
+  <button type="button" role="menuitem" onClick={onClick} disabled={disabled} title={title}
+    className="flex w-full items-center gap-2.5 rounded-pill px-3 py-2 text-left font-tight text-[13px] font-semibold text-ink-2 hover:bg-tile disabled:opacity-50 disabled:cursor-default disabled:hover:bg-transparent">
+    {Icon && <Icon size={15} className="text-mute shrink-0" />}
+    {children}
+  </button>
+);
+
 const SaleDetail = ({
-  sale, clientName, cashier, productNameOf, outstanding,
+  sale, clientName, cashier, productNameOf, outstanding, when,
   clientName2, clientOutstanding = 0, clientBills = 0,
-  settleInput, setSettleInput, onSettle, onPrint
 }) => {
   const items = Array.isArray(sale.items) ? sale.items : [];
   const status = (sale.paymentStatus ?? sale.status ?? 'PENDING').toUpperCase();
@@ -654,45 +818,48 @@ const SaleDetail = ({
   const voided = isVoidStatus(status);
 
   return (
-    <div className="space-y-5">
+    <div>
       {/* Meta grid */}
-      <div className="grid grid-cols-2 gap-3">
-        <MetaRow icon={Calendar} label="Date" value={formatDateTime(sale.created_at || sale.date)} />
-        <MetaRow icon={User} label="Client" value={clientName} />
-        <MetaRow icon={User} label="Cashier" value={cashier || '—'} />
-        <MetaRow
-          icon={voided ? AlertCircle : paid ? CheckCircle2 : AlertCircle}
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        <MetaTile label="Date" value={when} />
+        <MetaTile label="Client" value={clientName} />
+        <MetaTile label="Cashier" value={cashier || '—'} />
+        <MetaTile
           label="Status"
-          value={voided ? 'Failed / Voided' : paid ? 'Paid' : 'Pending'}
+          value={voided ? 'Failed or voided' : paid ? 'Paid' : 'Pending'}
           tone={voided ? 'red' : paid ? 'emerald' : 'amber'}
         />
       </div>
 
       {/* Line items */}
-      <div className="border border-border/60 rounded-xl overflow-hidden">
-        <div className="bg-canvas px-4 py-2 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider grid grid-cols-12 gap-2">
-          <div className="col-span-6">Item</div>
-          <div className="col-span-2 text-center">Qty</div>
-          <div className="col-span-2 text-right">Price</div>
-          <div className="col-span-2 text-right">Total</div>
-        </div>
-        {items.length === 0 ? (
-          <div className="p-6 text-center text-xs text-muted-foreground">No line items</div>
-        ) : items.map((it, idx) => {
-          const name = it.name || productNameOf(it.id || it.productId);
-          const qty = Number(it.quantity) || 0;
-          const price = Number(it.rate ?? it.price ?? it.unitPrice ?? it.sellingPrice ?? 0);
-          const total = qty * price;
-          return (
-            <div key={idx} className="px-4 py-2.5 text-sm grid grid-cols-12 gap-2 items-center border-t border-border/60">
-              <div className="col-span-6 font-semibold text-foreground truncate">{name}</div>
-              <div className="col-span-2 text-center font-semibold text-muted-foreground">{qty}</div>
-              <div className="col-span-2 text-right text-muted-foreground tabular-nums">{formatCurrency(price)}</div>
-              <div className="col-span-2 text-right font-semibold text-foreground tabular-nums">{formatCurrency(total)}</div>
-            </div>
-          );
-        })}
-      </div>
+      <table className="w-full border-collapse text-[13px]">
+        <thead>
+          <tr className="font-tight text-[11.5px] font-semibold text-mute">
+            <th className="py-2 pr-2.5 text-left border-b border-line">Item</th>
+            <th className="py-2 px-2.5 text-right border-b border-line">Qty</th>
+            <th className="py-2 px-2.5 text-right border-b border-line">Price</th>
+            <th className="py-2 pl-2.5 text-right border-b border-line">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.length === 0 ? (
+            <tr><td colSpan={4} className="py-6 text-center text-[12.5px] text-mute">No line items</td></tr>
+          ) : items.map((it, idx) => {
+            const name = it.name || productNameOf(it.id || it.productId);
+            const qty = Number(it.quantity) || 0;
+            const price = Number(it.rate ?? it.price ?? it.unitPrice ?? it.sellingPrice ?? 0);
+            const total = qty * price;
+            return (
+              <tr key={idx} className="[&>td]:border-b [&>td]:border-sep last:[&>td]:border-b-0">
+                <td className="py-[9px] pr-2.5 text-ink">{name}</td>
+                <td className="py-[9px] px-2.5 text-right font-tight font-medium tabular-nums">{qty}</td>
+                <td className="py-[9px] px-2.5 text-right font-tight font-medium tabular-nums text-ink-2">{formatCurrency(price)}</td>
+                <td className="py-[9px] pl-2.5 text-right font-tight font-medium tabular-nums">{formatCurrency(total)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
 
       {/* Totals — reconstruct Subtotal from Total so the column always ties
           out (Subtotal − Discount + Tax = Total). The stored subtotal is often
@@ -703,11 +870,10 @@ const SaleDetail = ({
         const tax  = Number(sale.tax) || 0;
         const shownSubtotal = (Number(sale.totalAmount) || 0) + disc - tax;
         return (
-      <div className="bg-canvas rounded-xl p-4 space-y-1.5">
+      <div className="mt-3.5 rounded-xl bg-tile px-3.5 py-3">
         <TotalRow label="Subtotal" value={formatCurrency(shownSubtotal)} />
-        {sale.discount > 0 && <TotalRow label="Discount" value={`− ${formatCurrency(sale.discount)}`} />}
+        {sale.discount > 0 && <TotalRow label="Discount" value={`−${formatCurrency(sale.discount)}`} />}
         {sale.tax > 0 && <TotalRow label="Tax" value={formatCurrency(sale.tax)} />}
-        <div className="h-px bg-black/10 my-2" />
         <TotalRow label="Total" value={formatCurrency(sale.totalAmount)} bold />
         {Number(sale.paidAmount) > 0 && (
           <TotalRow label="Paid on this bill" value={formatCurrency(sale.paidAmount)} tone="emerald" />
@@ -744,82 +910,50 @@ const SaleDetail = ({
             only this bill. Relabelled, with the account total shown separately
             when it differs. */}
         {!paid && !voided && outstanding > 0 && (
-          <TotalRow label="Balance due (this bill)" value={formatCurrency(outstanding)} tone="amber" bold />
+          <TotalRow label="Balance due, this bill" value={formatCurrency(outstanding)} tone="amber" bold />
         )}
         {!paid && !voided && clientOutstanding > 0 && Math.abs(clientOutstanding - outstanding) > 0.5 && (
-          <div className="flex items-center justify-between text-[11px] pt-1">
-            <span className="text-muted-foreground">{clientName2 || clientName} — total outstanding</span>
-            <span className="font-semibold text-amber-600 tabular-nums">
+          <div className="flex items-center justify-between gap-3 pt-1.5 text-[12px] text-mute">
+            <span>{clientName2 || clientName}, total owed</span>
+            <span className="font-tight tabular-nums">
               {formatCurrency(clientOutstanding)}{clientBills > 1 ? ` · ${clientBills} bills` : ''}
             </span>
           </div>
         )}
         {voided && (
-          <TotalRow label="Status" value="Voided — no payment due" tone="red" bold />
+          <TotalRow label="Status" value="Voided, no payment due" tone="red" bold />
         )}
       </div>
         );
       })()}
-
-      {/* Settle + print */}
-      <div className="flex items-center gap-2">
-        {!paid && !voided && onSettle && (
-          <div className="flex items-center gap-2 flex-1">
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={settleInput}
-              onChange={e => setSettleInput(e.target.value)}
-              placeholder="Amount"
-              className="flex-1 px-3 py-2.5 rounded-lg border border-border text-sm font-semibold"
-            />
-            <button
-              onClick={onSettle}
-              className="px-4 py-2.5 rounded-pill bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 transition-colors flex items-center gap-1.5"
-            >
-              <CheckCircle2 size={14} /> Record Payment
-            </button>
-          </div>
-        )}
-        <button
-          onClick={onPrint}
-          className="px-4 py-2.5 rounded-pill bg-ink-primary text-surface text-xs font-semibold hover:opacity-90 transition-opacity flex items-center gap-1.5"
-        >
-          <Printer size={14} /> Print
-        </button>
-      </div>
     </div>
   );
 };
 
-const MetaRow = ({ icon: Icon, label, value, tone }) => {
+const MetaTile = ({ label, value, tone }) => {
   const toneCls =
-    tone === 'emerald' ? 'text-emerald-600'
-    : tone === 'amber' ? 'text-accent-signature'
-    : tone === 'red' ? 'text-red-600'
-    : 'text-foreground';
+    tone === 'emerald' ? 'text-good-text'
+    : tone === 'amber' ? 'text-amber-text'
+    : tone === 'red' ? 'text-bad-text'
+    : 'text-ink';
   return (
-    <div className="flex items-start gap-2.5 p-3 bg-canvas rounded-xl">
-      <Icon size={14} className="text-muted-foreground mt-0.5" />
-      <div>
-        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</div>
-        <div className={`text-sm font-semibold ${toneCls}`}>{value}</div>
-      </div>
+    <div className="rounded-[10px] bg-tile px-3 py-[9px] min-w-0">
+      <span className="font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-mute">{label}</span>
+      <b className={`block mt-px font-tight text-[13.5px] font-semibold truncate ${toneCls}`}>{value}</b>
     </div>
   );
 };
 
 const TotalRow = ({ label, value, bold, tone }) => {
   const toneCls =
-    tone === 'emerald' ? 'text-emerald-600'
-    : tone === 'amber' ? 'text-accent-signature'
-    : tone === 'red' ? 'text-red-600'
-    : 'text-foreground';
+    tone === 'emerald' ? 'text-good-text'
+    : tone === 'amber' ? 'text-amber-text'
+    : tone === 'red' ? 'text-bad-text'
+    : bold ? 'text-ink' : 'text-ink-2';
   return (
-    <div className="flex items-center justify-between">
-      <span className={`text-xs font-semibold ${bold ? 'text-foreground' : 'text-muted-foreground'}`}>{label}</span>
-      <span className={`text-sm tabular-nums ${bold ? 'font-semibold' : 'font-semibold'} ${toneCls}`}>{value}</span>
+    <div className={`flex items-center justify-between gap-3 py-[3px] text-[13px] ${bold && tone !== 'amber' && tone !== 'red' ? 'mt-1.5 pt-[9px] border-t border-line' : ''}`}>
+      <span className={bold ? `font-tight font-semibold ${tone === 'amber' ? 'text-amber-text' : tone === 'red' ? 'text-bad-text' : 'text-ink'}` : 'text-body'}>{label}</span>
+      <span className={`font-tight tabular-nums ${bold ? 'font-semibold' : 'font-medium'} ${toneCls}`}>{value}</span>
     </div>
   );
 };

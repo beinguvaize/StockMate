@@ -28,7 +28,6 @@ const Accounts         = lazy(() => import('./pages/Accounts.jsx'));
 const Inventory        = lazy(() => import('./pages/inventory/index.jsx'));
 const Sales            = lazy(() => import('./pages/sales/index.jsx'));
 const Expenses         = lazy(() => import('./pages/Expenses'));
-const Settings         = lazy(() => import('./pages/Settings'));
 const SettingsHub      = lazy(() => import('./pages/settings/SettingsHub'));
 const SyncDiagnostics  = lazy(() => import('./pages/SyncDiagnostics'));
 const SaaSLogin        = lazy(() => import('./pages/SaaSLogin'));
@@ -41,16 +40,18 @@ const InvoiceEmbed     = lazy(() => import('./pages/embed/InvoiceEmbed'));
 // Customer-facing UPI QR for dual-monitor POS. Param-only, no auth.
 const PayQrScreen      = lazy(() => import('./pages/embed/PayQrScreen'));
 const Vehicles         = lazy(() => import('./pages/Vehicles'));
-const Users            = lazy(() => import('./pages/Users'));
 const Clients          = lazy(() => import('./pages/Clients'));
 const Reports          = lazy(() => import('./pages/Reports'));
 const Orders           = lazy(() => import('./pages/Orders'));
 const Payroll          = lazy(() => import('./pages/Payroll'));
+const EmployeeProfile  = lazy(() => import('./pages/payroll/EmployeeProfile'));
 const DayBook          = lazy(() => import('./pages/DayBook'));
 const Purchases        = lazy(() => import('./pages/purchases'));
 const Suppliers        = lazy(() => import('./pages/Suppliers'));
 const SupplierLedger   = lazy(() => import('./pages/SupplierLedger'));
 const Invoices         = lazy(() => import('./pages/Invoices'));
+const InvoiceDetail    = lazy(() => import('./pages/invoices/InvoiceDetail'));
+const CustomiseInvoice = lazy(() => import('./pages/settings/CustomiseInvoice'));
 const Estimates        = lazy(() => import('./pages/Estimates'));
 const LabelPrinting    = lazy(() => import('./pages/LabelPrinting'));
 const BulkAdd          = lazy(() => import('./pages/BulkAdd'));
@@ -60,7 +61,6 @@ const AdminPanel       = lazy(() => import('./pages/AdminPanel'));
 const TenantSetup      = lazy(() => import('./pages/TenantSetup'));
 const SuperAdminPortal = lazy(() => import('./pages/admin/SuperAdminPortal'));
 const DataToolsPage    = lazy(() => import('./pages/DataToolsPage'));
-const BackupRestore    = lazy(() => import('./pages/BackupRestore.jsx'));
 const VanSalePage      = lazy(() => import('./pages/VanSalePage'));
 const Manufacturing    = lazy(() => import('./pages/Manufacturing'));
 const KDS              = lazy(() => import('./pages/KDS'));
@@ -233,13 +233,10 @@ function AppRoutes() {
       <Route path="/admin" element={<ProtectedRoute requireGlobalAdmin><AdminPanel /></ProtectedRoute>} />
       <Route path="/nexus-hq" element={<ProtectedRoute requireGlobalAdmin><SuperAdminPortal /></ProtectedRoute>} />
 
-      {/* Full-page, sidebar-free transaction builder (Sales Invoice, Quotation,
-          Payment In, Sales Return, Credit Note, Delivery Challan, Proforma). */}
-      <Route path="documents/new" element={<ProtectedRoute><TenantGate><CreateDocument /></TenantGate></ProtectedRoute>} />
-
+      {/* First-day tasks: a page of its own, no side menu (setup-09 to 13). */}
+      <Route path="/onboarding" element={<TenantGate><ProtectedRoute><Onboarding /></ProtectedRoute></TenantGate>} />
       <Route element={<TenantGate><AppLayout /></TenantGate>}>
         <Route path="dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-        <Route path="onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
         <Route path="inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
         <Route path="vehicles" element={<ProtectedRoute><Vehicles /></ProtectedRoute>} />
         <Route path="vehicles/van-sale" element={<ProtectedRoute><VanSalePage /></ProtectedRoute>} />
@@ -249,27 +246,34 @@ function AppRoutes() {
         <Route path="sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
         <Route path="expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
         <Route path="settings" element={<ProtectedRoute><SettingsHub /></ProtectedRoute>} />
+        <Route path="settings/invoice" element={<ProtectedRoute><CustomiseInvoice /></ProtectedRoute>} />
         {/* /settings-classic retired — the hub embeds Settings sections directly. */}
         <Route path="sync-diagnostics" element={<ProtectedRoute><SyncDiagnostics /></ProtectedRoute>} />
         <Route path="audit-log" element={<ProtectedRoute><AuditLog /></ProtectedRoute>} />
-        <Route path="users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
+        <Route path="users" element={<ProtectedRoute><SettingsHub initialTab="users" /></ProtectedRoute>} />
         <Route path="clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
         <Route path="reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
         <Route path="orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
         <Route path="payroll" element={<ProtectedRoute><Payroll /></ProtectedRoute>} />
+        <Route path="payroll/employee/:employeeId" element={<ProtectedRoute><EmployeeProfile /></ProtectedRoute>} />
         <Route path="daybook" element={<ProtectedRoute><DayBook /></ProtectedRoute>} />
         <Route path="accounts" element={<ProtectedRoute><Accounts /></ProtectedRoute>} />
         <Route path="purchases" element={<ProtectedRoute><Purchases /></ProtectedRoute>} />
         <Route path="suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
         <Route path="suppliers/ledger/:id" element={<ProtectedRoute><SupplierLedger /></ProtectedRoute>} />
         <Route path="invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
+        <Route path="invoices/:invoiceId" element={<ProtectedRoute><InvoiceDetail /></ProtectedRoute>} />
+        {/* Transaction builder (Sales Invoice, Quotation, Payment In, Sales
+            Return, Credit Note, Delivery Challan, Proforma). Inside the shell
+            since the web redesign (approved invoices-08); same path. */}
+        <Route path="documents/new" element={<ProtectedRoute><CreateDocument /></ProtectedRoute>} />
         <Route path="estimates" element={<ProtectedRoute><Estimates /></ProtectedRoute>} />
         <Route path="labels" element={<ProtectedRoute><LabelPrinting /></ProtectedRoute>} />
         <Route path="bulk-add" element={<ProtectedRoute><BulkAdd /></ProtectedRoute>} />
         <Route path="clients/settle/:id" element={<ProtectedRoute><ClientSettlement /></ProtectedRoute>} />
         <Route path="clients/collect"   element={<ProtectedRoute><CashCollection /></ProtectedRoute>} />
         <Route path="data-tools" element={<ProtectedRoute><DataToolsPage /></ProtectedRoute>} />
-        <Route path="backup" element={<ProtectedRoute><BackupRestore /></ProtectedRoute>} />
+        <Route path="backup" element={<ProtectedRoute><SettingsHub initialTab="backup" /></ProtectedRoute>} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

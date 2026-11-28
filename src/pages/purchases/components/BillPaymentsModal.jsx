@@ -1,6 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { Trash2, Pencil, Check, X } from 'lucide-react';
-import { formatCurrency, formatDate } from '../../../lib/utils';
+import { formatCurrency } from '../../../lib/utils';
+import { Button } from '../../../components/ui/button';
+import { Eyebrow } from '../../../components/ui/FigureStrip';
+import { fmtDate } from '../lib/register';
+import { fieldSm } from '../lib/ui';
+
+const METHOD = { CASH: 'Cash', BANK: 'Bank', UPI: 'UPI', CHEQUE: 'Cheque', CARD: 'Card' };
+const ib = 'm-press grid h-[30px] w-[30px] place-items-center rounded-[9px] hover:bg-tile disabled:opacity-40';
 
 /**
  * The part payments made against one bill, editable where the bill is.
@@ -62,85 +69,64 @@ const BillPaymentsModal = ({ bill, payments = [], onEdit, onDelete, onClose }) =
     await run(() => onDelete(p.id), p.id);
   };
 
-  const field = 'w-28 bg-canvas border border-black/10 rounded-lg px-2 py-1.5 text-sm font-semibold text-right tabular-nums outline-none focus:ring-2 focus:ring-accent-signature/20';
-
   return (
-    <div className="flex flex-col gap-4">
-
-      <div className="flex items-center justify-between rounded-xl border border-black/8 px-4 py-3">
-        <div>
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Bill total</div>
-          <div className="text-sm font-bold tabular-nums">{formatCurrency(bill.total)}</div>
-        </div>
-        <div className="text-right">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Paid</div>
-          <div className="text-sm font-bold tabular-nums text-emerald-600">{formatCurrency(paid)}</div>
-        </div>
-        <div className="text-right">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Still due</div>
-          <div className={`text-sm font-bold tabular-nums ${due > 0.005 ? 'text-red-600' : 'text-muted-foreground'}`}>
-            {formatCurrency(due)}
-          </div>
-        </div>
+    <div>
+      <div className="mb-3.5 grid grid-cols-3 gap-2.5">
+        <div className="rounded-xl bg-tile px-3.5 py-3"><Eyebrow>Bill total</Eyebrow>
+          <b className="mt-0.5 block font-tight text-[18px] font-semibold tabular-nums">{formatCurrency(bill.total)}</b></div>
+        <div className="rounded-xl bg-tile px-3.5 py-3"><Eyebrow>Paid</Eyebrow>
+          <b className="mt-0.5 block font-tight text-[18px] font-semibold tabular-nums text-good-text">{formatCurrency(paid)}</b></div>
+        <div className="rounded-xl bg-amber-soft px-3.5 py-3"><Eyebrow className="text-amber-text">Still due</Eyebrow>
+          <b className={`mt-0.5 block font-tight text-[18px] font-semibold tabular-nums ${due > 0.005 ? 'text-bad-text' : 'text-mute'}`}>{formatCurrency(due)}</b></div>
       </div>
 
       {error && (
-        <div className="px-3 py-2 rounded-lg bg-rose-50 border border-rose-200 text-[11px] font-semibold text-rose-700">
-          {error}
-        </div>
+        <div role="alert" className="mb-3 rounded-[10px] bg-bad-soft px-3 py-2.5 text-[12.5px] font-semibold text-bad-text">{error}</div>
       )}
 
       {mine.length === 0 ? (
-        <div className="text-center py-10 text-sm text-muted-foreground font-semibold">
-          Nothing has been paid against this bill yet.
-          <div className="text-[11px] font-normal mt-1">Use Pay on the bill row to record the first payment.</div>
+        <div className="py-10 text-center">
+          <b className="block font-tight text-[14px] font-semibold text-ink-2">Nothing has been paid against this bill yet.</b>
+          <span className="mt-1 block text-[12.5px] text-mute">Use Record payment on the bill to record the first payment.</span>
         </div>
       ) : (
-        <div className="rounded-xl border border-black/8 overflow-hidden">
+        <div>
           {mine.map(p => {
             const isEditing = editing === p.id;
             return (
-              <div key={p.id} className="flex items-center gap-3 px-3 py-2.5 border-b border-black/5 last:border-0">
+              <div key={p.id} className={`flex items-center gap-3 border-t border-sep py-2.5 first:border-t-0 ${isEditing ? '-mx-2.5 rounded-[10px] border-t-transparent bg-tile px-2.5' : ''}`}>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[12.5px] font-semibold">
-                    {formatDate(p.date)} · {(p.payment_method || 'CASH').toUpperCase()}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground tabular-nums">
+                  <b className="block font-tight text-[13.5px] font-semibold">
+                    {fmtDate(p.date, { year: false })} · {METHOD[(p.payment_method || 'CASH').toUpperCase()] || p.payment_method}
+                  </b>
+                  <small className="block text-[12px] text-mute tabular-nums">
                     {String(p.id).split('-').pop()}
                     {p.reference_no ? ` · ref ${p.reference_no}` : ''}
-                  </div>
+                  </small>
                 </div>
 
                 {isEditing ? (
                   <>
-                    <input autoFocus type="number" step="0.01" min="0" value={draft}
+                    <input autoFocus type="number" step="0.01" min="0" value={draft} aria-label="Payment amount"
                       onChange={e => setDraft(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') saveEdit(p); if (e.key === 'Escape') setEditing(null); }}
-                      className={field} />
-                    <button onClick={() => saveEdit(p)} disabled={busy === p.id}
-                      className="w-8 h-8 rounded-xl grid place-items-center text-emerald-600 hover:bg-emerald-50 disabled:opacity-40"
-                      title="Save">
-                      <Check size={14} />
+                      className={`${fieldSm} !w-[116px] text-right`} />
+                    <button type="button" onClick={() => saveEdit(p)} disabled={busy === p.id} className={`${ib} text-good-text`} title="Save" aria-label="Save">
+                      <Check size={15} />
                     </button>
-                    <button onClick={() => setEditing(null)} disabled={busy === p.id}
-                      className="w-8 h-8 rounded-xl grid place-items-center text-muted-foreground hover:bg-black/5"
-                      title="Cancel">
-                      <X size={14} />
+                    <button type="button" onClick={() => setEditing(null)} disabled={busy === p.id} className={`${ib} text-body`} title="Cancel" aria-label="Cancel">
+                      <X size={15} />
                     </button>
                   </>
                 ) : (
                   <>
-                    <span className="text-sm font-bold tabular-nums">{formatCurrency(p.amount)}</span>
-                    <button onClick={() => { setEditing(p.id); setDraft(String(p.amount ?? '')); setError(''); }}
-                      disabled={busy === p.id}
-                      className="w-8 h-8 rounded-xl grid place-items-center text-blue-600 hover:bg-blue-50 disabled:opacity-40"
-                      title="Change the amount">
-                      <Pencil size={13} />
+                    <span className="font-tight text-[14px] font-semibold tabular-nums">{formatCurrency(p.amount)}</span>
+                    <button type="button" onClick={() => { setEditing(p.id); setDraft(String(p.amount ?? '')); setError(''); }}
+                      disabled={busy === p.id} className={`${ib} text-body`} title="Change the amount" aria-label="Change the amount">
+                      <Pencil size={15} />
                     </button>
-                    <button onClick={() => remove(p)} disabled={busy === p.id}
-                      className="w-8 h-8 rounded-xl grid place-items-center text-red-500 hover:bg-red-50 disabled:opacity-40"
-                      title="Delete this payment">
-                      <Trash2 size={13} />
+                    <button type="button" onClick={() => remove(p)} disabled={busy === p.id} className={`${ib} text-bad-text`} title="Delete this payment" aria-label="Delete this payment">
+                      <Trash2 size={15} />
                     </button>
                   </>
                 )}
@@ -150,16 +136,13 @@ const BillPaymentsModal = ({ bill, payments = [], onEdit, onDelete, onClose }) =
         </div>
       )}
 
-      <p className="text-[11px] text-muted-foreground">
-        Changing an amount moves the supplier&apos;s balance by the difference, in the same
-        transaction — the bill and the ledger cannot end up disagreeing.
+      <p className="mt-3 text-[12px] text-mute">
+        Changing an amount moves the supplier&apos;s balance by the difference, in the same step, so the bill
+        and the ledger cannot disagree. Deleting asks first.
       </p>
 
-      <div className="flex justify-end">
-        <button onClick={onClose}
-          className="px-4 py-2.5 rounded-pill border border-black/10 text-sm font-semibold">
-          Done
-        </button>
+      <div className="mt-5 flex justify-end">
+        <Button variant="secondary" className="px-[22px]" onClick={onClose}>Done</Button>
       </div>
     </div>
   );

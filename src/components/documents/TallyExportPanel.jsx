@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Download, AlertTriangle, FileCode2 } from 'lucide-react';
+import { Button } from '../ui/button';
 import {
   buildSaleVoucher, buildPurchaseVoucher, buildTallyXml, tallyFileName, voucherImbalance,
 } from '../../lib/tallyExport';
@@ -104,74 +105,73 @@ const TallyExportPanel = ({ sales = [], purchases = [], clients = [], suppliers 
     }
   };
 
-  const field = 'bg-white border border-border rounded-xl px-3 h-10 text-[13px] tabular-nums outline-none focus:ring-2 focus:ring-accent-signature/20';
+  const nSales = vouchers.filter((v) => v.type === 'Sales').length;
+  const nPurchases = vouchers.length - nSales;
+  const field = 'h-10 w-[170px] rounded-[10px] bg-surface px-3 text-[13.5px] tabular-nums text-ink shadow-[inset_0_0_0_1px_var(--color-line)] outline-none focus:shadow-[inset_0_0_0_2px_var(--color-ink)]';
+  const lbl = 'mb-1.5 block font-tight text-[12px] font-semibold text-ink-2';
+  const nParties = clients.length + suppliers.length;
 
+  // Web redesign (approved mockups import-08 and import-09): dates, the count,
+  // the balance check, download. Same vouchers, same file, same refusal.
   return (
-    <div className="p-6 space-y-5">
-      <div className="flex items-start gap-3">
-        <FileCode2 size={18} className="mt-0.5 text-accent-text shrink-0" />
+    <section>
+      <div className="mb-3.5 flex items-center gap-2.5">
+        <div className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-[11px] bg-tile text-ink-2">
+          <FileCode2 size={19} strokeWidth={1.8} aria-hidden="true" />
+        </div>
         <div>
-          <p className="font-bold text-[15px]">Export to Tally</p>
-          <p className="text-[13px] text-muted-foreground mt-0.5">
-            Sales and purchase vouchers, plus party ledgers, as a Tally XML file.
-            In Tally: <span className="font-semibold">Gateway → Import Data → Vouchers</span>.
+          <b className="font-tight text-[15px] font-semibold text-ink">Export to Tally</b>
+          <p className="text-[13px] text-body">
+            Sales and purchase vouchers, plus party ledgers, as a Tally XML file. In Tally: Gateway, Import Data, Vouchers.
           </p>
         </div>
       </div>
 
       <div className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1">
-          <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">From</span>
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={field} />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">To</span>
-          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={field} />
-        </label>
-        <button
-          type="button"
-          onClick={() => { const f = financialYear(); setFrom(f.from); setTo(f.to); }}
-          className="h-10 px-4 rounded-pill border border-border text-[13px] font-semibold text-muted-foreground hover:text-foreground"
-        >
+        <label><span className={lbl}>From</span>
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={field} /></label>
+        <label><span className={lbl}>To</span>
+          <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={field} /></label>
+        <Button variant="secondary" onClick={() => { const f = financialYear(); setFrom(f.from); setTo(f.to); }}>
           This financial year
-        </button>
+        </Button>
       </div>
 
-      <div className="text-[13px] text-muted-foreground">
-        {vouchers.length.toLocaleString('en-IN')} vouchers in this period
-        {clients.length + suppliers.length > 0
-          && ` · ${(clients.length + suppliers.length).toLocaleString('en-IN')} party ledgers`}
+      <div className="mt-4 flex flex-wrap items-center gap-4 rounded-[14px] bg-tile px-[18px] py-4">
+        <div>
+          <small className="text-[12.5px] text-body">In this period</small>
+          <b className="block font-tight text-[30px] font-semibold tabular-nums text-ink">{vouchers.length.toLocaleString('en-IN')}</b>
+        </div>
+        <div className="min-w-0 flex-1 text-[13px] tabular-nums text-body">
+          vouchers ({nSales.toLocaleString('en-IN')} sale{nSales === 1 ? '' : 's'}, {nPurchases.toLocaleString('en-IN')} purchase{nPurchases === 1 ? '' : 's'})
+          {nParties > 0 && ` · ${nParties.toLocaleString('en-IN')} party ledgers (${clients.length.toLocaleString('en-IN')} clients as Sundry Debtors, ${suppliers.length.toLocaleString('en-IN')} suppliers as Sundry Creditors)`}
+        </div>
       </div>
 
       {unbalanced.length > 0 && (
-        <div className="flex items-start gap-2 text-[13px] text-rose-600">
-          <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+        <div role="alert" className="mt-3.5 flex items-start gap-2.5 rounded-xl bg-bad-soft px-3.5 py-[11px] text-[12.5px] text-bad-text">
+          <AlertTriangle size={16} className="mt-px shrink-0" aria-hidden="true" />
           <span>
-            {unbalanced.length} voucher{unbalanced.length === 1 ? '' : 's'} would not balance
-            (first: {unbalanced[0].v.number}, off by {unbalanced[0].off.toFixed(2)}).
-            Tally would refuse {unbalanced.length === 1 ? 'it' : 'them'} part way through the import,
-            so nothing is written until this is fixed.
+            <b className="font-tight text-[13px] font-semibold">{unbalanced.length} voucher{unbalanced.length === 1 ? '' : 's'} would not balance</b>
+            {' '}(first: {unbalanced[0].v.number}, off by {unbalanced[0].off.toFixed(2)}).
+            Tally would stop part way through the import, so nothing is downloaded until this is fixed.
           </span>
         </div>
       )}
 
       {error && (
-        <p className="text-[13px] text-rose-600 flex items-start gap-2">
-          <AlertTriangle size={15} className="mt-0.5 shrink-0" /> {error}
-        </p>
+        <div role="alert" className="mt-3.5 flex items-start gap-2.5 rounded-xl bg-bad-soft px-3.5 py-[11px] text-[12.5px] text-bad-text">
+          <AlertTriangle size={16} className="mt-px shrink-0" aria-hidden="true" /> {error}
+        </div>
       )}
 
-      <button
-        type="button"
-        onClick={download}
-        disabled={vouchers.length === 0 || unbalanced.length > 0}
-        className="inline-flex items-center gap-2 px-5 h-11 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white
-                   text-[14px] font-bold disabled:opacity-40 disabled:pointer-events-none
-                   transition-[background-color,transform] duration-150 active:scale-[0.97]"
-      >
-        <Download size={16} /> Download Tally XML
-      </button>
-    </div>
+      <div className="mt-4 flex flex-wrap items-center gap-2.5">
+        <span className="min-w-0 flex-1 text-[12px] text-mute">Voided bills are left out. Figures are the ones each bill was raised with.</span>
+        <Button onClick={download} disabled={vouchers.length === 0 || unbalanced.length > 0}>
+          <Download aria-hidden="true" /> Download Tally XML
+        </Button>
+      </div>
+    </section>
   );
 };
 

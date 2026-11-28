@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import PremiumReportView from './PremiumReportView';
 import { Download, AlertTriangle, Trash2 } from 'lucide-react';
 import { round2 } from '../../utils/financialCalculations';
@@ -13,20 +14,20 @@ import { useNotifications } from '../../context/NotificationContext';
 const daysTo = (d) => Math.ceil((new Date(d) - Date.now()) / 86400000);
 
 const BUCKETS = [
-  { id: 'EXPIRED', label: 'Expired',   test: (n) => n < 0,            color: 'text-red-600 bg-red-50 border-red-200' },
-  { id: 'D30',     label: '≤ 30 days', test: (n) => n >= 0 && n <= 30, color: 'text-accent-signature bg-accent-signature/10 border-accent-signature/25' },
+  { id: 'EXPIRED', label: 'Expired',   test: (n) => n < 0,            color: 'text-bad-text bg-bad-soft border-bad-soft' },
+  { id: 'D30',     label: '≤ 30 days', test: (n) => n >= 0 && n <= 30, color: 'text-amber-text bg-accent-signature/10 border-accent-signature/25' },
   { id: 'D60',     label: '31–60 days', test: (n) => n > 30 && n <= 60, color: 'text-yellow-600 bg-yellow-50 border-yellow-200' },
-  { id: 'D90',     label: '61–90 days', test: (n) => n > 60 && n <= 90, color: 'text-blue-600 bg-blue-50 border-blue-200' },
+  { id: 'D90',     label: '61–90 days', test: (n) => n > 60 && n <= 90, color: 'text-info-text bg-info-soft border-info-soft' },
 ];
 
 const ExpiryReport = () => {
   const { currentTenantId } = useTenant();
   const { addNotification } = useNotifications();
-  const { data: batches, loading, refetch } = useReportData({
+  const { data: batches, loading, refetch, error: rdErr1 } = useReportData({
     table: 'product_batches',
     select: 'id, product_id, expiry_date, qty_remaining, unit_cost, received_date, supplier_id',
   });
-  const { data: products } = useReportData({ table: 'products', select: 'id, name, sku' });
+  const { data: products, error: rdErr2, refetch: rdRe2 } = useReportData({ table: 'products', select: 'id, name, sku' });
 
   // Deliberate disposal of expired stock: removes the remaining qty and books
   // the cost as a non-cash loss (server-side write_off_batch). Never automatic.
@@ -55,7 +56,7 @@ const ExpiryReport = () => {
         _sku: p.sku || '',
         _days: days,
         _bucket: bucket?.label || '> 90 days',
-        _bucketColor: bucket?.color || 'text-muted-foreground bg-muted border-border',
+        _bucketColor: bucket?.color || 'text-body bg-muted border-border',
         _value: round2(Number(b.qty_remaining) * Number(b.unit_cost || 0)),
       };
     })
@@ -100,8 +101,8 @@ const ExpiryReport = () => {
         key: '_product', label: 'Product', sortable: true, width: 220,
         render: (v, r) => (
           <div>
-            <div className="font-semibold text-foreground">{v}</div>
-            {r._sku && <div className="text-[10px] text-muted-foreground">{r._sku}</div>}
+            <div className="font-semibold text-ink">{v}</div>
+            {r._sku && <div className="text-[11.5px] text-body">{r._sku}</div>}
           </div>
         ),
       },
@@ -109,7 +110,7 @@ const ExpiryReport = () => {
       {
         key: '_days', label: 'Days left', sortable: true, width: 110,
         render: (v, r) => (
-          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold ${r._bucketColor}`}>
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11.5px] font-semibold ${r._bucketColor}`}>
             {v < 0 && <AlertTriangle size={10} />}
             {v < 0 ? `${Math.abs(v)}d ago` : `${v}d`}
           </span>
@@ -124,7 +125,7 @@ const ExpiryReport = () => {
           <button
             onClick={(e) => { e.stopPropagation(); writeOff(r); }}
             title="Remove this expired stock and book the loss"
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-pill text-[10px] font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-pill text-[11.5px] font-semibold text-bad-text border border-bad-soft hover:bg-bad-soft transition-colors"
           >
             <Trash2 size={11} /> Write off
           </button>
@@ -139,14 +140,14 @@ const ExpiryReport = () => {
     <>
       <div className="no-print flex items-center justify-end gap-2 mb-3">
         <button onClick={exportExcel}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white text-[11px] font-semibold transition-colors">
+          className="flex items-center gap-1.5 px-3 py-2 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white text-[12px] font-semibold transition-colors">
           <Download size={13} /> Excel
         </button>
       </div>
-      <p className="no-print text-[11px] text-muted-foreground mb-2 text-right">
+      <p className="no-print text-[12px] text-body mb-2 text-right">
         Batches get expiry dates from the Add Purchase form — only dated batches with stock appear here.
       </p>
-      <PremiumReportView title="Expiry Tracking" subtitle="Batches expiring within 90 days" tabs={[tab]} />
+      <PremiumReportView error={loadError(rdErr1, rdErr2)} onRetry={() => { refetch(); rdRe2(); }} title="Expiry Tracking" subtitle="Batches expiring within 90 days" tabs={[tab]} />
     </>
   );
 };

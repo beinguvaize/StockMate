@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import SyncStatusButton from './SyncStatusButton';
 import TrialBanner from './TrialBanner';
-import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText, Upload, Factory, CalendarClock, ScanBarcode, PanelLeft} from 'lucide-react';
+import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, ShoppingCart, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText, Upload, Factory, CalendarClock, ScanBarcode, PanelLeft, Plus, Landmark, ChefHat, FilePen, Car, Search } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 import { getDefaultAvatar } from '../lib/supabase';
 import NotificationStack from './NotificationStack';
@@ -18,7 +18,15 @@ import AvatarPicker from './AvatarPicker';
 import SyncStatus from './SyncStatus';
 import OfflineGraceBanner from './OfflineGraceBanner';
 import OfflineLockScreen from './OfflineLockScreen';
+import { TopBarSlotProvider, TopBarSlotTarget } from './TopBarSlot';
 import { useOfflineGrace } from '../lib/offline/useOfflineGrace';
+import { Button } from './ui/button';
+import SearchPalette from './shell/SearchPalette';
+import NotificationsBell from './shell/NotificationsBell';
+import ShopCard from './shell/ShopCard';
+import { useDashboardKpis } from '../hooks/useDashboardKpis';
+import { shellGates, lowStockBadge } from '../lib/shellGates';
+import { isPaletteShortcut, shortcutLabel } from '../lib/globalSearch';
 
 // Lazy: the panel, its Hindi font and its strings load only when it is opened.
 const AskPanel = React.lazy(() => import('./ask/AskPanel'));
@@ -40,6 +48,68 @@ const brandMark = () => isDarkTheme() ? markWhite : markClear;
 // 248px of navigation stops being a reasonable share of the window: a laptop
 // at 1280 still has a readable invoice table beside it, one at 1152 does not.
 const RAIL_AUTO_COLLAPSE_BELOW = 1280;
+
+// Open width of the side menu (web redesign: 236px, as the mockup). The
+// collapsed rail stays 68px.
+const RAIL_WIDE = 236;
+
+// ── Side menu groups ─────────────────────────────────────────────────────
+// The redesign groups the menu as the phone drawer does. The items, their
+// paths, permission keys and module toggles are exactly the ones the menu
+// had before; only their order and headings changed. `key` is for lookups
+// (the "New sale" button reads the Sales item's gates); `admin` marks the
+// two items the phone header's account menu also lists.
+const buildNavGroups = ({ navItem, t, isOwner, basePath, ICON }) => {
+  const k = (key, item, extra = {}) => ({ ...item, key, ...extra });
+  return [
+    { key: 'main', label: null, items: [
+      k('dashboard', navItem('Dashboard', '/dashboard', <LayoutDashboard size={ICON} />, 'dashboard')),
+      k('sales', navItem('Sales', '/sales', <ShoppingCart size={ICON} />, 'sales')),
+      k('invoices', navItem('Invoices', '/invoices', <FileText size={ICON} />, 'sales')),
+      k('inventory', navItem(t('inventory'), '/inventory', <Package size={ICON} />, 'inventory', 'inventory')),
+      k('purchases', navItem('Purchases', '/purchases', <ShoppingBag size={ICON} />, 'purchases')),
+    ] },
+    { key: 'money', label: 'Money', items: [
+      k('expenses', navItem('Expenses', '/expenses', <Wallet size={ICON} />, 'expenses')),
+      k('daybook', navItem('Day Book', '/daybook', <BookOpen size={ICON} />, 'daybook')),
+      k('accounts', navItem('Cash & Bank', '/accounts', <Landmark size={ICON} />, 'daybook')),
+    ] },
+    { key: 'people', label: 'People', items: [
+      k('clients', navItem('Clients', '/clients', <UsersIcon size={ICON} />, 'clients')),
+      k('suppliers', navItem('Suppliers', '/suppliers', <Truck size={ICON} />, 'suppliers')),
+      k('payroll', navItem('Payroll', '/payroll', <Banknote size={ICON} />, 'payroll', 'payroll')),
+    ] },
+    { key: 'more', label: 'More', items: [
+      k('estimates', navItem('Estimates', '/estimates', <FilePen size={ICON} />, 'sales')),
+      k('manufacturing', navItem('Manufacturing', '/manufacturing', <Factory size={ICON} />, 'inventory', 'manufacturing')),
+      k('kds', navItem('Kitchen', '/kds', <ChefHat size={ICON} />, 'sales', 'kot')),
+      k('appointments', navItem('Appointments', '/appointments', <CalendarClock size={ICON} />, 'sales', 'appointments')),
+      k('vehicles', navItem('Vehicles', '/vehicles', <Car size={ICON} />, 'vehicles', 'vehicles')),
+      k('reports', navItem('Reports', '/reports', <BarChart3 size={ICON} />, 'reports')),
+      k('labels', navItem('Labels', '/labels', <ScanBarcode size={ICON} />, 'inventory')),
+      // Users management lives inside Settings -> Users & roles (single home)
+      k('settings', navItem('Settings', '/settings', <SettingsIcon size={ICON} />, 'settings'), { admin: true }),
+      ...(isOwner ? [{ key: 'audit-log', admin: true, label: 'Audit Log', path: `${basePath}/audit-log`, icon: <ScrollText size={ICON} />, hidden: false, locked: false }] : []),
+    ] },
+  ];
+};
+
+// Page titles for the top bar: the menu's own label for a menu page, these
+// for the screens reached from inside one. Title Case, plain words.
+const EXTRA_TITLES = [
+  ['/vehicles/van-sale', 'Van Sale'],
+  ['/suppliers/ledger', 'Supplier Ledger'],
+  ['/clients/settle', 'Client Account'],
+  ['/clients/collect', 'Collect Payments'],
+  ['/onboarding', 'Getting Started'],
+  ['/sync-diagnostics', 'Sync Diagnostics'],
+  ['/users', 'Users'],
+  ['/orders', 'Orders'],
+  ['/bulk-add', 'Bulk Add'],
+  ['/data-tools', 'Data Tools'],
+  ['/backup', 'Backup'],
+  ['/documents/new', 'Invoices'],
+];
 
 // Bump when the meaning of a stored choice changes; the old answer is dropped
 // once and the width decides again until the user re-chooses.
@@ -108,6 +178,35 @@ export const useRail = () => {
   return { railCollapsed, toggleRail };
 };
 
+// ── The menu's items and gates, shared ──────────────────────────────────
+// The side menu, the top bar (search, bell, "Collect payment") and the
+// search palette all need the same items with the same gates, so they are
+// built in one place. Three independent gates per item:
+//   hidden  = role/permission (existing) OR vertical module off (Stage A)
+//   locked  = plan tier doesn't include it (existing)
+// `verticalKey` ties the item to a tenant.modules toggle; null = spine, always on.
+const useNavModel = () => {
+  const { currentUser, hasPermission } = useAuth();
+  const { isModuleAllowed, isModuleOn, t } = useTenant();
+  const { tenantSlug } = useParams();
+  const roles = currentUser?.roles || (currentUser?.role ? [currentUser?.role] : ['STAFF']);
+  const isOwner = roles.includes('OWNER') || roles.includes('GLOBAL_ADMIN');
+  const basePath = tenantSlug ? `/${tenantSlug}` : '';
+  const navItem = (label, path, icon, moduleKey, verticalKey = null, extraHidden = false) => ({
+    label,
+    path: `${basePath}${path}`,
+    icon,
+    hidden: extraHidden
+      || !hasPermission(moduleKey || path.replace('/', ''), 'view')
+      || (verticalKey ? !isModuleOn(verticalKey) : false),
+    locked: moduleKey ? !isModuleAllowed(moduleKey) : false
+  });
+  const navGroups = buildNavGroups({ navItem, t, isOwner, basePath, ICON: 18 });
+  const allNavItems = navGroups.flatMap(g => g.items);
+  const gates = shellGates(allNavItems, hasPermission);
+  return { navGroups, allNavItems, basePath, isOwner, roles, gates };
+};
+
 const CloudStatus = ({ status, lastSyncedAt, isOnline}) => {
  const config = {
  label: 'Cloud Live',
@@ -163,16 +262,11 @@ const CloudStatus = ({ status, lastSyncedAt, isOnline}) => {
 };
 
 const Navbar = () => {
-  const {
-    currentUser, logout, hasPermission, hasRole
-  } = useAuth();
+  const { currentUser, logout } = useAuth();
   const [showAvatarPicker, setShowAvatarPicker] = React.useState(false);
-  const {
-    currentTenant, isModuleAllowed, isImpersonating, stopImpersonating,
-    isModuleOn, t,
-    isOnline = true, syncStatus = 'SYNCED', lastSyncedAt = new Date().toISOString()
-  } = useTenant();
- const { tenantSlug } = useParams();
+  const { currentTenant, currentTenantId } = useTenant();
+ const navigate = useNavigate();
+ const { navGroups, allNavItems, basePath, isOwner, roles, gates } = useNavModel();
  const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
  const [isMoreMenuOpen, setIsMoreMenuOpen] = React.useState(false);
  // Remembered per browser: a shop on a small laptop collapses once, not
@@ -200,8 +294,6 @@ const Navbar = () => {
  const dropdownRef = React.useRef(null);
  const moreMenuRef = React.useRef(null);
 
- const roles = currentUser?.roles || (currentUser?.role ? [currentUser?.role] : ['STAFF']);
- const isOwner = roles.includes('OWNER') || roles.includes('GLOBAL_ADMIN');
  // Rollout flag per tenant (settings.ai_chat_available), set by the team, off by
  // default: merged code shows owners nothing until a shop is switched on.
  const canAsk = isOwner && currentTenant?.settings?.ai_chat_available === true;
@@ -211,54 +303,20 @@ const Navbar = () => {
    return () => window.removeEventListener('ask:open', open);
  }, [canAsk]);
  const isGlobalAdmin = roles.includes('GLOBAL_ADMIN');
- const basePath = tenantSlug ? `/${tenantSlug}` : '';
 
- // Nav item builder. Three independent gates:
- //   hidden  = role/permission (existing) OR vertical module off (Stage A)
- //   locked  = plan tier doesn't include it (existing)
- // `verticalKey` ties the item to a tenant.modules toggle; null = spine, always on.
- const navItem = (label, path, icon, moduleKey, verticalKey = null, extraHidden = false) => ({
-   label,
-   path: `${basePath}${path}`,
-   icon,
-   hidden: extraHidden
-     || !hasPermission(moduleKey || path.replace('/', ''), 'view')
-     || (verticalKey ? !isModuleOn(verticalKey) : false),
-   locked: moduleKey ? !isModuleAllowed(moduleKey) : false
- });
+ // Every item, gate and module toggle is exactly what it was (useNavModel);
+ // only the grouping is the redesign's (Money / People / More, as the phone drawer).
+ const adminItems = navGroups.find(g => g.key === 'more').items.filter(i => i.admin);
+ // "New sale" opens Sales (it lands on the new-sale screen) and is shown only
+ // to someone the Sales item itself is shown to.
+ const salesItem = allNavItems.find(i => i.key === 'sales');
+ const canSell = !!salesItem && !salesItem.hidden && !salesItem.locked;
 
- const primaryNavItems = [
-    navItem('Dashboard', '/dashboard', <LayoutDashboard size={20} />, 'dashboard'),
-    navItem(t('inventory'), '/inventory', <Package size={20} />, 'inventory', 'inventory'),
-    navItem('Appointments', '/appointments', <CalendarClock size={20} />, 'sales', 'appointments'),
-    navItem('Sales', '/sales', <ShoppingCart size={20} />, 'sales'),
-    navItem('Invoices', '/invoices', <FileText size={20} />, 'sales'),
-    navItem('Purchases', '/purchases', <ShoppingBag size={20} />, 'purchases'),
-    navItem('Expenses', '/expenses', <Wallet size={20} />, 'expenses'),
-    navItem('Clients', '/clients', <UsersIcon size={20} />, 'clients'),
- ];
-
- const moreNavItems = [
-   navItem('Estimates', '/estimates', <FileText size={20} />, 'sales'),
-   navItem('Manufacturing', '/manufacturing', <Factory size={20} />, 'inventory', 'manufacturing'),
-   navItem('Kitchen', '/kds', <Factory size={20} />, 'sales', 'kot'),
-   navItem('Suppliers', '/suppliers', <Truck size={20} />, 'suppliers'),
-   navItem('Payroll', '/payroll', <Banknote size={20} />, 'payroll', 'payroll'),
-   navItem('Day Book', '/daybook', <BookOpen size={20} />, 'daybook'),
-   navItem('Cash & Bank', '/accounts', <Banknote size={20} />, 'daybook'),
-   navItem('Vehicles', '/vehicles', <Truck size={20} />, 'vehicles', 'vehicles'),
-   navItem('Reports', '/reports', <BarChart3 size={20} />, 'reports'),
-   navItem('Labels', '/labels', <ScanBarcode size={20} />, 'inventory'),
- ];
-
- const allNavItems = [...primaryNavItems, ...moreNavItems];
- const activeInMore = moreNavItems.some(item => window.location.pathname.startsWith(item.path));
-
- const adminItems = [
-   // Users management lives inside Settings -> Users & roles (single home)
-   navItem('Settings', '/settings', <SettingsIcon size={18} />, 'settings'),
-   ...(isOwner ? [{ label: 'Audit Log', path: `${basePath}/audit-log`, icon: <ScrollText size={18} />, hidden: false, locked: false }] : []),
- ];
+ // The count beside Inventory: the Dashboard's own low-stock figure, from the
+ // same shared read (useDashboardKpis), so the two always agree. Hidden while
+ // unknown and when 0; read only for someone who may see the Dashboard.
+ const { data: kpis } = useDashboardKpis(currentTenantId, { enabled: gates.lowStock });
+ const lowStock = gates.lowStock ? lowStockBadge(kpis) : null;
 
  React.useEffect(() => {
  const handleClickOutside = (event) => {
@@ -273,11 +331,12 @@ const Navbar = () => {
  return () => document.removeEventListener('mousedown', handleClickOutside);
 }, []);
 
- // ── Sidebar row ──────────────────────────────────────────────────────────
- // The same item shape the pill nav used, drawn as a row. Every gate is
- // unchanged: `hidden` has already removed role- and vertical-blocked items
- // upstream, and `locked` still renders an inert row with the upgrade spark
- // rather than a link, so a plan-gated screen cannot be reached by clicking.
+ // ── Side menu row ────────────────────────────────────────────────────────
+ // Web redesign: Inter Tight rows on the grey frame; the open page is a white
+ // row with a hairline shadow and an amber icon. Every gate is unchanged:
+ // `hidden` has already removed role- and vertical-blocked items upstream,
+ // and `locked` still renders an inert row with the upgrade spark rather than
+ // a link, so a plan-gated screen cannot be reached by clicking.
  //
  // `collapsed` drops the label and centres the glyph; the title attribute
  // becomes the only name the item has, so it is set in both states.
@@ -285,29 +344,37 @@ const Navbar = () => {
  // visible behind it. Owners only: the server refuses anyone else anyway.
  const askEntry = (collapsed) => canAsk && (
    <button type="button" onClick={() => setAskOpen(true)} title="Ask AI" data-testid="ask-entry"
-     className={`group flex items-center ${collapsed ? 'justify-center w-10 h-10' : 'w-full gap-3 px-3 py-2'} rounded-pill text-[13.5px] text-ink-secondary font-medium hover:bg-black/[0.04] hover:text-ink-primary transition-all duration-150 active:scale-[0.98]`}>
-     <span className="shrink-0 opacity-70"><Sparkles size={20} /></span>
+     className={`m-press group flex items-center ${collapsed ? 'justify-center w-10 h-10' : 'w-full gap-2.5 px-2.5 py-2'} rounded-pill font-tight text-[14px] text-ink-2 font-medium hover:bg-white/60 hover:text-ink`}>
+     <span className="shrink-0 text-mute group-hover:text-ink-2"><Sparkles size={18} /></span>
      {!collapsed && <span className="truncate">Ask AI</span>}
    </button>
  );
 
  const renderSideItem = (item, { collapsed = false, onClick = null } = {}) => {
+   const count = item.key === 'inventory' && !item.locked ? lowStock : null;
+   const countLabel = count ? `${count} low on stock` : '';
    const body = (isActive) => (
      <>
-       <span className={`shrink-0 transition-transform duration-200 group-hover:scale-110 ${isActive ? 'text-accent-signature' : 'opacity-70'}`}>
+       <span className={`relative shrink-0 ${isActive ? 'text-amber' : 'text-mute'}`}>
          {item.icon}
+         {collapsed && count && <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-amber ring-2 ring-canvas" aria-hidden="true" />}
        </span>
        {!collapsed && <span className="truncate">{item.label}</span>}
-       {!collapsed && item.locked && <Sparkles size={12} className="text-accent-signature/70 ml-auto shrink-0" />}
+       {!collapsed && item.locked && <Sparkles size={12} className="text-amber-text ml-auto shrink-0" />}
+       {!collapsed && count && (
+         <span className="ml-auto shrink-0 rounded-pill bg-amber-soft px-[7px] py-px font-tight text-[11px] font-semibold tabular-nums text-amber-text" aria-hidden="true">{count}</span>
+       )}
+       {count && <span className="sr-only">, {countLabel}</span>}
      </>
    );
+   const shape = collapsed ? 'justify-center w-10 h-10' : 'gap-2.5 px-2.5 py-2';
 
    if (item.locked) {
      return (
        <div
          key={item.path}
          title={`Upgrade to access ${item.label}`}
-         className={`group flex items-center ${collapsed ? 'justify-center w-10 h-10' : 'gap-3 px-3 py-2'} rounded-[9px] text-[13.5px] font-medium text-muted-foreground cursor-not-allowed`}
+         className={`group flex items-center ${shape} rounded-[10px] font-tight text-[14px] font-medium text-mute cursor-not-allowed`}
        >
          {body(false)}
        </div>
@@ -319,11 +386,11 @@ const Navbar = () => {
        key={item.path}
        to={item.path}
        onClick={onClick}
-       title={item.label}
-       className={({ isActive }) => `group flex items-center ${collapsed ? 'justify-center w-10 h-10' : 'gap-3 px-3 py-2'} rounded-[9px] text-[13.5px] transition-all duration-150 active:scale-[0.98] ${
+       title={count ? `${item.label}, ${countLabel}` : item.label}
+       className={({ isActive }) => `m-press group flex items-center ${shape} rounded-[10px] font-tight text-[14px] ${
          isActive
-           ? 'bg-black/[0.055] text-ink-primary font-semibold'
-           : 'text-ink-secondary font-medium hover:bg-black/[0.035] hover:text-ink-primary'
+           ? 'bg-surface text-ink font-semibold shadow-[0_1px_2px_rgba(17,20,24,0.08)]'
+           : 'text-ink-2 font-medium hover:bg-white/60 hover:text-ink'
        }`}
      >
        {({ isActive }) => body(isActive)}
@@ -331,116 +398,123 @@ const Navbar = () => {
    );
  };
 
+ // The groups that have anything left to show after the gates.
+ const visibleGroups = navGroups
+   .map(g => ({ ...g, items: g.items.filter(i => !i.hidden) }))
+   .filter(g => g.items.length > 0);
+
+ const renderGroups = (collapsed, onItemClick = null) => visibleGroups.map((g, gi) => (
+   <React.Fragment key={g.key}>
+     {g.label && (collapsed
+       ? <span className="w-6 h-px bg-black/10 my-2 shrink-0" aria-hidden="true" />
+       : <div className={`px-2.5 pb-1.5 ${gi === 0 ? 'pt-1' : 'pt-3.5'} font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-mute`}>{g.label}</div>)}
+     {g.items.map(item => renderSideItem(item, { collapsed, onClick: onItemClick }))}
+     {g.key === 'more' && askEntry(collapsed)}
+   </React.Fragment>
+ ));
+
+ const avatarSrc = currentUser?.avatar_url || getDefaultAvatar(currentUser?.name || currentUser?.email || 'user');
+ const roleLabel = (r => r ? r.charAt(0) + r.slice(1).toLowerCase().replace(/_/g, ' ') : '')(roles[0]);
+ const shopInitials = (currentTenant?.name || '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+ const planLabel = currentTenant?.plan ? `${currentTenant.plan.charAt(0)}${currentTenant.plan.slice(1).toLowerCase()} plan` : '';
+
  return (
  <>
- {/* ── Sidebar ───────────────────────────────────────────────────────────
-     Desktop only; the phone keeps the drawer below, which was already the
-     right shape for a small screen.
-
-     Everything the "More" menu used to hide now sits under a heading. That
-     menu held TEN of the app's twenty screens -- Estimates, Manufacturing,
-     Day Book, Cash & Bank, Reports and the rest -- behind a control that
-     gave no hint of what was in it. */}
+ {/* ── Side menu ─────────────────────────────────────────────────────────
+     Desktop only; the phone keeps the drawer below. Sits on the grey frame;
+     the page is the white panel beside it (AppLayout). */}
  <aside
    onMouseEnter={() => railCollapsed && setPeek(true)}
    onMouseLeave={() => setPeek(false)}
    onFocus={() => railCollapsed && setPeek(true)}
    onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setPeek(false); }}
-   className={`hidden md:flex fixed inset-y-0 left-0 z-50 flex-col bg-surface border-r border-black/5 transition-[width] duration-200 ease-out motion-reduce:transition-none ${narrow ? 'w-[68px]' : 'w-[248px]'} ${railCollapsed && peek ? 'shadow-2xl' : ''}`}
+   className={`hidden md:flex fixed inset-y-0 left-0 z-50 flex-col bg-canvas transition-[width] duration-200 ease-out motion-reduce:transition-none ${railCollapsed && peek ? 'shadow-2xl' : ''}`}
+   style={{ width: narrow ? 68 : RAIL_WIDE }}
  >
-   <div className={`flex items-center h-16 shrink-0 ${narrow ? 'justify-center px-0' : 'px-5 gap-2'}`}>
+   <div className={`flex items-center shrink-0 pt-[18px] pb-3.5 ${narrow ? 'justify-center px-0' : 'px-5'}`}>
      {narrow
        ? <img src={brandMark()} alt="bookledger" className="w-9 h-9 object-contain" />
-       : <img src={brandLogo()} alt="bookledger" className="object-contain h-8 w-auto max-w-[140px]" />}
+       : <img src={brandLogo()} alt="bookledger" className="object-contain h-[26px] w-auto max-w-[140px]" />}
    </div>
 
+   {/* The shop this workspace is. Opens a menu only when there is something
+       to switch: the store new sales are rung at, for a shop with more than
+       one. A user belongs to one shop, so there is no shop to switch to. */}
    {currentTenant && !narrow && (
-     <div className="px-4 pb-3 shrink-0">
-       <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-canvas border border-black/5 min-w-0">
-         <span className="text-[11px] font-bold text-ink-secondary uppercase tracking-wide truncate flex-1 min-w-0">{currentTenant.name}</span>
-         <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
-           currentTenant.plan === 'ENTERPRISE' ? 'bg-purple-50 text-purple-600' :
-           currentTenant.plan === 'PRO' ? 'bg-blue-50 text-blue-600' :
-           'bg-muted text-muted-foreground'
-         }`}>{currentTenant.plan}</span>
-       </div>
+     <div className="px-3 pb-2.5 shrink-0">
+       <ShopCard tenant={currentTenant} tenantId={currentTenantId} initials={shopInitials} canSell={canSell}
+         roleLabel={roleLabel} subtitle={[planLabel, roleLabel].filter(Boolean).join(' · ')} />
      </div>
    )}
 
    <nav aria-label="Main" data-rail
         style={{ maskImage: 'linear-gradient(to bottom, #000 calc(100% - 16px), transparent)', WebkitMaskImage: 'linear-gradient(to bottom, #000 calc(100% - 16px), transparent)' }}
-        className={`flex-1 overflow-y-auto custom-scrollbar pb-3 flex flex-col gap-0.5 ${narrow ? 'items-center px-3' : 'px-4'}`}>
-     {primaryNavItems.filter(i => !i.hidden).map(item => renderSideItem(item, { collapsed: narrow }))}
-
-     {moreNavItems.filter(i => !i.hidden).length > 0 && (
-       narrow
-         ? <span className="w-6 h-px bg-black/10 my-2" />
-         : <div className="mt-4 mb-1 px-3 text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">Books</div>
-     )}
-     {moreNavItems.filter(i => !i.hidden).map(item => renderSideItem(item, { collapsed: narrow }))}
-     {askEntry(narrow)}
+        className={`flex-1 overflow-y-auto custom-scrollbar pb-3 flex flex-col gap-0.5 ${narrow ? 'items-center px-3' : 'px-3'}`}>
+     {renderGroups(narrow)}
    </nav>
 
-   {/* Who you are signed in as. It used to sit at the far right of a header
-       that held nothing else, so a 64px band ran across every screen to
-       carry one avatar. In the rail it sits with the other things that are
-       about you rather than about the page, and the band is gone. */}
-   <div className={`shrink-0 border-t border-black/5 pt-3 ${narrow ? 'px-3' : 'px-4'}`} ref={railUserRef}>
-     {/* Sync status is a pill and a button; neither fits 68px, and both hung
-         over the rail's edge when it was collapsed. The rail opens on hover,
-         so the status is one pointer away rather than gone. */}
-     {!narrow && (
-       <div className="flex items-center justify-between gap-2">
-         <SyncStatusButton />
-         <SyncStatus />
-       </div>
-     )}
+   <div className={`shrink-0 pt-2.5 pb-3.5 ${narrow ? 'px-3 flex flex-col items-center gap-2' : 'px-3'}`} ref={railUserRef}>
+     {canSell && (narrow
+       ? (
+         <button type="button" onClick={() => navigate(`${basePath}/sales`)} title="New sale" aria-label="New sale"
+           className="m-press grid place-items-center w-10 h-10 rounded-xl bg-amber text-white hover:bg-amber-hover">
+           <Plus size={18} />
+         </button>
+       ) : (
+         <button type="button" onClick={() => navigate(`${basePath}/sales`)} data-testid="new-sale"
+           className="m-press w-full px-4 py-3 rounded-pill bg-amber text-white font-tight text-[13.5px] font-semibold hover:bg-amber-hover">
+           New sale
+         </button>
+       ))}
 
-     <button
-       type="button"
-       onClick={() => setIsRailUserOpen(o => !o)}
-       aria-haspopup="menu"
-       aria-expanded={isRailUserOpen}
-       title={currentUser?.name || 'Account'}
-       className={`w-full flex items-center rounded-pill transition-colors duration-150 hover:bg-black/[0.035] ${narrow ? 'justify-center p-1' : 'mt-2 gap-3 p-1.5'}`}
-     >
-       <span className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-black/5 shrink-0">
-         <img
-           src={currentUser?.avatar_url || getDefaultAvatar(currentUser?.name || currentUser?.email || 'user')}
-           alt=""
-           className="w-full h-full object-cover"
-         />
-       </span>
-       {!narrow && (
-         <span className="min-w-0 flex-1 text-left">
-           <span className="block text-[13px] font-semibold text-ink-primary truncate">{currentUser?.name || 'Member'}</span>
-           <span className="block text-[10.5px] text-muted-foreground truncate">{currentUser?.email}</span>
+     <div className={narrow ? 'flex flex-col items-center gap-1' : 'mt-2.5 flex items-center gap-1'}>
+       <button
+         type="button"
+         onClick={() => setIsRailUserOpen(o => !o)}
+         aria-haspopup="menu"
+         aria-expanded={isRailUserOpen}
+         title={currentUser?.name || 'Account'}
+         className={`m-press flex items-center rounded-pill hover:bg-white/60 ${narrow ? 'justify-center p-1' : 'flex-1 min-w-0 gap-2.5 p-1.5'}`}
+       >
+         <span className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-black/5 shrink-0">
+           <img src={avatarSrc} alt="" className="w-full h-full object-cover" />
          </span>
-       )}
-       {!narrow && <ChevronDown size={14} className={`shrink-0 opacity-50 transition-transform ${isRailUserOpen ? 'rotate-180' : ''}`} />}
-     </button>
+         {!narrow && (
+           <span className="min-w-0 flex-1 text-left">
+             <span className="block font-tight text-[13px] font-semibold text-ink truncate">{currentUser?.name || 'Member'}</span>
+             <span className="block text-[11px] text-mute truncate">{currentUser?.email}</span>
+           </span>
+         )}
+         {!narrow && <ChevronDown size={14} className={`shrink-0 text-mute transition-transform ${isRailUserOpen ? 'rotate-180' : ''}`} />}
+       </button>
+       <button
+         type="button"
+         onClick={toggleRail}
+         aria-label={railCollapsed ? 'Expand menu' : 'Collapse menu'}
+         title={railCollapsed ? 'Expand menu' : 'Collapse menu'}
+         className="m-press grid place-items-center w-9 h-9 shrink-0 rounded-xl text-mute hover:bg-white/60 hover:text-ink-2"
+       >
+         <PanelLeft size={18} />
+       </button>
+     </div>
 
      {isRailUserOpen && (
        /* Opens upward: the button sits at the bottom of the window, so a
           menu dropping down would open off-screen. */
-       <div className="absolute bottom-3 left-full ml-2 w-60 bg-surface rounded-2xl border border-black/5 shadow-2xl p-3 z-[100] animate-in fade-in slide-in-from-left-2 duration-200">
+       <div className="menu-pop absolute bottom-3 left-full ml-2 w-60 bg-surface rounded-2xl border border-line shadow-2xl p-3 z-[100]" style={{ '--menu-origin': 'bottom left' }}>
          <button
            onClick={() => { setIsRailUserOpen(false); setShowAvatarPicker(true); }}
-           className="w-full flex items-center gap-3 p-2 rounded-pill hover:bg-canvas transition-colors text-left"
+           className="w-full flex items-center gap-3 p-2 rounded-pill hover:bg-tile transition-colors text-left"
          >
            <span className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-black/5 shrink-0 group">
-             <img
-               src={currentUser?.avatar_url || getDefaultAvatar(currentUser?.name || currentUser?.email || 'user')}
-               alt=""
-               className="w-full h-full object-cover"
-             />
+             <img src={avatarSrc} alt="" className="w-full h-full object-cover" />
              <span className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity grid place-items-center">
                <Upload size={12} className="text-white" />
              </span>
            </span>
            <span className="min-w-0">
-             <span className="block text-[13px] font-semibold text-ink-primary truncate">{currentUser?.name || 'Member'}</span>
-             <span className="block text-[10.5px] text-muted-foreground truncate">Change photo</span>
+             <span className="block font-tight text-[13px] font-semibold text-ink truncate">{currentUser?.name || 'Member'}</span>
+             <span className="block text-[11.5px] text-mute truncate">Change photo</span>
            </span>
          </button>
 
@@ -463,28 +537,12 @@ const Navbar = () => {
        </div>
      )}
    </div>
-
-   <div className={`shrink-0 py-3 flex flex-col gap-0.5 ${narrow ? 'items-center px-3' : 'px-4'}`}>
-     {adminItems.filter(i => !i.hidden).map(item => renderSideItem(item, { collapsed: narrow }))}
-     <button
-       type="button"
-       onClick={toggleRail}
-       aria-label={railCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-       title={railCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-       className={`group flex items-center rounded-pill text-[13.5px] font-medium text-ink-secondary hover:bg-black/[0.035] hover:text-ink-primary transition-all duration-150 active:scale-[0.98] ${narrow ? 'justify-center w-10 h-10' : 'gap-3 px-3 py-2'}`}
-     >
-       <span className="shrink-0 opacity-70 transition-transform duration-200 group-hover:-translate-x-0.5">
-         <PanelLeft size={20} />
-       </span>
-       {!narrow && <span>{railCollapsed ? 'Expand' : 'Collapse'}</span>}
-     </button>
-   </div>
  </aside>
 
  {/* Phone only. The desktop header carried a hamburger the rail replaces,
      a logo the rail already shows, and one avatar -- 64px of chrome on every
      screen for nothing the rail could not hold. */}
- <header className="md:hidden sticky top-0 z-40 bg-canvas/85 backdrop-blur-md border-b border-black/5">
+ <header className="md:hidden sticky top-0 z-40 bg-surface border-b border-sep">
  <div className="px-4 sm:px-6 lg:px-8">
  <div className="flex items-center justify-between h-16 gap-3 min-w-0">
  {/* Mobile Hamburger */}
@@ -614,116 +672,59 @@ const Navbar = () => {
  />
  
  {/* Drawer */}
- <div className="absolute left-0 top-0 bottom-0 w-[280px] bg-surface shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
+ <div className="m-panel-left absolute left-0 top-0 bottom-0 w-[280px] bg-canvas shadow-2xl flex flex-col">
  {/* Drawer Header */}
- <div className="flex items-center justify-between p-5 border-b border-black/5">
+ <div className="flex items-center justify-between px-5 pt-5 pb-3">
  <div className="flex items-center">
-   <img src={brandLogo()} alt="bookledger" className="h-7 w-auto max-w-[140px] object-contain shrink-0 block" />
+   <img src={brandLogo()} alt="bookledger" className="h-[26px] w-auto max-w-[140px] object-contain shrink-0 block" />
  </div>
- <button 
+ <button
  onClick={() => setIsMobileMenuOpen(false)}
- className="w-9 h-9 rounded-xl bg-canvas flex items-center justify-center text-ink-primary"
+ aria-label="Close menu"
+ className="w-9 h-9 rounded-xl bg-surface flex items-center justify-center text-ink"
  >
  <X size={18} />
  </button>
  </div>
 
- {/* Tenant Badge in Mobile */}
+ {/* The shop, as on the desktop side menu */}
  {currentTenant && (
-   <div className="px-5 py-3 border-b border-black/5">
-     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 leading-tight">{currentTenant.name}</p>
-     <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-       currentTenant.plan === 'ENTERPRISE' ? 'bg-purple-50 text-purple-600' :
-       currentTenant.plan === 'PRO' ? 'bg-blue-50 text-blue-600' :
-       'bg-muted text-muted-foreground'
-     }`}>{currentTenant.plan} Plan</span>
+   <div className="px-3 pb-2.5">
+     <ShopCard tenant={currentTenant} tenantId={currentTenantId} initials={shopInitials} canSell={canSell}
+       roleLabel={roleLabel} subtitle={[planLabel, roleLabel].filter(Boolean).join(' · ')} />
    </div>
  )}
- 
- {/* Nav Items */}
- <nav className="flex-1 overflow-y-auto py-3 px-3">
- <p className="text-[9px] font-semibold text-ink-secondary opacity-[0.85] px-3 mb-2">Navigation</p>
- {canAsk && (
-   <button type="button" data-testid="ask-entry-mobile" onClick={() => { setIsMobileMenuOpen(false); setAskOpen(true); }}
-     className="w-full flex items-center gap-3 px-4 py-3 rounded-pill text-sm font-semibold text-ink-secondary hover:bg-canvas mb-0.5">
-     <span className="opacity-[0.85]"><Sparkles size={20} /></span>Ask AI
-   </button>
- )}
- {allNavItems.filter(i => !i.hidden).map(item => {
-   if (item.locked) {
-     return (
-       <div key={item.path} className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-muted-foreground cursor-not-allowed mb-0.5">
-         <span className="opacity-40">{item.icon}</span>
-         {item.label}
-         <Sparkles size={12} className="text-accent-signature/70 ml-auto" />
-       </div>
-     );
-   }
-   return (
-     <NavLink
-       key={item.path}
-       to={item.path}
-       onClick={() => setIsMobileMenuOpen(false)}
-       className={({ isActive}) => `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all mb-0.5 ${
-         isActive 
-         ? 'bg-ink-primary text-white shadow-md' 
-         : 'text-ink-secondary hover:bg-canvas'
-       }`}
-     >
-       {({ isActive}) => (
-         <>
-           <span className={isActive ? 'text-accent-signature' : 'opacity-[0.85]'}>{item.icon}</span>
-           {item.label}
-         </>
-       )}
-     </NavLink>
-   );
- })}
- 
- {/* Admin Section */}
- {adminItems.filter(i => !i.hidden).length > 0 && (
- <>
- <div className="my-3 border-t border-black/5" />
- <p className="text-[9px] font-semibold text-ink-secondary opacity-[0.85] px-3 mb-2">WORKSPACE PORTAL</p>
- {adminItems.filter(i => !i.hidden).map(item => (
- <NavLink
- key={item.path}
- to={item.path}
- onClick={() => setIsMobileMenuOpen(false)}
- className={({ isActive}) => `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all mb-0.5 ${
- isActive 
- ? 'bg-ink-primary text-white shadow-md' 
- : 'text-ink-secondary hover:bg-canvas'
-}`}
- >
- {({ isActive}) => (
- <>
- <span className={isActive ? 'text-accent-signature' : 'opacity-[0.85]'}>{item.icon}</span>
- {item.label}
- </>
- )}
- </NavLink>
- ))}
+
+ {/* Nav Items: the same groups and gates as the desktop side menu */}
+ <nav data-rail className="flex-1 overflow-y-auto py-1 px-3 flex flex-col gap-0.5">
+ {renderGroups(false, () => setIsMobileMenuOpen(false))}
  {isGlobalAdmin && (
    <NavLink
      to="/nexus-hq"
      onClick={() => setIsMobileMenuOpen(false)}
-     className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-purple-600 hover:bg-purple-50 transition-all mb-0.5"
+     className="mt-2 flex items-center gap-2.5 px-2.5 py-2 rounded-[10px] font-tight text-[14px] font-medium text-purple-600 hover:bg-purple-50"
    >
      <Shield size={18} />
      The Nexus Console
    </NavLink>
  )}
- </>
- )}
  </nav>
+
+ {canSell && (
+   <div className="px-3 pt-2">
+     <button type="button" onClick={() => { setIsMobileMenuOpen(false); navigate(`${basePath}/sales`); }}
+       className="m-press w-full px-4 py-3 rounded-pill bg-amber text-white font-tight text-[13.5px] font-semibold hover:bg-amber-hover">
+       New sale
+     </button>
+   </div>
+ )}
  
  {/* Drawer Footer */}
- <div className="p-4 border-t border-black/5 space-y-2">
+ <div className="p-3 space-y-1">
    {/* Mobile avatar row */}
    <button
      onClick={() => { setIsMobileMenuOpen(false); setShowAvatarPicker(true); }}
-     className="w-full flex items-center gap-3 px-4 py-3 rounded-pill hover:bg-canvas transition-all"
+     className="w-full flex items-center gap-3 px-3 py-2.5 rounded-pill hover:bg-white/60 transition-colors"
    >
      <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-black/5 flex-shrink-0">
        <img
@@ -733,15 +734,15 @@ const Navbar = () => {
        />
      </div>
      <div className="flex-1 text-left">
-       <p className="text-sm font-bold text-ink-primary truncate">{currentUser?.name || 'Member'}</p>
-       <p className="text-[10px] text-muted-foreground">Edit Avatar</p>
+       <p className="font-tight text-[13px] font-semibold text-ink truncate">{currentUser?.name || 'Member'}</p>
+       <p className="text-[11px] text-mute">Change photo</p>
      </div>
    </button>
    <button
      onClick={() => { logout(); setIsMobileMenuOpen(false);}}
-     className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-red-500 hover:bg-red-50 rounded-pill transition-all"
+     className="w-full flex items-center gap-3 px-3 py-2.5 font-tight text-[13.5px] font-semibold text-red-600 hover:bg-red-50 rounded-pill transition-colors"
    >
-     <LogOut size={18} /> Logout
+     <LogOut size={18} /> Log out
    </button>
  </div>
  </div>
@@ -755,6 +756,8 @@ const Navbar = () => {
 const KioskBar = ({ onExit }) => (
   <header className="sticky top-0 z-50 h-10 flex items-center justify-between px-4 bg-canvas/90 backdrop-blur-md border-b border-black/5 shrink-0">
     <img src={brandLogo()} alt="StockMate" className="h-5 w-auto object-contain" />
+    {/* A page's own figures (TopBarSlot), as in the desktop top bar. */}
+    <TopBarSlotTarget className="flex items-center min-w-0" />
     <div className="flex items-center gap-3">
       <SyncStatusButton />
       <button
@@ -766,6 +769,98 @@ const KioskBar = ({ onExit }) => (
     </div>
   </header>
 );
+
+// ── Top bar (desktop) ────────────────────────────────────────────────────
+// As the approved mockup: page title, the centred search box (Ctrl K), the
+// page's own slot (TopBarSlot: Sales puts today's figures there), sync state,
+// the bell, and the dark "Collect payment" pill.
+//
+// Room: the search box is a pill from lg (xl on Sales, whose slot carries
+// figures) and a round button below that. "Collect payment" shows from lg,
+// and on Sales only from 2xl, where the figures and it both fit; it is not
+// drawn on the collection page itself.
+const TITLE_PATHS = (t) => [
+  ...buildNavGroups({ navItem: (label, path) => ({ label, path }), t, isOwner: true, basePath: '', ICON: 18 })
+    .flatMap(g => g.items).map(i => [i.path, i.label]),
+  ...EXTRA_TITLES,
+].sort((a, b) => b[0].length - a[0].length);
+
+export const pageTitleFor = (pathname, t = (k) => k) => {
+  const hit = TITLE_PATHS(t).find(([p]) => pathname === p || pathname.endsWith(p) || pathname.includes(`${p}/`));
+  return hit ? hit[1] : '';
+};
+
+/**
+ * The Dashboard's quick actions: Record expense, Add purchase, Collect
+ * payment, all grey (secondary) as the approved mockup draws them. Each shows
+ * only when its page is open to this user and they may add there. Drawn in
+ * the top bar from lg, and by the Dashboard itself above its figures below
+ * that, where the top bar has no room.
+ */
+export const DashboardQuickActions = ({ className = '' }) => {
+  const navigate = useNavigate();
+  const { basePath, gates } = useNavModel();
+  const quick = [
+    gates.quick?.expense && { key: 'expense', label: 'Record expense', to: '/expenses?new=1' },
+    gates.quick?.purchase && { key: 'purchase', label: 'Add purchase', to: '/purchases?new=1' },
+    gates.collect && { key: 'collect', label: 'Collect payment', to: '/clients/collect' },
+  ].filter(Boolean);
+  if (!quick.length) return null;
+  return (
+    <div className={`flex flex-wrap items-center gap-1.5 ${className}`} data-testid="dashboard-quick-actions">
+      {quick.map(q => (
+        <Button key={q.key} variant="secondary" size="sm" onClick={() => navigate(`${basePath}${q.to}`)}
+          data-testid={`quick-${q.key}`}>
+          {q.label}
+        </Button>
+      ))}
+    </div>
+  );
+};
+
+const TopBar = ({ onOpenSearch }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { t, currentTenantId } = useTenant();
+  const { basePath, gates } = useNavModel();
+  const title = pageTitleFor(location.pathname, t);
+  const isSales = location.pathname.endsWith('/sales');
+  const onCollect = location.pathname.endsWith('/clients/collect');
+  // The Dashboard carries three quick actions in place of the dark pill.
+  const isDashboard = location.pathname.endsWith('/dashboard');
+  const hint = shortcutLabel();
+  return (
+    <header className="hidden md:flex items-center gap-3 px-7 py-4 border-b border-sep min-h-[68px]">
+      <h1 className="min-w-0 shrink truncate font-tight text-[20px] font-semibold tracking-[-0.02em] text-ink lg:min-w-[150px]">{title}</h1>
+      <div className="flex min-w-0 flex-1 justify-center">
+        <button type="button" onClick={onOpenSearch} aria-label={`Search products, clients, bills (${hint})`} aria-keyshortcuts="Control+K Meta+K"
+          data-testid="search-open"
+          className={`m-press items-center gap-2 rounded-pill bg-well py-[9px] pl-3.5 pr-3 text-[13px] text-mute hover:bg-[#E8E8E7] ${isSales ? 'hidden xl:flex w-[300px] 2xl:w-[360px]' : 'hidden lg:flex w-[260px] xl:w-[360px]'}`}>
+          <Search size={16} className="shrink-0" aria-hidden="true" />
+          <span className="truncate">Search products, clients, bills</span>
+          <kbd className="ml-auto shrink-0 rounded-[5px] bg-surface px-1.5 py-px font-tight text-[11px] font-semibold text-mute shadow-[0_0_0_1px_rgba(17,20,24,0.08)]">{hint}</kbd>
+        </button>
+      </div>
+      <Button variant="secondary" size="icon" onClick={onOpenSearch} aria-label={`Search (${hint})`} title={`Search (${hint})`}
+        className={`shrink-0 ${isSales ? 'xl:hidden' : 'lg:hidden'}`}>
+        <Search />
+      </Button>
+      <TopBarSlotTarget className="flex items-center shrink-0 empty:hidden" />
+      <div className="flex items-center gap-3 shrink-0">
+        <SyncStatusButton />
+        <SyncStatus variant="bar" />
+      </div>
+      <NotificationsBell tenantId={currentTenantId} gates={gates} basePath={basePath} />
+      {isDashboard && <DashboardQuickActions className="hidden lg:flex shrink-0" />}
+      {gates.collect && !onCollect && !isDashboard && (
+        <Button variant="dark" onClick={() => navigate(`${basePath}/clients/collect`)} data-testid="collect-payment"
+          className={`shrink-0 ${isSales ? 'hidden 2xl:inline-flex' : 'hidden lg:inline-flex'}`}>
+          Collect payment
+        </Button>
+      )}
+    </header>
+  );
+};
 
 const MainContent = ({ kioskMode = false }) => {
   const location = useLocation();
@@ -779,7 +874,7 @@ const MainContent = ({ kioskMode = false }) => {
   const billingMsg = billing.expired
     ? { txt: 'Your subscription has expired. Renew to keep full access.', cls: 'bg-red-600' }
     : billing.pastDue
-    ? { txt: 'Payment failed — update your billing to avoid interruption.', cls: 'bg-accent-signature' }
+    ? { txt: 'Payment failed. Update your billing to avoid interruption.', cls: 'bg-accent-signature' }
     : { txt: `Trial ends in ${billing.trialDaysLeft} day${billing.trialDaysLeft === 1 ? '' : 's'}. Add a plan to continue.`, cls: 'bg-ink-primary' };
   return (
     <main
@@ -787,8 +882,8 @@ const MainContent = ({ kioskMode = false }) => {
         kioskMode
           ? 'p-0 overflow-hidden'
           : isSales
-          ? 'px-4 sm:px-6 lg:px-8 py-2 md:pt-6 md:pb-4'
-          : 'max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 py-2 md:pt-8 md:pb-6'
+          ? 'px-4 sm:px-6 lg:px-7 py-2 md:pt-5 md:pb-4'
+          : 'max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-7 py-2 md:pt-5 md:pb-8'
       }`}
     >
       <OfflineGraceBanner />
@@ -821,8 +916,29 @@ const AppLayout = () => {
   const offlineLock = startLock || ((grace?.expired || grace?.clockBack)
     ? { reason: grace.clockBack ? 'clock' : 'expired', graceDays: grace.graceDays, daysOffline: grace.daysOffline }
     : null);
-  const { currentTenant, isImpersonating, stopImpersonating, loading: tenantLoading } = useTenant();
+  const { currentTenant, currentTenantId, isImpersonating, stopImpersonating, loading: tenantLoading } = useTenant();
   const navigate = useNavigate();
+  const { allNavItems, basePath, gates } = useNavModel();
+
+  // Global search (Ctrl K / Cmd K). The only key it takes is that one
+  // combination, so a scanner gun typing into the Sales search box, and every
+  // page's own keys ("/" on Inventory, Escape, arrows), are untouched. It does
+  // not open over another open dialog, so it cannot pull a cashier out of a
+  // half-finished checkout.
+  const [searchOpen, setSearchOpen] = React.useState(false);
+  const openSearch = useCallback(() => setSearchOpen(true), []);
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
+  React.useEffect(() => {
+    if (!currentUser || !currentTenantId) return undefined;
+    const onKey = (e) => {
+      if (!isPaletteShortcut(e)) return;
+      if (document.querySelector('[aria-modal="true"]:not([aria-label="Search"])')) return;
+      e.preventDefault();
+      setSearchOpen(true);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [currentUser, currentTenantId]);
   // Apply saved theme on every page load
   useTheme();
 
@@ -863,6 +979,7 @@ const AppLayout = () => {
   if (offlineLock) return <OfflineLockScreen lock={offlineLock} />;
 
   return (
+    <TopBarSlotProvider>
     <div className="min-h-screen bg-canvas font-inter selection:bg-accent-signature/30 flex flex-col relative">
       {isImpersonating && (
         <div className="group fixed top-0 left-0 right-0 z-[200] h-2.5 print:hidden">
@@ -890,15 +1007,33 @@ const AppLayout = () => {
       {/* Inset by the rail's width on desktop. The rail is `fixed`, so the
           page has to be moved out from under it; a flex row here would have
           meant rebuilding the kiosk bar and the mobile drawer around it for
-          no gain. Kiosk (full-screen POS) has no rail and no inset. */}
-      <div className={kioskMode ? 'flex flex-col flex-1' : `flex flex-col flex-1 transition-[padding] duration-200 ease-out ${railCollapsed ? 'md:pl-[68px]' : 'md:pl-[248px]'}`}>
-        <MainContent kioskMode={kioskMode} />
-      </div>
+          no gain. Kiosk (full-screen POS) has no rail and no inset.
+
+          Web redesign: on desktop the page is a white rounded panel inset in
+          the grey frame, with the top bar at its head. On the phone it is
+          simply the white page under the header. */}
+      {kioskMode ? (
+        <div className="flex flex-col flex-1">
+          <MainContent kioskMode={kioskMode} />
+        </div>
+      ) : (
+        <div className="flex flex-col flex-1 transition-[padding] duration-200 ease-out motion-reduce:transition-none md:pl-[var(--rail-w)]"
+          style={{ '--rail-w': `${railCollapsed ? 68 : RAIL_WIDE}px` }}>
+          <div className="flex flex-col flex-1 min-w-0 bg-surface md:my-2.5 md:mr-2.5 md:rounded-2xl md:shadow-[0_0_0_1px_rgba(17,20,24,0.05),0_1px_3px_rgba(17,20,24,0.06)]">
+            <TopBar onOpenSearch={openSearch} />
+            <MainContent kioskMode={kioskMode} />
+          </div>
+        </div>
+      )}
+
+      <SearchPalette open={searchOpen} onClose={closeSearch} navItems={allNavItems}
+        kinds={gates.search} tenantId={currentTenantId} basePath={basePath} />
 
       {Splash && !bulkSyncDismissed && currentTenant?.id && (
         <Splash tenantId={currentTenant.id} onDone={() => setBulkSyncDismissed(true)} />
       )}
     </div>
+    </TopBarSlotProvider>
   );
 };
 

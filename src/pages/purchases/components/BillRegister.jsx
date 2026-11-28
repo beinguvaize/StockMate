@@ -7,13 +7,15 @@ import {
 } from 'lucide-react';
 import {
   TABS, OPEN_TABS, defaultView, TERMS, termOf, SORTS, DATE_SORTS, GROUPS, STATE_LABEL,
-  filterRegister, tabStats, totals, bandRegister, datePresets, fmtDate, registerCsv,
+  filterRegister, tabStats, totals, bandRegister, datePresets, fmtDate, registerCsv, viewFigures,
 } from '../lib/register';
+import { Figure } from '../../../components/ui/FigureStrip';
 import './BillRegister.css';
 
 const nf = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const money = (n) => nf.format(Math.round((Number(n) || 0) * 100) / 100);
 const rupee = (n) => `₹${money(n)}`;
+const wholeRupee = (n) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
 const billsWord = (n) => `${n} bill${n === 1 ? '' : 's'}`;
 const PAGE = 100;                       // rows drawn at a time on Paid and All
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || '');
@@ -80,7 +82,7 @@ function rowActions(b, h) {
   const one = b.lines.length === 1 ? b.lines[0] : null;
   return [
     b.due >= 0.5 && b.state !== 'cancelled' && { key: 'p', label: 'Record payment', icon: Banknote, run: () => h.onPay?.(b) },
-    { key: 'v', label: 'Voucher', icon: FileText, run: () => h.onVoucher?.(b) },
+    { key: 'v', label: 'Open bill', icon: FileText, run: () => h.onOpenBill?.(b) },
     b.paid > 0.005 && { key: null, label: 'Payments', icon: Receipt, run: () => h.onPayments?.(b) },
     one && { key: 'h', label: 'Price history', icon: LineChart, run: () => h.onHistory?.(one) },
     one && { key: 'd', label: 'Duplicate', icon: Copy, run: () => h.onDuplicate?.(one) },
@@ -98,8 +100,8 @@ function rowActions(b, h) {
  * paging only limits how many rows are drawn.
  */
 export default function BillRegister({
-  bills, today, productById = {}, voucherNoOf = () => '', suppliers = [],
-  onNew, onPay, onBulkPay, onVoucher, onPayments, onEdit, onHistory, onDuplicate, onReturn, onDelete, onSetStatus,
+  bills, today, productById = {}, voucherNoOf = () => '', suppliers = [], month = null,
+  onNew, onPay, onBulkPay, onOpenBill, onPayments, onEdit, onHistory, onDuplicate, onReturn, onDelete, onSetStatus,
 }) {
   const presets = useMemo(() => datePresets(today), [today]);
   const nameOf = useCallback((id) => productById[id]?.name || '', [productById]);
@@ -146,6 +148,7 @@ export default function BillRegister({
   const isOpenTab = OPEN_TABS.includes(tab);
   const shown = useMemo(() => (isOpenTab ? anyDate : inRange).filter(tabDef.test), [isOpenTab, anyDate, inRange, tabDef]);
   const sum = useMemo(() => totals(shown), [shown]);
+  const figs = useMemo(() => viewFigures(shown), [shown]);
 
   // Open tabs draw every open bill: what is owed must never sit behind a
   // "load more". Paid and All draw PAGE rows at a time.
@@ -213,7 +216,7 @@ export default function BillRegister({
     const anchor = e.currentTarget;
     setMenu((m) => (m?.kind === kind && m.anchor === anchor ? null : { kind, anchor, ...extra }));
   };
-  const handlers = { onPay, onVoucher, onPayments, onEdit, onHistory, onDuplicate, onReturn, onDelete };
+  const handlers = { onPay, onOpenBill, onPayments, onEdit, onHistory, onDuplicate, onReturn, onDelete };
 
   // ── export ───────────────────────────────────────────────────────────────
   const exportCsv = (list) => {
@@ -294,38 +297,40 @@ export default function BillRegister({
     const pairs = { date: ['new', 'old'], amt: ['amt', 'amtasc'], due: ['due', 'dueasc'] }[k];
     setView({ sort: view.sort === pairs[0] ? pairs[1] : pairs[0] });
   };
-  const overTxt = sum.overdue > 0.005 && Math.abs(sum.overdue - sum.due) > 0.005
-    ? <>, of which <b className="neg">{rupee(sum.overdue)}</b> overdue</>
-    : sum.overdue > 0.005 ? <>, <b className="neg" style={{ fontFamily: 'inherit', fontSize: 13 }}>all overdue</b></> : null;
   const supCount = new Set(shown.map((b) => b.supplier_id)).size;
 
   return (
     <div className="breg" data-testid="bill-register">
-      {/* tabs */}
-      <div className="tabs" role="tablist" aria-label="Payment status" onKeyDown={onTabKey}>
-        {TABS.map((t) => {
-          const s = stats[t.id];
-          const on = tab === t.id;
-          return (
-            <button key={t.id} id={`breg-tab-${t.id}`} className="tab" role="tab" type="button" aria-selected={on}
-              aria-controls="breg-register" tabIndex={on ? 0 : -1} data-tab={t.id}
-              onClick={() => changeView(() => setTab(t.id))}>
-              {t.label}<span className="c">{s.count}</span>
-              {t.money && s.count > 0 && <span className={`a${t.neg ? ' neg' : ''}`}>{rupee(s.due)}</span>}
-            </button>
-          );
-        })}
+      {/* The strip (mockup purchases-01): two figures for the shop's month,
+          two for the bills in view. */}
+      {/* Not FigureStrip: its `grid` class would pick up the register's own
+          .grid column template below. Same Figure tiles, own 4-up layout. */}
+      <div className="strip m-rise" style={{ '--i': 0 }} data-testid="purchase-strip">
+        {month && (
+          <Figure label="Bought this month" value={wholeRupee(month.month)}
+            sub={`${fmtDate(month.monthStart, { year: false })} to ${fmtDate(today, { year: false })}, every bill`} />
+        )}
+        {month && (
+          <Figure label="ITC this month" value={<span className="text-good-text">{wholeRupee(month.itc)}</span>}
+            sub={month.itcUnverified > 0
+              ? <span title={`${month.missingGstinSuppliers} supplier${month.missingGstinSuppliers === 1 ? '' : 's'} have no GSTIN on file`}>
+                  + <b className="font-tight font-semibold text-ink-2">{wholeRupee(month.itcUnverified)}</b> pending · {month.missingGstinSuppliers} without GSTIN
+                </span>
+              : 'from suppliers with a GSTIN'} />
+        )}
+        <Figure label={tab === 'paid' ? 'Paid in this view' : 'Due in this view'}
+          value={tab === 'paid' ? rupee(sum.paid) : rupee(figs.due)}
+          sub={tab === 'paid'
+            ? `${billsWord(shown.length)} from ${supCount} supplier${supCount === 1 ? '' : 's'}`
+            : `${billsWord(figs.dueCount)} from ${figs.dueSuppliers} supplier${figs.dueSuppliers === 1 ? '' : 's'}`} />
+        <Figure label="Overdue" value={<span className={figs.overdue > 0.005 ? 'text-bad-text' : undefined}>{rupee(figs.overdue)}</span>}
+          sub={figs.overdueCount
+            ? `${billsWord(figs.overdueCount)} · oldest ${figs.oldestLate} day${figs.oldestLate === 1 ? '' : 's'} late`
+            : 'Nothing overdue in this view'} />
       </div>
 
-      {/* toolbar */}
-      <div className="toolbar">
-        <label className="search">
-          <span className="sr">Search bills</span>
-          <Search size={14} />
-          <input ref={searchRef} type="search" placeholder="Search bills" title="Bill no., voucher no., supplier or item"
-            autoComplete="off" value={q} onChange={(e) => { const v = e.target.value; changeView(() => setQ(v)); }} />
-          <kbd>/</kbd>
-        </label>
+      {/* filters, sort, group, export */}
+      <div className="toolbar m-rise" style={{ '--i': 1 }}>
         {isOpenTab ? (
           <span className="fbtn static" title="Every bill still owed is shown, whatever its date" data-testid="any-date">
             <Calendar size={14} /><span>Any date</span><span className="rng">every open bill</span>
@@ -346,7 +351,7 @@ export default function BillRegister({
         </button>
         <div className="tb-right">
           <button type="button" className="fbtn" aria-haspopup="menu" aria-expanded={menu?.kind === 'sort'} onClick={(e) => openMenu('sort', e)}>
-            <ArrowUpDown size={14} /><span className="lbl">Sort</span><span>{SORTS[view.sort]?.label}</span><ChevronDown size={14} className="chev" />
+            <span className="lbl">Sort</span><span>{SORTS[view.sort]?.label}</span><ChevronDown size={14} className="chev" />
           </button>
           <button type="button" className="fbtn" aria-haspopup="menu" aria-expanded={menu?.kind === 'group'} onClick={(e) => openMenu('group', e)}>
             <span className="lbl">Group</span><span>{GROUPS[view.group]?.label}</span><ChevronDown size={14} className="chev" />
@@ -355,6 +360,31 @@ export default function BillRegister({
             <Download size={14} />Export<ChevronDown size={14} className="chev" />
           </button>
         </div>
+      </div>
+
+      {/* payment-status tabs, as pills, and the search */}
+      <div className="toolbar second m-rise" style={{ '--i': 1 }}>
+        <div className="tabs" role="tablist" aria-label="Payment status" onKeyDown={onTabKey}>
+          {TABS.map((t) => {
+            const s2 = stats[t.id];
+            const on = tab === t.id;
+            return (
+              <button key={t.id} id={`breg-tab-${t.id}`} className="tab" role="tab" type="button" aria-selected={on}
+                aria-controls="breg-register" tabIndex={on ? 0 : -1} data-tab={t.id}
+                title={t.money && s2.count > 0 ? `${rupee(s2.due)} due` : undefined}
+                onClick={() => changeView(() => setTab(t.id))}>
+                {t.label}<span className="c">{s2.count}</span>
+              </button>
+            );
+          })}
+        </div>
+        <label className="search">
+          <span className="sr">Search bills</span>
+          <Search size={14} />
+          <input ref={searchRef} type="search" placeholder="Search bill no., supplier or item" title="Bill no., voucher no., supplier or item"
+            autoComplete="off" value={q} onChange={(e) => { const v = e.target.value; changeView(() => setQ(v)); }} />
+          <kbd>/</kbd>
+        </label>
       </div>
 
       {(q || sups.length > 0 || terms.length > 0) && (
@@ -369,23 +399,14 @@ export default function BillRegister({
         </div>
       )}
 
-      {/* the filtered set in one sentence */}
+      {/* On a phone the strip and the total row fold away; one line says it. */}
       <div className="summary" aria-live="polite" data-testid="register-summary">
         {shown.length > 0 && (
-          <>
-            <div className="s">
-              <span><b>{shown.length}</b> {shown.length === 1 ? 'bill' : 'bills'} from {supCount} supplier{supCount === 1 ? '' : 's'}</span>
-              <span><b>{rupee(sum.total)}</b> billed</span>
-              <span><b>{rupee(sum.paid)}</b> paid</span>
-              {tab !== 'paid' && <span><b>{rupee(sum.due)}</b> due{overTxt}</span>}
-            </div>
-            <span className="ctx">{isOpenTab ? 'Every open bill, any date' : `${range.label} · ${rangeText}`}</span>
-            <div className="msum">
-              {tab === 'paid'
-                ? <><b>{rupee(sum.paid)}</b> paid · {billsWord(shown.length)}</>
-                : <><b>{rupee(sum.due)}</b> due{sum.overdue > 0.005 && <> · <b className="neg">{rupee(sum.overdue)}</b> overdue</>} · {billsWord(shown.length)}</>}
-            </div>
-          </>
+          <div className="msum">
+            {tab === 'paid'
+              ? <><b>{rupee(sum.paid)}</b> paid · {billsWord(shown.length)}</>
+              : <><b>{rupee(sum.due)}</b> due{sum.overdue > 0.005 && <> · <b className="neg">{rupee(sum.overdue)}</b> overdue</>} · {billsWord(shown.length)}</>}
+          </div>
         )}
       </div>
 
@@ -405,7 +426,7 @@ export default function BillRegister({
       <div className="foot-note">
         <span><kbd>/</kbd> search</span><span><kbd>J</kbd><kbd>K</kbd> move</span><span><kbd>→</kbd><kbd>←</kbd> open lines</span>
         <span><kbd>X</kbd> select</span><span><kbd>.</kbd> row actions</span><span><kbd>P</kbd> pay</span>
-        <span><kbd>V</kbd> voucher</span><span><kbd>E</kbd> edit</span><span><kbd>N</kbd> new purchase</span>
+        <span><kbd>V</kbd> open bill</span><span><kbd>E</kbd> edit</span><span><kbd>N</kbd> new purchase</span>
       </div>
 
       {/* menus */}
@@ -540,17 +561,19 @@ function SupplierMenu({ anchor, onClose, options, value, onToggle, onClear }) {
 function StatusCell({ b }) {
   const term = termOf(b);
   const mode = term === 'CREDIT' ? `Credit ${b.credit}d` : TERMS[term] || term;
+  const part = b.due >= 0.5 && b.paid > 0.005;
+  const left = part ? <span className="left">{money(b.due)} left</span> : null;
   let cls, t, m;
   if (b.state === 'cancelled') {
-    cls = 'paid'; t = 'Cancelled'; m = 'Not owed';
+    cls = 'cancelled'; t = 'Cancelled'; m = 'Not owed';
   } else if (b.state === 'paid') {
     cls = 'paid'; t = 'Paid';
     m = `${term === 'CREDIT' ? 'Credit · settled' : mode}${b.paidOn ? ` ${fmtDate(b.paidOn, { year: false })}` : ''}`;
   } else if (b.state === 'over') {
     cls = 'over'; t = `Overdue ${-b.dleft}d`;
-    m = b.paid > 0.005 ? `Part paid · due ${fmtDate(b.dueOn, { year: false })}` : `Was due ${fmtDate(b.dueOn, { year: false })}`;
+    m = part ? <>Part paid · {left}</> : `Was due ${fmtDate(b.dueOn, { year: false })}`;
   } else if (b.state === 'part') {
-    cls = 'part'; t = 'Part paid'; m = `Due in ${b.dleft}d · ${fmtDate(b.dueOn, { year: false })}`;
+    cls = 'part'; t = 'Part paid'; m = <>Due in {b.dleft}d · {fmtDate(b.dueOn, { year: false })} · {left}</>;
   } else if (b.dleft === 0) {
     cls = 'due today'; t = 'Due today'; m = `${fmtDate(b.dueOn, { year: false })} · ${mode}`;
   } else {
@@ -559,7 +582,7 @@ function StatusCell({ b }) {
   const tip = term === 'CREDIT' ? `${b.credit} days credit · due ${fmtDate(b.dueOn)}` : `${mode} purchase`;
   return (
     <div className={`st ${cls}`} title={tip} data-state={b.state}>
-      <span className="t">{t}{b.due >= 0.5 && b.paid > 0.005 && <span className="dueamt">{money(b.due)} left</span>}</span>
+      <span className="t"><span className="pill">{t}</span>{part && <span className="dueamt">{money(b.due)} left</span>}</span>
       <span className="m">{m}</span>
     </div>
   );
@@ -590,7 +613,7 @@ function BillRow({ b, group, isOpen, isSel, onToggleOpen, onToggleSel, productBy
   const unit = productById[first?.linked_product_id]?.unit || '';
   const creep = b.dearer
     ? <span className="creep" title={`${b.dearer} item${b.dearer > 1 ? 's' : ''} up 5% or more on the last purchase`}>▲ {b.dearer} costlier</span>
-    : b.cheaper ? <span className="creep" title={`${b.cheaper} item${b.cheaper > 1 ? 's' : ''} down 5% or more on the last purchase`}>▼ {b.cheaper} cheaper</span> : null;
+    : b.cheaper ? <span className="creep dn" title={`${b.cheaper} item${b.cheaper > 1 ? 's' : ''} down 5% or more on the last purchase`}>▼ {b.cheaper} cheaper</span> : null;
   const yearInDate = group === 'status' || group === 'supplier' || group === 'none';
   const menuOpen = menu?.kind === 'row' && menu.bill?.id === b.id;
 
@@ -683,7 +706,7 @@ function BillRow({ b, group, isOpen, isSel, onToggleOpen, onToggleSel, productBy
             </div>
             <div className="go">
               {b.due >= 0.5 && b.state !== 'cancelled' && <button className="linkbtn" type="button" onClick={() => handlers.onPay?.(b)}>Record payment</button>}
-              <button className="linkbtn" type="button" onClick={() => handlers.onVoucher?.(b)}>Open voucher</button>
+              <button className="linkbtn" type="button" onClick={() => handlers.onOpenBill?.(b)}>Open bill</button>
             </div>
           </div>
          </div>

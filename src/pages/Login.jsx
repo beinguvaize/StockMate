@@ -4,6 +4,10 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { isElectron as isDesktopApp, loadBootstrap, isGraceValid, isSubscriptionActive, OFFLINE_GRACE_MS } from '../lib/offline/authGuard';
 import { sendLoginOtp, verifyLoginOtp, formatPhone, toE164 } from '../lib/phoneAuth';
+import {
+  AuthShell, AuthTitle, AuthMark, AuthField, AuthInput, PasswordInput, PhonePrefix, AuthNote,
+  AuthButton, OrRule, BackLink, AuthLink, Swap, Hint, OtpBoxes, Icon,
+} from '../components/auth/AuthParts';
 
 const Login = () => {
   const [credentials, setCredentials] = useState({ email: '', password: ''});
@@ -250,403 +254,184 @@ const Login = () => {
     }
   };
 
- return (
- <div className="flex w-full h-screen overflow-hidden bg-[#141c1a] font-inter select-none">
- {/* Left Panel: Branding */}
- <div className="hidden lg:flex w-1/2 bg-white flex-col items-center justify-center gap-4">
-  <img 
-  className="w-[420px] max-w-[88%] block cursor-pointer transition-transform active:scale-95" 
-  src={`${import.meta.env.BASE_URL}logo.png`}
-  alt="bookledger Logo"
-  onClick={handleLogoClick}
-  />
- <p className="text-[13px] text-[#747576] font-medium">
- Inventory, billing &amp; reports — built for Indian SMBs.
- </p>
- </div>
 
- {/* Right Panel: Login Form */}
- <div className="w-full lg:w-1/2 bg-[#1a2320] flex relative overflow-y-auto">
- {/* Decorative Gradients */}
- <div className="absolute top-0 left-0 w-[160px] h-full bg-gradient-to-r from-white/28 via-white/12 to-transparent pointer-events-none z-0" />
- <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[560px] h-[460px] bg-[radial-gradient(ellipse_at_center,rgba(56,224,160,0.16)_0%,rgba(56,224,160,0.08)_28%,rgba(56,224,160,0.03)_55%,transparent_75%)] pointer-events-none z-0" />
- <div className="absolute -top-[80px] left-1/2 -translate-x-1/2 w-[400px] h-[300px] bg-[radial-gradient(ellipse_at_top,rgba(56,224,160,0.07)_0%,transparent_65%)] pointer-events-none z-0" />
+  const clearMsgs = () => { setError(''); setInfo(''); };
+  const offlineBlocked = desktopOfflineFirstSignIn || desktopOfflineGraceExpired || desktopOfflineSubscriptionBlocked;
+  const signupPwBad = !!error && /password/i.test(error);
 
- <div className="relative z-1 w-[370px] form-card m-auto py-10">
- <h1 className="font-space font-bold text-[26px] text-white text-center mb-[10px]">
- {mode === 'login' ? 'WELCOME BACK' : mode === 'signup' ? 'CREATE ACCOUNT' : mode === 'phone' ? 'SIGN IN WITH WHATSAPP' : 'RESET PASSWORD'}
- </h1>
- <p className="text-center text-[12px] text-[#747576] mb-[24px]">
- {mode === 'login' ? 'Sign in to your workspace'
-   : mode === 'phone' ? (phoneStep === 'number' ? 'We will send a code to your WhatsApp' : `Enter the 6-digit code sent to ${formatPhone(sentTo)}`)
-   : mode === 'signup' ? '60 days free. No credit card required.'
-   : 'Enter your email — we\'ll send a reset link.'}
- </p>
+  // Desktop app, no connection: say so above the form (auth-03).
+  const offlineNote = offlineState.desktop && !offlineState.online && (
+    <AuthNote tone={offlineBlocked ? 'rd' : 'am'}>
+      {desktopOfflineFirstSignIn && (<><b>Offline.</b> The first sign-in on this computer needs the internet. Connect, then sign in.</>)}
+      {desktopOfflineSubscriptionBlocked && (<><b>Subscription suspended.</b> Reconnect to refresh your status.</>)}
+      {desktopOfflineGraceExpired && (<><b>Offline access has expired.</b> Connect to re-verify your account.</>)}
+      {!offlineBlocked && (
+        <><b>Working offline.</b> {desktopOfflineGraceDaysLeft} day{desktopOfflineGraceDaysLeft === 1 ? '' : 's'} of offline access left. Connect to extend.</>
+      )}
+    </AuthNote>
+  );
 
- {offlineState.desktop && !offlineState.online && (
-   <div className={`mb-5 px-4 py-3 rounded-xl border text-[12px] leading-snug ${
-     desktopOfflineFirstSignIn || desktopOfflineGraceExpired || desktopOfflineSubscriptionBlocked
-       ? 'bg-red-500/10 border-red-500/30 text-red-300'
-       : 'bg-accent-signature/10 border-accent-signature/30 text-accent-signature/40'
-   }`}>
-     {desktopOfflineFirstSignIn && (
-       <span><strong>Offline.</strong> First sign-in requires internet. Connect, then sign in.</span>
-     )}
-     {desktopOfflineSubscriptionBlocked && (
-       <span><strong>Subscription suspended.</strong> Reconnect to refresh status.</span>
-     )}
-     {desktopOfflineGraceExpired && (
-       <span><strong>Offline grace expired.</strong> Reconnect to re-verify your account.</span>
-     )}
-     {!desktopOfflineFirstSignIn && !desktopOfflineSubscriptionBlocked && !desktopOfflineGraceExpired && (
-       <span><strong>Working offline.</strong> {desktopOfflineGraceDaysLeft} day{desktopOfflineGraceDaysLeft === 1 ? '' : 's'} of offline access remaining. Connect to extend.</span>
-     )}
-   </div>
- )}
+  const googleButton = (
+    <AuthButton variant="alt" onClick={handleGoogleSignIn} disabled={loading || googleLoading} busy={googleLoading}
+      className={mode === 'login' ? 'mt-2' : ''}>
+      {!googleLoading && <Icon.google />}Continue with Google
+    </AuthButton>
+  );
 
- {mode === 'login' ? (
- <form onSubmit={handleSubmit}>
- <div className="mb-[18px]">
- <label className="block text-[#747576] text-[14px] font-medium mb-[7px]">Email Address</label>
- <div className="flex items-center bg-[#0d1411] border-[1.5px] border-[#253028] rounded-[6px] transition-colors focus-within:border-[#38e0a0]/45">
- <span className="pl-[13px] pr-[13px] text-[#747576] flex items-center shrink-0">
- <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
- <rect x="2" y="4" width="20" height="16" rx="2"/>
- <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
- </svg>
- </span>
- <input 
- type="email" 
- placeholder="Email Address" 
- autoComplete="off"
- required
- className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] pt-[13px] pr-[13px] pb-[13px] pl-0 placeholder:text-ink-secondary/30"
- value={credentials.email}
- onChange={(e) => setCredentials({ ...credentials, email: e.target.value})}
- />
- </div>
- </div>
-
- <div className="mb-[18px]">
- <label className="block text-[#747576] text-[14px] font-medium mb-[7px]">Password</label>
- <div className="flex items-center bg-[#0d1411] border-[1.5px] border-[#253028] rounded-[6px] transition-colors focus-within:border-[#38e0a0]/45">
- <span className="pl-[13px] pr-[13px] text-[#747576] flex items-center shrink-0">
- <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
- <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
- <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
- </svg>
- </span>
- <input 
- type={showPassword ? 'text' : 'password'}
- placeholder="Password" 
- autoComplete="off"
- required
- className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] pt-[13px] pr-[13px] pb-[13px] pl-0 placeholder:text-ink-secondary/30"
- value={credentials.password}
- onChange={(e) => setCredentials({ ...credentials, password: e.target.value})}
- />
- {/* type=button so it never submits the form, and aria-pressed so a screen
-     reader says whether the password is currently visible. */}
- <button
-   type="button"
-   onClick={() => setShowPassword(v => !v)}
-   aria-label={showPassword ? 'Hide password' : 'Show password'}
-   aria-pressed={showPassword}
-   title={showPassword ? 'Hide password' : 'Show password'}
-   className="px-[13px] py-[13px] text-[#747576] hover:text-[#38e0a0] transition-colors shrink-0"
- >
-   {showPassword ? (
-     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-       <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-       <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-       <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
-       <line x1="1" y1="1" x2="23" y2="23"/>
-     </svg>
-   ) : (
-     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-       <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-       <circle cx="12" cy="12" r="3"/>
-     </svg>
-   )}
- </button>
- </div>
- <button type="button"
-  onClick={() => { setMode('forgot'); setError(''); setInfo(''); }}
-  className="block text-right text-[#747576] text-[12.5px] underline underline-offset-[3px] mt-[9px] cursor-pointer opacity-85 hover:text-white hover:opacity-100 transition-all ml-auto bg-transparent border-0">
- Forgot Password?
- </button>
- </div>
-
-          {error && (
-            <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
-              <div className="shrink-0 w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center">
-                <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
+  let body;
+  if (mode === 'signup' && info) {
+    // auth-08: the account exists and is waiting on the confirmation link.
+    body = (
+      <>
+        <AuthMark><Icon.mail size={24} /></AuthMark>
+        <AuthTitle title="Check your email"
+          sub={<>We sent a confirmation link to <b className="font-semibold text-ink">{signup.email}</b>. Open it, then come back to sign in.</>} />
+        <AuthNote tone="gy">Nothing in your inbox after a few minutes? Look in spam.</AuthNote>
+        <AuthButton variant="alt" onClick={() => { setMode('login'); clearMsgs(); }}>Back to sign in</AuthButton>
+        <Swap>Wrong address? <AuthLink onClick={clearMsgs}>Sign up again</AuthLink></Swap>
+      </>
+    );
+  } else if (mode === 'forgot' && info) {
+    // auth-11
+    body = (
+      <>
+        <AuthMark><Icon.mail size={24} /></AuthMark>
+        <AuthTitle title="Reset link sent"
+          sub={<>We sent it to <b className="font-semibold text-ink">{credentials.email}</b>. Check your inbox, and spam.</>} />
+        <AuthButton variant="alt" onClick={() => { setMode('login'); clearMsgs(); }}>Back to sign in</AuthButton>
+      </>
+    );
+  } else if (mode === 'login') {
+    // auth-01 / 02 / 03
+    body = (
+      <>
+        <AuthTitle title="Welcome back" sub="Sign in to your shop." />
+        {offlineNote}
+        <form onSubmit={handleSubmit}>
+          <AuthField label="Email" htmlFor="login-email">
+            <AuthInput id="login-email" type="email" placeholder="you@business.com" autoComplete="off" required bad={!!error}
+              value={credentials.email} onChange={(e) => setCredentials({ ...credentials, email: e.target.value })} />
+          </AuthField>
+          <AuthField label="Password" htmlFor="login-password"
+            action={<AuthLink className="text-[12.5px]" onClick={() => { setMode('forgot'); clearMsgs(); }}>Forgot password?</AuthLink>}>
+            <PasswordInput id="login-password" placeholder="Password" autoComplete="off" required bad={!!error}
+              value={credentials.password} onChange={(e) => setCredentials({ ...credentials, password: e.target.value })} />
+          </AuthField>
+          {error && <AuthNote tone="rd">{error}</AuthNote>}
+          <AuthButton type="submit" disabled={loading || googleLoading}>Sign in</AuthButton>
+          <OrRule />
+          {/* Passwords are the main way people get locked out of this app. A number
+              they already have on WhatsApp is the fallback. */}
+          <AuthButton variant="alt" onClick={goPhoneMode}><Icon.whatsapp />Sign in with WhatsApp</AuthButton>
+        </form>
+        {googleButton}
+        <Swap>New to bookledger? <AuthLink onClick={() => { setMode('signup'); clearMsgs(); }}>Create an account</AuthLink></Swap>
+      </>
+    );
+  } else if (mode === 'phone') {
+    // auth-04 / 05 / 06
+    body = (
+      <>
+        <BackLink onClick={() => { setMode('login'); clearMsgs(); }}>Use email and password instead</BackLink>
+        {phoneStep === 'number'
+          ? <AuthTitle title="Sign in with WhatsApp" sub="We will send a code to your WhatsApp." />
+          : <AuthTitle title="Enter the code" sub={`The 6-digit code sent to ${formatPhone(sentTo)} on WhatsApp.`} />}
+        <form onSubmit={phoneStep === 'number' ? handleSendOtp : handleVerifyOtp}>
+          {phoneStep === 'number' ? (
+            <>
+              <AuthField label="Mobile number" htmlFor="login-phone">
+                {/* The country code is shown, not typed. Every user is in India and a
+                    free-text +91 is one more thing to get wrong at a counter. */}
+                <AuthInput id="login-phone" type="tel" inputMode="numeric" autoComplete="tel" placeholder="98765 43210"
+                  required autoFocus bad={!!error} lead={<PhonePrefix />} className="tracking-[0.02em]"
+                  value={phoneInput} onChange={(e) => setPhoneInput(e.target.value)} />
+              </AuthField>
+              {!error && <Hint className="-mt-1.5 mb-3.5">The number must already be on your login. Add it in Settings, Account.</Hint>}
+            </>
+          ) : (
+            <>
+              {info && !error && <AuthNote tone="gr">{info}</AuthNote>}
+              <OtpBoxes aria-label="WhatsApp code" type="text" inputMode="numeric" autoComplete="one-time-code"
+                required autoFocus maxLength={8}
+                value={otpCode} onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))} />
+              <div className="mt-3 flex justify-between font-tight text-[13px] font-semibold text-body">
+                <button type="button" className="hover:text-ink"
+                  onClick={() => { setPhoneStep('number'); setError(''); setInfo(''); setOtpCode(''); }}>
+                  Change number
+                </button>
+                <button type="button" disabled={resendIn > 0 || phoneLoading} onClick={handleSendOtp}
+                  className="hover:text-ink disabled:cursor-not-allowed disabled:text-faint">
+                  {resendIn > 0 ? `Resend in ${resendIn}s` : 'Resend code'}
+                </button>
               </div>
-              <p className="text-[11px] font-bold text-red-500/90 uppercase tracking-tight leading-tight">
-                {error}
-              </p>
-            </div>
+            </>
           )}
+          {error && <AuthNote tone="rd" className={phoneStep === 'code' ? 'mt-4' : ''}>{error}</AuthNote>}
+          <AuthButton type="submit" busy={phoneLoading}
+            className={phoneStep === 'code' ? 'mt-5' : ''}
+            disabled={phoneLoading || (phoneStep === 'number' && !toE164(phoneInput))}>
+            {phoneLoading ? 'Please wait…' : phoneStep === 'number' ? 'Send code' : 'Verify and sign in'}
+          </AuthButton>
+        </form>
+      </>
+    );
+  } else if (mode === 'signup') {
+    // auth-07 / 09
+    body = (
+      <>
+        <AuthTitle title="Create your account" sub="60 days free. No card needed." />
+        <form onSubmit={handleSignUp}>
+          <AuthField label="Full name" htmlFor="signup-name">
+            <AuthInput id="signup-name" type="text" placeholder="Full name" autoComplete="off" required
+              value={signup.name} onChange={(e) => setSignup({ ...signup, name: e.target.value })} />
+          </AuthField>
+          <AuthField label="Email" htmlFor="signup-email">
+            <AuthInput id="signup-email" type="email" placeholder="you@business.com" autoComplete="off" required
+              value={signup.email} onChange={(e) => setSignup({ ...signup, email: e.target.value })} />
+          </AuthField>
+          <AuthField label="Password" htmlFor="signup-password">
+            <PasswordInput id="signup-password" placeholder="Password" autoComplete="off" required bad={signupPwBad}
+              value={signup.password} onChange={(e) => setSignup({ ...signup, password: e.target.value })} />
+          </AuthField>
+          <AuthField label="Confirm password" htmlFor="signup-confirm">
+            <PasswordInput id="signup-confirm" placeholder="Confirm password" autoComplete="off" required bad={signupPwBad}
+              value={signup.confirm} onChange={(e) => setSignup({ ...signup, confirm: e.target.value })} />
+          </AuthField>
+          {error
+            ? <AuthNote tone="rd">{error}</AuthNote>
+            : <Hint className="-mt-1.5 mb-3">At least 8 characters.</Hint>}
+          <AuthButton type="submit" disabled={signupLoading || googleLoading} busy={signupLoading}>
+            {signupLoading ? 'Creating…' : 'Start free trial'}
+          </AuthButton>
+          <p className="mt-3 text-center text-[12px] text-mute">By signing up you agree to the Terms of Service.</p>
+        </form>
+        <OrRule />
+        {googleButton}
+        <Swap>Already have an account? <AuthLink onClick={() => { setMode('login'); clearMsgs(); }}>Sign in</AuthLink></Swap>
+      </>
+    );
+  } else {
+    // auth-10
+    body = (
+      <>
+        <BackLink onClick={() => { setMode('login'); clearMsgs(); }}>Back to sign in</BackLink>
+        <AuthTitle title="Reset your password" sub="Enter your email and we will send a reset link." />
+        <form onSubmit={handleForgot}>
+          <AuthField label="Email" htmlFor="forgot-email">
+            <AuthInput id="forgot-email" type="email" placeholder="you@business.com" autoComplete="email" required autoFocus
+              bad={!!error} lead={<Icon.mail className="text-mute" />}
+              value={credentials.email} onChange={(e) => setCredentials({ ...credentials, email: e.target.value })} />
+          </AuthField>
+          {error && <AuthNote tone="rd">{error}</AuthNote>}
+          <AuthButton type="submit" disabled={resetLoading} busy={resetLoading}>
+            {resetLoading ? 'Sending…' : 'Send reset link'}
+          </AuthButton>
+        </form>
+      </>
+    );
+  }
 
- <button
- type="submit"
- disabled={loading || googleLoading}
- className={`btn-login w-full mt-[26px] bg-white border-none rounded-[6px] cursor-pointer h-[54px] flex items-center justify-center hover:shadow-[0_8px_28px_rgba(0,0,0,0.45)] active:scale-[0.98] ${btnClicked ? 'clicked' : ''}`}
- >
- <span className="font-arial font-bold text-[15px] text-[#111] relative z-1">LOG IN</span>
- </button>
-
- {/* Passwords are the main way people get locked out of this app. A number
-     they already have on WhatsApp is the fallback. */}
- <button
-   type="button"
-   onClick={goPhoneMode}
-   className="w-full mt-[12px] h-[50px] bg-transparent border-[1.5px] border-[#253028] rounded-[6px] cursor-pointer flex items-center justify-center gap-[9px] text-[#747576] hover:border-[#38e0a0]/45 hover:text-white transition-colors"
- >
-   <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-     <path d="M17.47 14.38c-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.64.07-.3-.15-1.25-.46-2.38-1.47-.88-.78-1.47-1.75-1.65-2.05-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.53.15-.18.2-.3.3-.5.1-.2.05-.38-.02-.53-.08-.15-.67-1.6-.92-2.2-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.22 3.08c.15.2 2.1 3.2 5.08 4.49.71.3 1.26.49 1.69.63.71.22 1.36.19 1.87.12.57-.09 1.75-.72 2-1.41.25-.7.25-1.29.17-1.41-.07-.13-.27-.2-.57-.35z"/>
-     <path d="M12 2a10 10 0 0 0-8.6 15.07L2 22l5.05-1.32A10 10 0 1 0 12 2zm0 18.2a8.17 8.17 0 0 1-4.17-1.14l-.3-.18-3 .78.8-2.92-.2-.31A8.2 8.2 0 1 1 12 20.2z"/>
-   </svg>
-   <span className="font-inter font-semibold text-[13.5px]">Sign in with WhatsApp</span>
- </button>
- </form>
- ) : mode === 'phone' ? (
- <form onSubmit={phoneStep === 'number' ? handleSendOtp : handleVerifyOtp}>
-   {phoneStep === 'number' ? (
-     <div className="mb-[18px]">
-       <label className="block text-[#747576] text-[14px] font-medium mb-[7px]">Mobile Number</label>
-       <div className="flex items-center bg-[#0d1411] border-[1.5px] border-[#253028] rounded-[6px] transition-colors focus-within:border-[#38e0a0]/45">
-         {/* The country code is shown, not typed. Every user is in India and a
-             free-text +91 is one more thing to get wrong at a counter. */}
-         <span className="pl-[13px] pr-[10px] text-[#747576] text-[14px] shrink-0 border-r border-[#253028] py-[13px]">+91</span>
-         <input
-           type="tel"
-           inputMode="numeric"
-           autoComplete="tel"
-           placeholder="98765 43210"
-           required
-           autoFocus
-           className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] p-[13px] placeholder:text-ink-secondary/30 tracking-[0.5px]"
-           value={phoneInput}
-           onChange={(e) => setPhoneInput(e.target.value)}
-         />
-       </div>
-     </div>
-   ) : (
-     <div className="mb-[18px]">
-       <label className="block text-[#747576] text-[14px] font-medium mb-[7px]">WhatsApp Code</label>
-       <div className="flex items-center bg-[#0d1411] border-[1.5px] border-[#253028] rounded-[6px] transition-colors focus-within:border-[#38e0a0]/45">
-         <input
-           type="text"
-           inputMode="numeric"
-           autoComplete="one-time-code"
-           placeholder="000000"
-           maxLength={8}
-           required
-           autoFocus
-           className="flex-1 bg-transparent border-none outline-none text-white font-inter text-[20px] tracking-[8px] text-center p-[13px] placeholder:text-ink-secondary/30"
-           value={otpCode}
-           onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-         />
-       </div>
-       <div className="flex items-center justify-between mt-[9px]">
-         <button type="button"
-           onClick={() => { setPhoneStep('number'); setError(''); setInfo(''); setOtpCode(''); }}
-           className="text-[#747576] text-[12.5px] underline underline-offset-[3px] bg-transparent border-0 cursor-pointer hover:text-white transition-all">
-           Change number
-         </button>
-         <button type="button"
-           disabled={resendIn > 0 || phoneLoading}
-           onClick={handleSendOtp}
-           className="text-[#747576] text-[12.5px] underline underline-offset-[3px] bg-transparent border-0 cursor-pointer hover:text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline">
-           {resendIn > 0 ? `Resend in ${resendIn}s` : 'Resend code'}
-         </button>
-       </div>
-     </div>
-   )}
-
-   {info && !error && (
-     <div className="mb-4 p-3 rounded-xl bg-[#38e0a0]/10 border border-[#38e0a0]/20">
-       <p className="text-[11px] font-bold text-[#38e0a0]/90 uppercase tracking-tight leading-tight">{info}</p>
-     </div>
-   )}
-   {error && (
-     <div className="mb-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
-       <p className="text-[11px] font-bold text-red-500/90 uppercase tracking-tight leading-tight">{error}</p>
-     </div>
-   )}
-
-   <button
-     type="submit"
-     disabled={phoneLoading || (phoneStep === 'number' && !toE164(phoneInput))}
-     className="btn-login w-full mt-[26px] bg-white border-none rounded-[6px] cursor-pointer h-[54px] flex items-center justify-center hover:shadow-[0_8px_28px_rgba(0,0,0,0.45)] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
-   >
-     <span className="font-arial font-bold text-[15px] text-[#111] relative z-1">
-       {phoneLoading ? 'PLEASE WAIT…' : phoneStep === 'number' ? 'SEND CODE' : 'VERIFY & SIGN IN'}
-     </span>
-   </button>
-
-   <button type="button"
-     onClick={() => { setMode('login'); setError(''); setInfo(''); }}
-     className="block mx-auto mt-[18px] text-[#747576] text-[12.5px] underline underline-offset-[3px] bg-transparent border-0 cursor-pointer hover:text-white transition-all">
-     Use email and password instead
-   </button>
- </form>
- ) : mode === 'signup' ? (
- <form onSubmit={handleSignUp}>
-   {[
-     { key: 'name',     type: 'text',     label: 'Full Name',        ph: 'Full name' },
-     { key: 'email',    type: 'email',    label: 'Work Email',       ph: 'Email address' },
-     { key: 'password', type: 'password', label: 'Password',         ph: 'Password (min 8 chars)' },
-     { key: 'confirm',  type: 'password', label: 'Confirm Password', ph: 'Confirm password' },
-   ].map(f => (
-     <div className="mb-[16px]" key={f.key}>
-       <label className="block text-[#747576] text-[14px] font-medium mb-[7px]">{f.label}</label>
-       <div className="flex items-center bg-[#0d1411] border-[1.5px] border-[#253028] rounded-[6px] transition-colors focus-within:border-[#38e0a0]/45">
-         <input
-           type={f.type}
-           placeholder={f.ph}
-           autoComplete="off"
-           required
-           className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] p-[13px] placeholder:text-ink-secondary/30"
-           value={signup[f.key]}
-           onChange={(e) => setSignup({ ...signup, [f.key]: e.target.value })}
-         />
-       </div>
-     </div>
-   ))}
-
-   {error && (
-     <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-[12px] font-semibold">
-       {error}
-     </div>
-   )}
-   {info && (
-     <div className="mb-4 p-3 rounded-xl bg-[#38e0a0]/10 border border-[#38e0a0]/25 text-[#38e0a0] text-[12px] font-semibold">
-       {info}
-     </div>
-   )}
-
-   <button
-     type="submit"
-     disabled={signupLoading || googleLoading}
-     className="w-full mt-[10px] bg-[#38e0a0] border-none rounded-[6px] cursor-pointer h-[54px] flex items-center justify-center hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60"
-   >
-     <span className="font-arial font-bold text-[15px] text-[#0d1411]">
-       {signupLoading ? 'CREATING…' : 'START FREE TRIAL'}
-     </span>
-   </button>
-   <p className="mt-3 text-center text-[10.5px] text-[#747576]">
-     By signing up you agree to our Terms of Service.
-   </p>
- </form>
- ) : (
- <form onSubmit={handleForgot}>
-   <div className="mb-[18px]">
-     <label className="block text-[#747576] text-[14px] font-medium mb-[7px]">Email Address</label>
-     <div className="flex items-center bg-[#0d1411] border-[1.5px] border-[#253028] rounded-[6px] transition-colors focus-within:border-[#38e0a0]/45">
-       <span className="pl-[13px] pr-[13px] text-[#747576] flex items-center shrink-0">
-         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-           <rect x="2" y="4" width="20" height="16" rx="2"/>
-           <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
-         </svg>
-       </span>
-       <input
-         type="email"
-         placeholder="you@business.com"
-         autoComplete="email"
-         required
-         autoFocus
-         className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] pt-[13px] pr-[13px] pb-[13px] pl-0 placeholder:text-ink-secondary/30"
-         value={credentials.email}
-         onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
-       />
-     </div>
-   </div>
-
-   {error && (
-     <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-[12px] font-semibold">
-       {error}
-     </div>
-   )}
-   {info && (
-     <div className="mb-4 p-3 rounded-xl bg-[#38e0a0]/10 border border-[#38e0a0]/25 text-[#38e0a0] text-[12px] font-semibold">
-       {info}
-     </div>
-   )}
-
-   <button
-     type="submit"
-     disabled={resetLoading}
-     className="w-full h-[54px] bg-white border-none rounded-[6px] cursor-pointer flex items-center justify-center hover:shadow-[0_8px_28px_rgba(0,0,0,0.45)] active:scale-[0.98] transition-all disabled:opacity-60"
-   >
-     <span className="font-arial font-bold text-[15px] text-[#111]">
-       {resetLoading ? 'SENDING…' : 'SEND RESET LINK'}
-     </span>
-   </button>
-
-   <button type="button"
-     onClick={() => { setMode('login'); setError(''); setInfo(''); }}
-     className="w-full mt-3 text-center text-[12.5px] text-[#747576] hover:text-white transition-colors bg-transparent border-0">
-     ← Back to sign in
-   </button>
- </form>
- )}
-
- {/* Phone mode carries its own way back to the password form, and the
-     "Already have an account?" toggle below reads as nonsense there. */}
- {mode !== 'forgot' && mode !== 'phone' && (<>
- {/* Divider */}
- <div className="flex items-center gap-3 mt-[22px] mb-[18px]">
-   <div className="flex-1 h-px bg-white/10" />
-   <span className="text-[11px] font-bold text-[#747576] uppercase tracking-widest">or</span>
-   <div className="flex-1 h-px bg-white/10" />
- </div>
-
- {/* Google Sign In */}
- <button
-   onClick={handleGoogleSignIn}
-   disabled={loading || googleLoading}
-   className="w-full h-[54px] flex items-center justify-center gap-3 bg-[#0d1411] border-[1.5px] border-[#253028] rounded-[6px] cursor-pointer hover:border-[#38e0a0]/45 hover:bg-[#0d1411]/80 active:scale-[0.98] transition-all disabled:opacity-50"
- >
-   {googleLoading ? (
-     <svg className="animate-spin w-5 h-5 text-[#38e0a0]" fill="none" viewBox="0 0 24 24">
-       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-     </svg>
-   ) : (
-     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-       <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-       <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-       <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-       <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-     </svg>
-   )}
-   <span className="font-bold text-[14px] text-[#747576]">Continue with Google</span>
- </button>
-
- {/* Mode toggle — stays on this page */}
- <p className="mt-6 text-center text-[12.5px] text-[#747576]">
-   {mode === 'login' ? 'New to bookledger?' : 'Already have an account?'}{' '}
-   <button type="button"
-     onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setInfo(''); }}
-     className="text-[#38e0a0] font-bold hover:underline cursor-pointer bg-transparent border-0">
-     {mode === 'login' ? 'Create an account →' : 'Sign in →'}
-   </button>
- </p>
- </>)}
- </div>
-
- {mode === 'login' && (
- <div className="absolute bottom-[20px] left-1/2 -translate-x-1/2 text-[#747576] text-[11px] font-normal whitespace-nowrap z-1">
- © 2026 BOOKLEDGER. ALL RIGHTS RESERVED.
- </div>
- )}
- </div>
- </div>
- );
+  return <AuthShell onLogoClick={handleLogoClick}>{body}</AuthShell>;
 };
 
 export default Login;

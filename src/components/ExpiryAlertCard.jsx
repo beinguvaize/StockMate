@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, ChevronRight } from 'lucide-react';
+import { TimerReset } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../context/TenantContext';
@@ -49,27 +49,31 @@ const ExpiryAlertCard = () => {
 
   if (!stats) return null;
 
+  // Web redesign: an amber row beside the announcement, with "Review".
+  // Same figures and the same destination (Reports, Expiry Tracking).
+  const sym = '₹';
   return (
     <button
+      type="button"
+      data-card
       // In-app navigation. goHref() sets window.location and reloads the whole
       // SPA, which is right for an impersonation switch but heavy for a card.
       onClick={() => navigate('/reports')}
-      className="w-full text-left flex items-center gap-3 px-5 py-3.5 rounded-pill bg-red-50 border border-red-200 hover:bg-red-100/60 transition-colors"
+      title="Open Reports, Expiry Tracking"
+      className="m-press w-full min-w-0 text-left flex items-center gap-3 rounded-xl bg-amber-soft py-[11px] pl-3.5 pr-3 text-[13.5px]"
     >
-      <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
-        <AlertTriangle size={17} className="text-red-600" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-[13px] font-bold text-red-700">
-          {stats.expired > 0 && `${stats.expired} batch${stats.expired === 1 ? '' : 'es'} expired`}
-          {stats.expired > 0 && stats.soon > 0 && ' · '}
-          {stats.soon > 0 && `${stats.soon} expiring within 30 days`}
-        </div>
-        <div className="text-[11px] text-red-500">
-          ₹{Math.round(stats.value).toLocaleString('en-IN')} of stock at risk — see Reports → Expiry Tracking.
-        </div>
-      </div>
-      <ChevronRight size={16} className="text-red-400 shrink-0" />
+      <span className="grid place-items-center size-7 shrink-0 rounded-lg bg-surface text-amber-text">
+        <TimerReset size={15} />
+      </span>
+      <span className="min-w-0 flex-1 truncate text-ink-2">
+        {stats.expired > 0 && <b className="font-tight font-semibold text-ink">{stats.expired} batch{stats.expired === 1 ? '' : 'es'} expired</b>}
+        {stats.expired > 0 && stats.soon > 0 && ' and '}
+        {stats.soon > 0 && (stats.expired > 0
+          ? `${stats.soon} expire within 30 days`
+          : <b className="font-tight font-semibold text-ink">{stats.soon} expiring within 30 days</b>)}
+        <span className="text-body">, {sym}{Math.round(stats.value).toLocaleString('en-IN')} of stock at risk</span>
+      </span>
+      <span className="shrink-0 font-tight text-[13px] font-semibold text-amber-text">Review</span>
     </button>
   );
 };

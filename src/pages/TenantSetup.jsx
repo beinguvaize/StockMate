@@ -1,79 +1,40 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import {
-  ArrowRight, Loader2, ChevronLeft, Check, Zap, Shield, Star,
-  Store, UtensilsCrossed, Briefcase, ShieldCheck, CreditCard, CalendarClock,
-  MessageCircle,
-} from 'lucide-react';
+import { Store, UtensilsCrossed, CalendarDays, Check, X, Search } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { goHref } from '../lib/nav';
-import { supportWhatsAppLink, SUPPORT_NAME, SUPPORT_WHATSAPP_DISPLAY } from '../lib/support';
 import { INDIAN_STATES, stateCodeFor } from '../lib/gstStates';
-
-const PLANS = [
-  {
-    id: 'FREE',
-    label: 'Free',
-    price: '₹0',
-    tagline: 'Try everything a single shop needs.',
-    features: ['Dashboard', 'Inventory', 'Sales & POS', 'GST Invoices', 'Clients', 'Expenses', '100 invoices/mo', '1 user'],
-    locked: ['Purchases', 'Suppliers', 'Reports', 'Payroll'],
-    icon: <Zap size={16} />,
-  },
-  {
-    id: 'GROWTH',
-    label: 'Growth',
-    price: '₹1,999/yr',
-    tagline: 'For a shop finding its feet.',
-    badge: 'Most Popular',
-    features: ['All Free features', 'Purchases & Suppliers', 'Payroll', 'Reports', 'GSTR Export', '1,000 invoices/mo', '3 users'],
-    locked: ['Vehicles', 'Manufacturing', 'Multi-Location Inventory'],
-    icon: <Star size={16} />,
-  },
-  {
-    id: 'PRO',
-    label: 'Pro',
-    price: '₹2,999/yr',
-    tagline: 'For growing teams that need the full stack.',
-    features: ['All Growth features', 'Vehicles & Routes', 'Estimates', 'Manufacturing', 'Multi-Location Inventory', 'Price Lists', 'WAC Costing', 'Unlimited invoices', '5 users'],
-    locked: ['White Label', 'API Access'],
-    icon: <Star size={16} />,
-  },
-  {
-    id: 'ENTERPRISE',
-    label: 'Enterprise',
-    price: '₹3,999/yr',
-    tagline: 'For multi-location & power operations.',
-    features: ['All Pro features', 'User Management', 'Audit Log', 'API Access', 'White Label', 'Priority Support', 'Unlimited users'],
-    locked: [],
-    icon: <Shield size={16} />,
-  },
-];
+import { SETUP_STEPS, SETUP_PLANS as PLANS, canContinue, canCreate, filterStates } from '../lib/setupFlow';
+import { SetupFrame, StepBar, StepQ, StepNav, navBtn, BigOption, bigBoxCls } from '../components/auth/SetupParts';
+import { AuthNote, Hint, Icon } from '../components/auth/AuthParts';
+import { cn } from '../lib/utils';
 
 const BUSINESS_TYPES = [
-  { id: 'RETAIL',     label: 'Retail',     desc: 'Shop, store, wholesale & distribution', icon: <Store size={20} /> },
-  { id: 'RESTAURANT', label: 'Restaurant', desc: 'Café, dine-in, kitchen & takeaway',     icon: <UtensilsCrossed size={20} /> },
-  { id: 'SERVICES',   label: 'Services',   desc: 'Appointments, repairs & professionals',  icon: <Briefcase size={20} /> },
+  { id: 'RETAIL',     label: 'Retail',     desc: 'Shop, store, wholesale and distribution', icon: <Store /> },
+  { id: 'RESTAURANT', label: 'Restaurant', desc: 'Café, dine-in, kitchen and takeaway',     icon: <UtensilsCrossed /> },
+  { id: 'SERVICES',   label: 'Services',   desc: 'Appointments, repairs and professionals', icon: <CalendarDays /> },
 ];
 
-const TRUST = [
-  { icon: <CalendarClock size={13} />, text: '60-day free trial' },
-  { icon: <CreditCard size={13} />,    text: 'No credit card required' },
-  { icon: <ShieldCheck size={13} />,   text: 'Cancel anytime' },
-];
+const TRUST = ['60-day free trial', 'No card needed', 'Change plan any time'];
 
+/**
+ * First-time shop setup (approved setup-01 to 08): one question per step,
+ * then "Create my shop". Shop creation is the same single call to the
+ * create-tenant function, with the same body, as the old one-page form.
+ */
 const TenantSetup = () => {
-  const [step, setStep] = useState(1); // 1 = plan, 2 = business name + industry
+  const [step, setStep] = useState(1); // 1 plan, 2 type, 3 name, 4 phone, 5 address, 6 state
   const [selectedPlan, setSelectedPlan] = useState('GROWTH');
   const [businessType, setBusinessType] = useState('RETAIL'); // industry / vertical
   const [businessName, setBusinessName] = useState('');
   const [businessPhone, setBusinessPhone] = useState('');
   const [businessAddress, setBusinessAddress] = useState('');
   const [businessState, setBusinessState] = useState('');
+  const [stateQuery, setStateQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { currentUser } = useAuth();
+  const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
 
   const isGlobalAdmin = currentUser?.roles?.includes('GLOBAL_ADMIN');
@@ -137,290 +98,170 @@ const TenantSetup = () => {
   };
 
   const activePlan = PLANS.find(p => p.id === selectedPlan);
-  const logo = `${import.meta.env.BASE_URL}logo-white.png`;
+  const form = { plan: selectedPlan, businessType, businessName, businessPhone, businessAddress, businessState };
+  const total = SETUP_STEPS.length;
+  const next = () => { if (canContinue(step, form)) setStep((n) => Math.min(total, n + 1)); };
+  const back = () => { setError(null); setStep((n) => Math.max(1, n - 1)); };
+
+  // Enter on a step moves on; on the last step it creates the shop.
+  const onSubmit = (e) => {
+    if (step === total) return handleSetup(e);
+    e.preventDefault();
+    next();
+    return undefined;
+  };
+
+  const backBtn = <button type="button" onClick={back} disabled={isLoading} className={navBtn('sec')}>Back</button>;
+  const continueBtn = <button type="submit" disabled={!canContinue(step, form)} className={navBtn('pri')}>Continue</button>;
+  const states = filterStates(stateQuery, INDIAN_STATES);
 
   return (
-    <div className="min-h-screen bg-[#141c1a] flex flex-col items-center px-4 py-10 relative overflow-hidden font-inter selection:bg-accent-signature/30">
-      {/* Ambient glow */}
-      <div className="absolute top-0 left-1/4 w-[32rem] h-[32rem] bg-accent-signature/10 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-[32rem] h-[32rem] bg-emerald-500/[0.07] rounded-full blur-[140px] pointer-events-none" />
+    <SetupFrame wide={step === 1} onSignOut={() => logout()} onNexus={isGlobalAdmin ? () => navigate('/nexus-hq') : null}>
+      <StepBar step={step} total={total} names={SETUP_STEPS} />
+      <form onSubmit={onSubmit} key={step} className="m-rise">
 
-      {isGlobalAdmin && (
-        <div className="absolute top-6 left-6 z-50">
-          <button
-            onClick={() => navigate('/nexus-hq')}
-            className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-pill text-white transition-all backdrop-blur-md"
-          >
-            <ChevronLeft size={16} />
-            <span className="text-[11px] font-bold">Nexus HQ</span>
-          </button>
-        </div>
-      )}
-
-      {/* Shared header: brand + progress */}
-      <div className="relative z-10 flex flex-col items-center mb-8">
-        <img src={logo} alt="bookledger" className="h-9 w-auto object-contain mb-7"
-          onError={(e) => { e.target.style.display = 'none'; }} />
-        <div className="flex items-center gap-2.5">
-          {[1, 2].map((n) => (
-            <React.Fragment key={n}>
-              <div className={`flex items-center gap-2 ${step >= n ? 'text-accent-signature' : 'text-white/30'}`}>
-                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black border ${
-                  step > n ? 'bg-accent-signature border-accent-signature text-black'
-                  : step === n ? 'border-accent-signature text-accent-signature'
-                  : 'border-white/20 text-white/40'
-                }`}>
-                  {step > n ? <Check size={12} /> : n}
-                </span>
-                <span className="text-[11px] font-bold uppercase tracking-widest hidden sm:block">
-                  {n === 1 ? 'Plan' : 'Workspace'}
-                </span>
-              </div>
-              {n === 1 && <span className={`w-8 h-px ${step > 1 ? 'bg-accent-signature' : 'bg-white/15'}`} />}
-            </React.Fragment>
-          ))}
-        </div>
-      </div>
-
-      {/* Step 1: Plan selection */}
-      {step === 1 && (
-        <div className="w-full max-w-4xl relative z-10 animate-in fade-in slide-in-from-bottom-3 duration-500">
-          <div className="text-center mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight mb-2">Choose your plan</h1>
-            <p className="text-[#9aa19c] text-sm font-medium">
-              Start free for <span className="text-accent-signature font-bold">60 days</span> — pick the plan that fits, change it anytime.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-7">
-            {PLANS.map((plan) => {
-              const active = selectedPlan === plan.id;
-              return (
-                <button
-                  key={plan.id}
-                  onClick={() => setSelectedPlan(plan.id)}
-                  className={`group relative text-left p-5 rounded-pill border-2 transition-all duration-200 ${
-                    active
-                      ? 'border-accent-signature bg-accent-signature/[0.08] shadow-[0_0_0_4px_rgba(217,119,6,0.12)]'
-                      : 'border-white/10 bg-white/[0.03] hover:border-white/25 hover:bg-white/[0.05]'
-                  }`}
-                >
-                  {plan.badge && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-accent-signature text-black text-[9px] font-black uppercase tracking-widest rounded-full shadow-lg">
-                      {plan.badge}
-                    </span>
-                  )}
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${active ? 'bg-accent-signature text-black' : 'bg-white/10 text-white group-hover:bg-white/15'}`}>
-                      {plan.icon}
+        {/* setup-01 */}
+        {step === 1 && (
+          <>
+            <StepQ title="Pick a plan to start with" sub="Every plan is free for 60 days. You can change it any time." />
+            <div role="radiogroup" aria-label="Plan" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {PLANS.map((plan) => {
+                const on = selectedPlan === plan.id;
+                return (
+                  <button key={plan.id} type="button" data-card role="radio" aria-checked={on} onClick={() => setSelectedPlan(plan.id)}
+                    className={cn('m-press rounded-[14px] bg-white p-4 text-left',
+                      on ? 'shadow-[inset_0_0_0_2px_var(--color-ink)]' : 'shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile')}>
+                    <div className="flex items-center justify-between font-tight text-[13px] font-semibold text-ink">
+                      {plan.label}
+                      {plan.badge && <span className="rounded-pill bg-amber-soft px-2 py-0.5 font-tight text-[11px] font-semibold text-amber-text">{plan.badge}</span>}
                     </div>
-                    <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${active ? 'border-accent-signature bg-accent-signature' : 'border-white/20'}`}>
-                      {active && <Check size={12} className="text-black" strokeWidth={3} />}
-                    </span>
-                  </div>
-                  <div className="text-white font-black text-sm uppercase tracking-tight">{plan.label}</div>
-                  <div className="flex items-baseline gap-1 mt-0.5 mb-1">
-                    <span className={`text-2xl font-black ${active ? 'text-accent-signature' : 'text-white'}`}>{plan.price}</span>
-                    <span className="text-[11px] text-muted-foreground font-bold">/mo</span>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground font-medium leading-snug mb-4 min-h-[2.4em]">{plan.tagline}</p>
-                  <ul className="space-y-1.5">
-                    {plan.features.map(f => (
-                      <li key={f} className="flex items-center gap-2 text-[11px] text-gray-200 font-medium">
-                        <Check size={11} className="text-accent-signature shrink-0" strokeWidth={2.5} />
-                        {f}
-                      </li>
-                    ))}
-                    {plan.locked.map(f => (
-                      <li key={f} className="flex items-center gap-2 text-[11px] text-ink-secondary font-medium line-through decoration-gray-700">
-                        <span className="w-[11px] h-[11px] shrink-0" />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="flex flex-col items-center gap-5">
-            <button
-              onClick={() => setStep(2)}
-              className="flex items-center gap-2 px-8 py-3.5 bg-accent-signature hover:bg-accent-signature-hover text-black font-black rounded-pill shadow-[0_12px_28px_-12px_rgba(217,119,6,0.7)] transition-all active:scale-[0.98]"
-            >
-              Continue with {activePlan?.label}
-              <ArrowRight size={18} strokeWidth={2.5} />
-            </button>
-            <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-              {TRUST.map(t => (
-                <span key={t.text} className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
-                  <span className="text-accent-signature">{t.icon}</span>{t.text}
-                </span>
+                    <div className="mb-2.5 mt-1.5 font-tight text-[22px] font-semibold tabular-nums tracking-[-0.02em] text-ink">
+                      {plan.price}{plan.per && <small className="ml-1 font-inter text-[12.5px] font-medium tracking-normal text-mute">{plan.per}</small>}
+                    </div>
+                    <Hint className="-mt-1 mb-2.5">{plan.tagline}</Hint>
+                    <ul className="grid gap-1.5 text-[12.5px] text-ink-2">
+                      {plan.features.map((f) => (
+                        <li key={f} className="flex items-start gap-[7px]"><Check size={13} strokeWidth={2.4} className="mt-[3px] shrink-0 text-good-text" aria-hidden="true" />{f}</li>
+                      ))}
+                      {plan.locked.map((f) => (
+                        <li key={f} className="flex items-start gap-[7px] text-faint line-through"><X size={13} strokeWidth={2.4} className="mt-[3px] shrink-0" aria-hidden="true" /><span><span className="sr-only">Not included: </span>{f}</span></li>
+                      ))}
+                    </ul>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-[18px] flex flex-wrap justify-center gap-x-[18px] gap-y-2 font-tight text-[12.5px] font-semibold text-body">
+              {TRUST.map((t) => (
+                <span key={t} className="inline-flex items-center gap-1.5"><Check size={14} strokeWidth={2.4} className="text-good-text" aria-hidden="true" />{t}</span>
               ))}
             </div>
-          </div>
-        </div>
-      )}
+            <StepNav right={<button type="submit" className={navBtn('pri')}>Continue with {activePlan?.label}</button>} />
+          </>
+        )}
 
-      {/* Step 2: Workspace */}
-      {step === 2 && (
-        <div className="w-full max-w-lg relative z-10 animate-in fade-in slide-in-from-bottom-3 duration-500">
-          <button
-            onClick={() => setStep(1)}
-            className="flex items-center gap-1.5 text-muted-foreground hover:text-white text-[11px] font-bold mb-5 transition-colors"
-          >
-            <ChevronLeft size={14} /> Back to plans
-          </button>
-
-          <div className="bg-white/[0.04] backdrop-blur-xl border border-white/10 rounded-[1.75rem] p-6 sm:p-8">
-            <div className="flex flex-col items-center mb-7 text-center">
-              <div className="px-3.5 py-1.5 bg-accent-signature/15 border border-accent-signature/30 rounded-full text-[10px] font-black text-accent-signature uppercase tracking-widest mb-4">
-                {activePlan?.label} · 60-day free trial
-              </div>
-              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight mb-1">Set up your workspace</h1>
-              <p className="text-[#9aa19c] text-xs font-medium">Two quick details and you're in.</p>
+        {/* setup-02 */}
+        {step === 2 && (
+          <>
+            <StepQ title="What kind of business is it?" sub={`${activePlan?.label} plan · 60-day free trial`} />
+            <div role="radiogroup" aria-label="Business type" className="grid gap-2.5">
+              {BUSINESS_TYPES.map((v) => (
+                <BigOption key={v.id} selected={businessType === v.id} onClick={() => setBusinessType(v.id)}
+                  icon={v.icon} title={v.label} sub={v.desc} />
+              ))}
             </div>
+            <Hint className="mt-2.5">Sets the words the app uses and which modules start switched on. You can change it later in Settings.</Hint>
+            <StepNav left={backBtn} right={continueBtn} />
+          </>
+        )}
 
-            <form onSubmit={handleSetup} className="space-y-6">
-              <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-0.5 block mb-2.5">
-                  What kind of business?
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                  {BUSINESS_TYPES.map((v) => {
-                    const active = businessType === v.id;
-                    return (
-                      <button
-                        key={v.id}
-                        type="button"
-                        onClick={() => setBusinessType(v.id)}
-                        className={`flex sm:flex-col items-center sm:text-center gap-3 sm:gap-2 p-3.5 rounded-pill border-2 transition-all ${
-                          active ? 'border-accent-signature bg-accent-signature/10' : 'border-white/10 bg-white/[0.03] hover:border-white/25'
-                        }`}
-                      >
-                        <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${active ? 'bg-accent-signature text-black' : 'bg-white/10 text-muted-foreground'}`}>
-                          {v.icon}
-                        </span>
-                        <span className="sm:mt-1">
-                          <span className="block text-white font-black text-[12px] uppercase tracking-tight">{v.label}</span>
-                          <span className="block text-[10px] text-muted-foreground mt-0.5 leading-tight">{v.desc}</span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+        {/* setup-03 */}
+        {step === 3 && (
+          <>
+            <StepQ title="What is the shop called?" sub="Printed at the top of every bill and invoice." />
+            <div className={bigBoxCls}>
+              <input aria-label="Business name" value={businessName} onChange={(e) => setBusinessName(e.target.value)}
+                placeholder="Business name" required disabled={isLoading} autoFocus
+                className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-mute" />
+            </div>
+            <Hint className="mt-2">Use the name customers know. You can change it in Settings, Business.</Hint>
+            <StepNav left={backBtn} right={continueBtn} />
+          </>
+        )}
 
-              <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-0.5 block mb-2">
-                  Business name <span className="text-ink-secondary normal-case font-medium tracking-normal">— shown on every invoice</span>
-                </label>
-                <input
-                  value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
-                  placeholder="e.g. Krishna Traders"
-                  className="w-full h-14 bg-black/40 border border-white/10 text-white px-5 rounded-xl outline-none focus:border-accent-signature/60 focus:ring-4 focus:ring-accent-signature/10 transition-all text-sm"
-                  required
-                  disabled={isLoading}
-                  autoFocus
-                />
-              </div>
+        {/* setup-04. Both phone and address print on every GST invoice. Asked
+            here rather than left to Settings, where most tenants never went:
+            of the first twelve, three had an address and three had a phone. */}
+        {step === 4 && (
+          <>
+            <StepQ title="What number should bills show?" sub="Mobile or landline. Printed on every invoice." />
+            <div className={bigBoxCls}>
+              <input aria-label="Phone" value={businessPhone} onChange={(e) => setBusinessPhone(e.target.value)}
+                type="tel" inputMode="tel" placeholder="98765 43210" required disabled={isLoading} autoFocus
+                className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-mute" />
+            </div>
+            <Hint className="mt-2">Customers call this number. It is not used to sign in.</Hint>
+            <StepNav left={backBtn} right={continueBtn} />
+          </>
+        )}
 
-              {/* Both print on every GST invoice. Asked here rather than left to
-                  Settings, where most tenants never went: of the first twelve,
-                  three had an address and three had a phone. */}
-              <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-0.5 block mb-2">
-                  Phone <span className="text-ink-secondary normal-case font-medium tracking-normal">— mobile or landline, shown on invoices</span>
-                </label>
-                <input
-                  value={businessPhone}
-                  onChange={(e) => setBusinessPhone(e.target.value)}
-                  type="tel"
-                  inputMode="tel"
-                  placeholder="e.g. 98765 43210"
-                  className="w-full h-14 bg-black/40 border border-white/10 text-white px-5 rounded-xl outline-none focus:border-accent-signature/60 focus:ring-4 focus:ring-accent-signature/10 transition-all text-sm"
-                  required
-                  disabled={isLoading}
-                />
-              </div>
+        {/* setup-05 */}
+        {step === 5 && (
+          <>
+            <StepQ title="Where is the shop?" sub="A GST invoice must show the address." />
+            <div className={cn(bigBoxCls, 'items-start py-3.5')}>
+              <textarea aria-label="Business address" value={businessAddress} onChange={(e) => setBusinessAddress(e.target.value)}
+                rows={3} placeholder="Street, area, city and PIN code" required disabled={isLoading} autoFocus
+                className="min-w-0 flex-1 resize-none bg-transparent leading-[1.5] outline-none placeholder:text-mute" />
+            </div>
+            <Hint className="mt-2">Street, area, city and PIN code.</Hint>
+            <StepNav left={backBtn} right={continueBtn} />
+          </>
+        )}
 
-              <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-0.5 block mb-2">
-                  Business address <span className="text-ink-secondary normal-case font-medium tracking-normal">— required on a GST invoice</span>
-                </label>
-                <textarea
-                  value={businessAddress}
-                  onChange={(e) => setBusinessAddress(e.target.value)}
-                  rows={3}
-                  placeholder={'Shop 12, MG Road\nKochi, Kerala 682001'}
-                  className="w-full bg-black/40 border border-white/10 text-white px-5 py-4 rounded-xl outline-none focus:border-accent-signature/60 focus:ring-4 focus:ring-accent-signature/10 transition-all text-sm resize-none"
-                  required
-                  disabled={isLoading}
-                />
-              </div>
+        {/* setup-06 / 07 / 08. Picked by name, never typed as a number. The
+            state decides CGST+SGST versus IGST and is the first two digits of
+            a GSTIN, but no shopkeeper knows their own code, so we show the name
+            and derive the code from it. */}
+        {step === 6 && (
+          <>
+            <StepQ title="Which state is the shop in?" sub="Decides CGST and SGST, or IGST, on your bills. Pick the name; we work out the code." />
+            <div className={bigBoxCls}>
+              <Search size={17} className="shrink-0 text-mute" aria-hidden="true" />
+              <input aria-label="Search states" value={stateQuery} onChange={(e) => setStateQuery(e.target.value)}
+                placeholder={businessState || 'Search states'} disabled={isLoading} autoFocus
+                className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-mute" />
+            </div>
+            <div role="radiogroup" aria-label="State" className="mt-2.5 grid max-h-[300px] gap-2.5 overflow-y-auto p-0.5">
+              {states.map((st) => (
+                <BigOption key={st.code} selected={businessState === st.name} disabled={isLoading}
+                  onClick={() => setBusinessState(st.name)} title={st.name} sub={`GST state code ${st.code}`} />
+              ))}
+              {states.length === 0 && <Hint className="py-2">No state matches “{stateQuery}”.</Hint>}
+            </div>
+            <Hint className="mt-2.5">Your GSTIN starts with this code.</Hint>
 
-              {/* Picked by name, never typed as a number. The state decides
-                  CGST+SGST versus IGST and is the first two digits of a GSTIN,
-                  but no shopkeeper knows their own code — so we show the name
-                  and derive the code from it. */}
-              <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest ml-0.5 block mb-2">
-                  State <span className="text-ink-secondary normal-case font-medium tracking-normal">— sets CGST/SGST vs IGST on your bills</span>
-                </label>
-                <select
-                  value={businessState}
-                  onChange={(e) => setBusinessState(e.target.value)}
-                  className="w-full h-14 bg-black/40 border border-white/10 text-white px-5 rounded-xl outline-none focus:border-accent-signature/60 focus:ring-4 focus:ring-accent-signature/10 transition-all text-sm appearance-none"
-                  required
-                  disabled={isLoading}
-                >
-                  <option value="" disabled>Select your state</option>
-                  {INDIAN_STATES.map((st) => (
-                    <option key={st.code} value={st.name} className="bg-[#111]">{st.name}</option>
-                  ))}
-                </select>
-              </div>
+            {error && (
+              <AuthNote tone="rd" className="mb-0 mt-4">
+                <b>The shop was not created.</b> {error} Your answers are kept on this screen.
+              </AuthNote>
+            )}
 
-              {error && (
-                <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-[11px] font-semibold text-center">
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                className="w-full h-14 bg-accent-signature hover:bg-accent-signature-hover text-black font-black rounded-pill transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.99]"
-                disabled={isLoading || !businessName.trim() || !businessPhone.trim() || !businessAddress.trim() || !businessState}
-              >
-                {isLoading ? (
-                  <><Loader2 className="w-5 h-5 animate-spin" /> Creating your workspace…</>
-                ) : (
-                  <><span className="text-sm tracking-tight">Launch workspace</span><ArrowRight className="w-4 h-4" strokeWidth={2.5} /></>
-                )}
+            <StepNav left={backBtn} right={(
+              <button type="submit" className={navBtn('pri')} disabled={isLoading || !canCreate(form)}>
+                {isLoading && <Icon.spinner />}
+                {isLoading ? 'Creating your shop…' : error ? 'Try again' : 'Create my shop'}
               </button>
-
-              <p className="flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground font-medium">
-                <ShieldCheck size={12} className="text-accent-signature" />
-                Free for 60 days · no card · cancel anytime
-              </p>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Shown on both steps: a signup that stalls is a customer lost in
-          silence, and the person who can unstick them is one tap away. */}
-      <a
-        href={supportWhatsAppLink(`Hi ${SUPPORT_NAME}, I need help setting up my bookledger workspace.`)}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="relative z-10 mt-7 flex items-center gap-2 text-[11px] font-semibold text-muted-foreground hover:text-white transition-colors"
-      >
-        <MessageCircle size={13} className="text-accent-signature" />
-        Need a hand? WhatsApp {SUPPORT_NAME} on {SUPPORT_WHATSAPP_DISPLAY}
-      </a>
-    </div>
+            )} />
+            {isLoading && (
+              <Hint className="mt-2 text-right" role="status">
+                Setting up {businessName.trim()} on the {activePlan?.label} trial. This takes a few seconds.
+              </Hint>
+            )}
+          </>
+        )}
+      </form>
+    </SetupFrame>
   );
 };
 

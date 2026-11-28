@@ -1,1052 +1,383 @@
-import React, { useState, useMemo, useEffect} from 'react';
-import Button from '../shared/Button';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Plus, Search, Download, X, Pencil, Trash2, ChevronLeft, ChevronRight, ChevronDown, ReceiptText } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
-import { describeRecurring, recurringTemplateFor, scheduleLine, paymentLabel, WEEKDAYS } from '../lib/recurring';
 import { useFinance } from '../hooks/useFinance';
 import { useInventory } from '../hooks/useInventory';
-import { useAccounts, accountForMethod } from '../hooks/useAccounts';
+import { todayISOInAppTZ, cn } from '../lib/utils';
+import { paymentLabel } from '../lib/recurring';
 import {
-  Plus, Search, Calendar, FileText, X, Save, TrendingDown,
-  DollarSign, Briefcase, Layers, Receipt, Download, Wallet
-} from 'lucide-react';
-import { todayISOInAppTZ, formatCurrency } from '../lib/utils';
-import { EmptyState } from '../components/ui/States';
+  PERIODS, periodWindow, filterExpenses, summarize, categoryTotals, pageOf, windowWords, expenseDay, dayMonth,
+  monthToDateComparison, lastSixMonths, shortAmount, csvRows, toCsv, amountOf,
+} from '../lib/expenseList';
+import { expenseRowActions } from '../lib/expenseRowActions';
+import { Tabs } from '../components/ui/Tabs';
+import { FigureStrip, Figure } from '../components/ui/FigureStrip';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { RowMenu, MenuItem, MenuRule } from '../components/ui/RowMenu';
+import SegmentedTabs from '../components/motion/SegmentedTabs';
+import HoldButton from '../components/motion/HoldButton';
+import WriteFailure from '../components/invoices/WriteFailure';
+import ExpenseForm, { formFromExpense } from '../components/expenses/ExpenseForm';
+import ExpenseDetail from '../components/expenses/ExpenseDetail';
+import RepeatingTab from '../components/expenses/RepeatingTab';
+import { CategoryChip, Pill, rowTags, rupees, rupeesPaise } from '../components/expenses/parts';
 
-// Category → dot + pill colour. Shared by the table rows and the mobile
-// cards so both stay visually consistent.
-const catStyleOf = (category) => {
-  const c = (category || '').toLowerCase();
-  if (c === 'petrol') return { dot: 'bg-orange-400', pill: 'bg-orange-50 text-orange-600' };
-  if (c === 'food') return { dot: 'bg-red-400', pill: 'bg-red-50 text-red-600' };
-  if (c === 'salary') return { dot: 'bg-emerald-400', pill: 'bg-emerald-50 text-emerald-600' };
-  if (c === 'rent') return { dot: 'bg-blue-400', pill: 'bg-blue-50 text-blue-600' };
-  if (c === 'utility') return { dot: 'bg-accent-signature/70', pill: 'bg-accent-signature/10 text-accent-signature-hover' };
-  if (c === 'purchase') return { dot: 'bg-purple-400', pill: 'bg-purple-50 text-purple-600' };
-  if (c === 'maintenance') return { dot: 'bg-teal-400', pill: 'bg-teal-50 text-teal-600' };
-  if (c.includes('credit')) return { dot: 'bg-fuchsia-400', pill: 'bg-fuchsia-50 text-fuchsia-600' };
-  if (c.includes('delivery')) return { dot: 'bg-sky-400', pill: 'bg-sky-50 text-sky-600' };
-  return { dot: 'bg-gray-300', pill: 'bg-muted text-muted-foreground' };
-};
+const PAGE_SIZE = 50;
+const SORT_WORDS = { 'date:desc': 'newest first', 'date:asc': 'oldest first', 'amount:desc': 'biggest first', 'amount:asc': 'smallest first' };
 
-const fmtDate = (raw) => {
-  if (!raw) return '—';
-  const [y, m, d] = (raw.split('T')[0]).split('-');
-  return new Date(+y, +m - 1, +d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
-};
-
-// Plain-English captions for the active range. The list header used to print a
-// shell command ("$ expenses --today"), which read as a developer tool on the
-// screen shop staff use to log fuel and rent.
-const RANGE_LABEL = {
-  all: 'All expenses', today: "Today's expenses", prev: "Yesterday's expenses",
-  week: 'This week', month: 'This month', lastmonth: 'Last month', range: 'Selected range',
-};
-
+/**
+ * Expenses (web redesign, approved mockups expenses-01 to 09).
+ *
+ * Every figure is a plain sum of the expenses' amounts over the rows shown
+ * (lib/expenseList). Saves go through useFinance as before; the database
+ * posts each expense to Cash & Bank. What a row allows (edit, delete) is
+ * decided in one place: lib/expenseRowActions.
+ */
 const Expenses = () => {
+  const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
   const { inventoryLocations } = useInventory(currentTenantId);
-  const { accounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
-  const posStores = (inventoryLocations || []).filter(l => (l.type || 'WAREHOUSE') !== 'VEHICLE' && !l.deleted_at);
+  const posStores = (inventoryLocations || []).filter((l) => (l.type || 'WAREHOUSE') !== 'VEHICLE' && !l.deleted_at);
   const {
-    expenses, addExpense, updateExpense, deleteExpense,
+    expenses, addExpense, updateExpense, deleteExpense, refetch,
     expenseCategories, loading,
     recurringTemplates, addRecurringTemplate, setRecurringActive, deleteRecurringTemplate,
     addExpenseCategory,
   } = useFinance(currentTenantId);
-  const [newCategory, setNewCategory] = useState('');
-  
-  const isViewOnly = false; // Placeholder for legacy view mode
- 
- const [searchTerm, setSearchTerm] = useState('');
- const [filterType, setFilterType] = useState('today'); // all|today|yesterday|week|month|lastmonth|range
- const [filterDate, setFilterDate] = useState('');
- const [rangeFrom, setRangeFrom] = useState('');
- const [rangeTo, setRangeTo] = useState('');
+  const sym = businessProfile?.currencySymbol || '₹';
+  const canAdd = hasPermission('ADD_EXPENSE');
 
- // Resolve the active filter into an inclusive [from,to] YYYY-MM-DD window.
- // null on either side = unbounded. 'all' = fully unbounded.
- const dateWindow = useMemo(() => {
-   // Anchor "today" on the app timezone (IST) so it lines up with the
-   // YYYY-MM-DD dates persisted via todayISOInAppTZ(), regardless of the
-   // viewer's machine timezone. Build the reference Date from that wall-clock.
-   const today = todayISOInAppTZ();
-   const [ty, tm, td] = today.split('-').map(Number);
-   const d = new Date(ty, tm - 1, td); // local midnight of app-TZ today
-   const ymd = (x) => {
-     const y = x.getFullYear(), m = String(x.getMonth()+1).padStart(2,'0'), dd = String(x.getDate()).padStart(2,'0');
-     return `${y}-${m}-${dd}`;
-   };
-   if (filterType === 'today') return { from: today, to: today };
-   if (filterType === 'yesterday') { const y = new Date(d); y.setDate(d.getDate()-1); return { from: ymd(y), to: ymd(y) }; }
-   if (filterType === 'week') { const s = new Date(d); const dow = (s.getDay()+6)%7; s.setDate(d.getDate()-dow); return { from: ymd(s), to: today }; }
-   if (filterType === 'month') { const s = new Date(d.getFullYear(), d.getMonth(), 1); return { from: ymd(s), to: today }; }
-   if (filterType === 'lastmonth') { const s = new Date(d.getFullYear(), d.getMonth()-1, 1); const e = new Date(d.getFullYear(), d.getMonth(), 0); return { from: ymd(s), to: ymd(e) }; }
-   if (filterType === 'range') return { from: rangeFrom || null, to: rangeTo || null };
-   return { from: null, to: null };
- }, [filterType, rangeFrom, rangeTo]);
+  const [tab, setTab] = useState('EXPENSES');
+  const [query, setQuery] = useState('');
+  const [period, setPeriod] = useState('today');
+  const [range, setRange] = useState({ from: '', to: '' });
+  const [category, setCategory] = useState('ALL');
+  const [sortKey, setSortKey] = useState('date');
+  const [sortDir, setSortDir] = useState('desc');
+  const [paging, setPaging] = useState({ sig: '', page: 0 });
+  const [openId, setOpenId] = useState(null);
+  const [form, setForm] = useState(null);        // null | { editing, initial }
+  const [rowFailure, setRowFailure] = useState(null);
 
- const inWindow = (dateStr) => {
-   if (!dateStr) return false;
-   const d = dateStr.split('T')[0];
-   if (dateWindow.from && d < dateWindow.from) return false;
-   if (dateWindow.to && d > dateWindow.to) return false;
-   return true;
- };
- const [categoryFilter, setCategoryFilter] = useState('ALL');
- const [sortKey, setSortKey] = useState('date');   // 'date' | 'amount' | 'category'
- const [sortDir, setSortDir] = useState('desc');   // 'asc' | 'desc'
- const [visibleCount, setVisibleCount] = useState(50); // pagination window
+  const openNew = useCallback(() => setForm({ editing: null, initial: null }), []);
+  const openEdit = (e) => { setOpenId(null); setForm({ editing: e, initial: formFromExpense(e) }); };
 
- const toggleSort = (key) => {
-   if (sortKey === key) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); }
-   else { setSortKey(key); setSortDir(key === 'amount' ? 'desc' : 'desc'); }
- };
- const [repeatHint, setRepeatHint] = useState('');
- const [isAdding, setIsAdding] = useState(false);
- const [editingExpense, setEditingExpense] = useState(null);
- const [saving, setSaving] = useState(false);
- const [formError, setFormError] = useState('');
- const [formData, setFormData] = useState({
-   note: '',
-   amount: '',
-   category: 'Other',
-   date: todayISOInAppTZ(),
-   payment_method: 'CASH',
-   repeat: 'NONE', weekdays: [1, 2, 3, 4, 5, 6, 7],
-   gst_claimable: false,
-   gst_rate: '18',
-   vendor_gstin: '',
-   location_id: '',
-   // Owner drawing / loan repayment / capital — real cash out, but NOT an
-   // operating expense, so excluded from profit (still hits Cash & Bank).
-   exclude_from_pl: false,
- });
- // Expense is paid from the account matching its payment method.
- const payAcc = accountForMethod(accounts, formData.payment_method);
+  // The Dashboard's "Record expense" lands here as ?new=1: open the new-expense
+  // form, then drop the param so a refresh does not open it again.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return;
+    if (hasPermission('ADD_EXPENSE')) openNew();
+    const next = new URLSearchParams(searchParams);
+    next.delete('new');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams, hasPermission, openNew]);
 
+  const today = todayISOInAppTZ();
+  const win = useMemo(() => periodWindow(period, today, range), [period, today, range]);
+  const filters = useMemo(() => ({ query, category }), [query, category]);
+  const rows = useMemo(() => filterExpenses(expenses, { win, query, category, sortKey, sortDir }), [expenses, win, query, category, sortKey, sortDir]);
+  // The Category list: every category in the period, whatever is picked.
+  const periodCats = useMemo(() => categoryTotals(filterExpenses(expenses, { win, query: '', category: 'ALL' })), [expenses, win]);
+  const sum = useMemo(() => summarize(rows), [rows]);
+  const cats = useMemo(() => categoryTotals(rows), [rows]);
+  const cmp = useMemo(() => (period === 'month' ? monthToDateComparison(expenses, today, filters) : null), [period, expenses, today, filters]);
+  const months = useMemo(() => lastSixMonths(expenses, today, filters), [expenses, today, filters]);
+  // Any change of period, filter or sort goes back to the first page.
+  const sig = JSON.stringify([win, query, category, sortKey, sortDir]);
+  const page = paging.sig === sig ? paging.page : 0;
+  const setPage = (fn) => setPaging({ sig, page: fn(page) });
+  const pg = pageOf(rows, page, PAGE_SIZE);
 
- // Component-scope so both filteredExpenses and categoryBreakdown can use it.
- // Returns the expense's wall-clock YYYY-MM-DD. Plain date strings are used
- // as-is (no TZ shift); timestamps are resolved in the app timezone so the
- // window comparison matches the dates persisted via todayISOInAppTZ().
- const getLocalDate = (date) => {
- if (!date) return '';
- // Already a wall-clock date (optionally with time): take the date part.
- if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(date)) return date.slice(0, 10);
- try {
- const d = new Date(date);
- if (isNaN(d.getTime())) return '';
- // 'en-CA' formats as YYYY-MM-DD; do it in the app TZ to avoid day drift.
- return new Intl.DateTimeFormat('en-CA', {
-   timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
- }).format(d);
-} catch (e) { return '';}
-};
+  const toggleSort = (key) => {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortKey(key); setSortDir('desc'); }
+  };
 
- const filteredExpenses = useMemo(() => {
- if (!Array.isArray(expenses)) return [];
+  const exportCSV = () => {
+    const csv = toCsv(csvRows(rows));
+    if (!csv) return;
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = `expenses-${today}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  };
 
- const q = searchTerm.toLowerCase();
- return expenses
- .filter(e => {
- if (!e) return false;
- // Search note + category (was searching e.title, which doesn't exist).
- const matchesSearch = (e.note || '').toLowerCase().includes(q) ||
- (e.category || '').toLowerCase().includes(q);
+  const removeExpense = async (e) => {
+    setRowFailure(null);
+    let res;
+    try { res = await deleteExpense(e.id); } catch (err) { res = { error: err }; }
+    return res;
+  };
+  const removeFromRow = async (e) => {
+    const res = await removeExpense(e);
+    if (res?.error) { console.error('[expenses] delete failed', res.error); setRowFailure(res.error); }
+  };
 
- const expenseDate = getLocalDate(e.date);
- const matchesDate = (() => {
-   if (dateWindow.from && expenseDate < dateWindow.from) return false;
-   if (dateWindow.to && expenseDate > dateWindow.to) return false;
-   return true;
- })();
+  const storeName = (id) => (id ? (inventoryLocations || []).find((l) => l.id === id)?.name || 'A removed store' : null);
+  const opened = openId ? (expenses || []).find((e) => e.id === openId) || null : null;
+  const periodLabel = period === 'range' ? 'Selected range' : PERIODS.find((p) => p.key === period)?.label || 'All';
+  const empty = !loading && rows.length === 0;
 
- const matchesCategory = categoryFilter === 'ALL' || (e.category || 'Other') === categoryFilter;
+  const pickMonth = (m) => {
+    const last = months[months.length - 2];
+    if (m.current) { setPeriod('month'); return; }
+    if (m.ym === last?.ym) { setPeriod('lastmonth'); return; }
+    setRange({ from: m.from, to: m.to }); setPeriod('range');
+  };
 
- return matchesSearch && matchesDate && matchesCategory;
-})
- .sort((a, b) => {
-   const dir = sortDir === 'asc' ? 1 : -1;
-   if (sortKey === 'amount') return ((parseFloat(a.amount) || 0) - (parseFloat(b.amount) || 0)) * dir;
-   if (sortKey === 'category') return ((a.category || '').localeCompare(b.category || '')) * dir;
-   // date (string compare on YYYY-MM-DD is chronologically correct)
-   const ad = (a.date || ''); const bd = (b.date || '');
-   return (ad < bd ? -1 : ad > bd ? 1 : 0) * dir;
- });
-}, [expenses, searchTerm, dateWindow, categoryFilter, sortKey, sortDir]);
+  const sortMark = (key) => (
+    <span aria-hidden="true" className={cn('ml-[3px]', sortKey === key ? 'text-amber' : 'text-faint')}>
+      {sortKey === key ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
+    </span>
+  );
 
- // Per-category totals over the date-windowed set (ignores category
- // filter so the chips always show every category's count + spend).
- const categoryBreakdown = useMemo(() => {
-   const map = {};
-   expenses.filter(e => {
-     if (!e) return false;
-     const d = getLocalDate(e.date);
-     if (dateWindow.from && d < dateWindow.from) return false;
-     if (dateWindow.to && d > dateWindow.to) return false;
-     return true;
-   }).forEach(e => {
-     const c = e.category || 'Other';
-     if (!map[c]) map[c] = { count: 0, total: 0 };
-     map[c].count += 1; map[c].total += parseFloat(e.amount) || 0;
-   });
-   return map;
- }, [expenses, dateWindow]);
+  const renderRow = (e) => {
+    const acts = expenseRowActions(e, hasPermission);
+    const itc = e.vendor_gstin ? (parseFloat(e.gst_amount) || 0) : 0;
+    return (
+      <TableRow key={e.id} onClick={() => setOpenId(e.id)} data-state={openId === e.id ? 'selected' : undefined} className="cursor-pointer">
+        <TableCell className="w-[74px] whitespace-nowrap text-ink-2">{dayMonth(expenseDay(e.date))}</TableCell>
+        <TableCell className="max-w-0 w-full">
+          <span className="flex flex-wrap items-center gap-1.5 font-tight text-[14px] font-semibold text-ink">
+            <span className="min-w-0 truncate">{e.note || '—'}</span>
+            {rowTags(e).map((t) => <Pill key={t} small>{t}</Pill>)}
+          </span>
+          <small className="text-[12px] text-mute">{paymentLabel(e.payment_method)}</small>
+        </TableCell>
+        <TableCell><CategoryChip category={e.category} /></TableCell>
+        <TableCell numeric className="whitespace-nowrap">
+          {rupees(amountOf(e), sym)}
+          {itc > 0 && <span className="mt-px block font-tight text-[12px] font-medium text-good-text">ITC {rupeesPaise(itc, sym)}</span>}
+        </TableCell>
+        <TableCell numeric className="w-9" onClick={(ev) => ev.stopPropagation()}>
+          {(acts.canEdit || acts.canDelete) && (
+            <RowMenu label={`Actions for ${e.note || 'expense'}`} width={210}>
+              {(close) => (
+                <>
+                  {acts.canEdit && <MenuItem icon={Pencil} onClick={() => { close(); openEdit(e); }}>Edit expense</MenuItem>}
+                  {acts.canEdit && acts.canDelete && <MenuRule />}
+                  {acts.canDelete && (
+                    <HoldButton onConfirm={() => { close(); removeFromRow(e); }} title="Hold 1.5s to delete this expense"
+                      className="w-full rounded-pill px-3 py-2 text-left font-tight text-[13px] font-semibold text-bad-text hover:bg-bad-soft">
+                      <Trash2 size={15} /> Hold to delete
+                    </HoldButton>
+                  )}
+                </>
+              )}
+            </RowMenu>
+          )}
+        </TableCell>
+      </TableRow>
+    );
+  };
 
- // CSV export of the currently filtered + sorted rows.
- const exportCSV = () => {
-   const rows = filteredExpenses.map(e => ({
-     Date: (e.date || '').split('T')[0],
-     Description: e.note || '',
-     Category: e.category || 'Other',
-     PaidVia: e.payment_method || 'CASH',
-     Amount: parseFloat(e.amount) || 0,
-     GST_Rate: e.gst_rate ?? '',
-     ITC_Amount: parseFloat(e.gst_amount) || 0,
-     Vendor_GSTIN: e.vendor_gstin || '',
-   }));
-   if (!rows.length) return;
-   const headers = Object.keys(rows[0]);
-   const csv = [headers.join(','),
-     ...rows.map(r => headers.map(h => {
-       const v = String(r[h] ?? '');
-       return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
-     }).join(','))].join('\n');
-   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-   const url = URL.createObjectURL(blob);
-   const a = document.createElement('a');
-   a.href = url; a.download = `expenses-${new Date().toISOString().slice(0,10)}.csv`;
-   a.click(); URL.revokeObjectURL(url);
- };
+  const zero = (v) => (sum.entries === 0 ? <span className="text-faint">{v}</span> : v);
+  const cmpLine = cmp && cmp.dir !== null ? (
+    <span className={cn('font-tight text-[12px] font-semibold', cmp.dir > 0 ? 'text-amber-text' : cmp.dir < 0 ? 'text-good-text' : 'text-body')}>
+      {cmp.dir > 0 ? '▲' : cmp.dir < 0 ? '▼' : ''} {rupees(Math.abs(cmp.diff), sym)} ({Math.round(Math.abs(cmp.pct))}%) vs last month
+    </span>
+  ) : null;
+  const spentSub = cmp
+    ? (cmp.before > 0 ? `${cmp.nowSpan} · ${cmp.beforeSpan} was ${rupees(cmp.before, sym)}` : `${cmp.nowSpan} · nothing spent ${cmp.beforeSpan}`)
+    : windowWords(win);
+  const maxMonth = Math.max(0, ...months.map((m) => m.total));
 
- // Reset the pagination window whenever the result set changes.
- useEffect(() => { setVisibleCount(50); }, [searchTerm, dateWindow, categoryFilter, sortKey, sortDir]);
- const pagedExpenses = useMemo(() => filteredExpenses.slice(0, visibleCount), [filteredExpenses, visibleCount]);
+  return (
+    <div className="flex flex-col pb-16">
+      <Tabs className="m-rise mb-[18px]" ariaLabel="Expenses" value={tab} onChange={setTab}
+        items={[
+          { key: 'EXPENSES', label: 'Expenses', count: rows.length },
+          { key: 'REPEATING', label: 'Repeating', count: (recurringTemplates || []).length },
+        ]} />
 
- const totalExpenses = useMemo(() => {
- return filteredExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
-}, [filteredExpenses]);
+      {tab === 'REPEATING' && (
+        <RepeatingTab templates={recurringTemplates || []} sym={sym} canAdd={canAdd} onNew={openNew}
+          setRecurringActive={setRecurringActive} deleteRecurringTemplate={deleteRecurringTemplate} onReread={refetch} />
+      )}
 
- // Claimable input tax credit over the filtered set (only rows with a
- // vendor GSTIN count as valid ITC).
- const totalITC = useMemo(() =>
-   filteredExpenses.reduce((s, e) => s + (e.vendor_gstin ? (parseFloat(e.gst_amount) || 0) : 0), 0),
- [filteredExpenses]);
+      {tab === 'EXPENSES' && (
+        <>
+          <FigureStrip cols={4} className="m-rise mb-5" style={{ '--i': 1 }}>
+            <Figure label="Spent" value={zero(rupees(sum.spent, sym))} sub={cmpLine || spentSub} cap={cmpLine ? spentSub : undefined} />
+            <Figure label="Entries" value={zero(sum.entries.toLocaleString('en-IN'))} sub="in this period" />
+            <Figure label="Avg per entry" value={zero(rupees(sum.avg, sym))} sub="spent ÷ entries" />
+            <Figure label="GST to claim (ITC)" value={sum.itc > 0 ? <span className="text-good-text">{rupees(sum.itc, sym)}</span> : zero(rupees(0, sym))}
+              sub="bills with a vendor GSTIN" />
+          </FigureStrip>
 
- const dailyAvg = useMemo(() => {
- if (filteredExpenses.length === 0) return 0;
- const total = filteredExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
- return total / 30; // Approximation for month or context
-}, [filteredExpenses]);
+          <div className="m-rise mb-3 flex flex-wrap items-center gap-2.5" style={{ '--i': 2 }}>
+            <div className="max-w-full overflow-x-auto no-scrollbar">
+              <SegmentedTabs items={PERIODS} value={period} onChange={setPeriod}
+                trackClass="bg-well" indicatorClass="bg-ink" activeClass="text-white"
+                className="[&_button]:font-tight [&_button]:text-[12.5px] [&_button]:font-semibold [&_button]:px-[13px] [&_button]:h-[30px] [&_button:not([aria-selected=true])]:text-body" />
+            </div>
+            <div className="flex-1" />
+            <Button variant="secondary" size="sm" onClick={exportCSV} disabled={!rows.length} title="Export CSV"><Download /> Export</Button>
+            {canAdd && <Button size="sm" onClick={openNew}><Plus /> New expense</Button>}
+          </div>
 
- // Average per entry (for the insight rail).
- const avgEntry = useMemo(() =>
-   filteredExpenses.length ? totalExpenses / filteredExpenses.length : 0,
- [filteredExpenses, totalExpenses]);
+          <div className="m-rise mb-3 flex flex-wrap items-center gap-2.5" style={{ '--i': 3 }}>
+            <div className="relative w-full sm:w-[280px]">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-mute" size={16} />
+              <input type="text" aria-label="Search note or category" placeholder="Search note or category" value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="h-9 w-full rounded-pill bg-well pl-10 pr-4 text-[13px] text-ink outline-none placeholder:text-mute transition-shadow duration-(--dur-press) focus:shadow-[inset_0_0_0_2px_var(--color-ink)]" />
+            </div>
+            <label className="relative inline-flex h-9 items-center gap-1.5 rounded-pill pl-3.5 pr-8 font-tight text-[13px] font-semibold text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)]">
+              <em className="not-italic font-medium text-mute">Category</em>
+              <select value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Category"
+                className="appearance-none bg-transparent outline-none [field-sizing:content]">
+                <option value="ALL">All</option>
+                {periodCats.map(([c]) => <option key={c} value={c}>{c}</option>)}
+                {category !== 'ALL' && !periodCats.some(([c]) => c === category) && <option value={category}>{category}</option>}
+              </select>
+              <ChevronDown size={14} className="pointer-events-none absolute right-3 text-mute" />
+            </label>
+            <div className="flex-1" />
+            {period === 'range' ? (
+              <div className="flex items-center gap-1.5 text-[12.5px] text-mute">
+                <Input type="date" aria-label="From" value={range.from} onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))} className="h-[34px] w-auto text-[13px]" />
+                to
+                <Input type="date" aria-label="To" value={range.to} onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))} className="h-[34px] w-auto text-[13px]" />
+                {(range.from || range.to) && (
+                  <Button variant="secondary" size="icon-sm" aria-label="Clear dates" onClick={() => setRange({ from: '', to: '' })} className="h-7 w-7"><X /></Button>
+                )}
+              </div>
+            ) : (
+              <span className="text-[12.5px] text-mute tabular-nums">{windowWords(win, { year: true })}</span>
+            )}
+          </div>
 
- // Category rollup over the *filtered* set, sorted high→low, for the
- // "Where it went" bars in the insight rail.
- const railCats = useMemo(() => {
-   const map = {};
-   filteredExpenses.forEach(e => {
-     const c = e.category || 'Other';
-     map[c] = (map[c] || 0) + (parseFloat(e.amount) || 0);
-   });
-   return Object.entries(map).sort((a, b) => b[1] - a[1]);
- }, [filteredExpenses]);
- const railMax = railCats.length ? railCats[0][1] : 0;
+          {rowFailure && (
+            <div className="mb-3 flex items-start gap-2">
+              <WriteFailure error={rowFailure} noun="delete" onReread={() => { setRowFailure(null); refetch?.(); }} className="flex-1" />
+              <Button variant="secondary" size="icon-sm" aria-label="Dismiss" onClick={() => setRowFailure(null)}><X /></Button>
+            </div>
+          )}
 
- const getFilterLabel = () => {
- if (filterType === 'today') return"Today's Expenses";
- if (filterType === 'yesterday') return"Yesterday's Expenses";
- if (filterType === 'custom' && filterDate) {
-   const [y, m, d] = filterDate.split('-');
-   return `Expenses for ${new Date(+y, +m - 1, +d).toLocaleDateString()}`;
- }
- return"Total Expenses";
-};
+          {empty ? (
+            <div className="m-rise rounded-[14px] border border-dashed border-[#E2E2E0] px-5 pt-14 pb-[60px] text-center" style={{ '--i': 4 }}>
+              <div className="mx-auto mb-3.5 grid h-[52px] w-[52px] place-items-center rounded-2xl bg-tile text-body"><ReceiptText size={24} strokeWidth={1.7} /></div>
+              <h3 className="font-tight text-[17px] font-semibold">No expenses found</h3>
+              <p className="mt-1 mb-4 text-[13.5px] text-body">
+                {period === 'all' && !query && category === 'ALL' ? 'Log your first business expense to start tracking spend.' : 'No expenses in this period. Try a wider range or clear filters.'}
+              </p>
+              {canAdd && <Button onClick={openNew}>Log expense</Button>}
+            </div>
+          ) : (
+            <div className="grid items-start gap-[22px] lg:grid-cols-[minmax(0,1fr)_268px]">
+              <div className="m-rise min-w-0" style={{ '--i': 4 }}>
+                <Table>
+                  <TableHeader>
+                    <tr>
+                      <TableHead className="w-[74px]" aria-sort={sortKey === 'date' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                        <button type="button" onClick={() => toggleSort('date')} className="font-semibold hover:text-ink">Date{sortMark('date')}</button>
+                      </TableHead>
+                      <TableHead>Expense</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead numeric aria-sort={sortKey === 'amount' ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+                        <button type="button" onClick={() => toggleSort('amount')} className="font-semibold hover:text-ink">Amount{sortMark('amount')}</button>
+                      </TableHead>
+                      <TableHead className="w-9"><span className="sr-only">Actions</span></TableHead>
+                    </tr>
+                  </TableHeader>
+                  <TableBody>
+                    {loading && rows.length === 0 ? (
+                      <tr><td colSpan={5} className="px-4 py-12 text-center text-[13px] text-mute">Loading expenses…</td></tr>
+                    ) : pg.rows.map(renderRow)}
+                  </TableBody>
+                </Table>
+                {pg.total > 0 && (
+                  <div className="flex items-center justify-between gap-3 px-1 pt-3.5 text-[13px] text-body">
+                    <span>{pg.shown.toLocaleString('en-IN')} of {pg.total.toLocaleString('en-IN')} shown · {SORT_WORDS[`${sortKey}:${sortDir}`]}</span>
+                    {pg.pages > 1 && (
+                      <div className="flex gap-1.5">
+                        <Button variant="secondary" size="icon-sm" aria-label="Previous page" disabled={!pg.hasPrev} onClick={() => setPage((p) => p - 1)}><ChevronLeft /></Button>
+                        <Button variant="secondary" size="icon-sm" aria-label="Next page" disabled={!pg.hasNext} onClick={() => setPage((p) => p + 1)}><ChevronRight /></Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
- const handleSubmit = async (e) => {
- e.preventDefault();
- setFormError('');
+              <aside className="m-rise flex flex-col gap-4" style={{ '--i': 5 }}>
+                <div className="rounded-[14px] border border-line bg-surface px-[18px] py-4">
+                  <div className="mb-1.5 flex items-baseline gap-2">
+                    <h3 className="font-tight text-[14.5px] font-semibold">Last 6 months</h3>
+                    <span className="ml-auto text-[12.5px] text-mute">Spent each month</span>
+                  </div>
+                  <div className="mt-3 grid h-[118px] grid-cols-6 items-end gap-2.5" role="group"
+                    aria-label={`Spent per month: ${months.map((m) => `${m.label}${m.current ? ' so far' : ''} ${rupees(m.total, sym)}`).join(', ')}`}>
+                    {months.map((m) => {
+                      const on = win.from === m.from && win.to === m.to;
+                      const h = maxMonth > 0 ? Math.max(m.total > 0 ? 2 : 0, Math.round((m.total / maxMonth) * 90)) : 0;
+                      return (
+                        <button key={m.ym} type="button" onClick={() => pickMonth(m)}
+                          aria-label={`${m.long}${m.current ? ' so far' : ''}: ${rupees(m.total, sym)}. Show its expenses`}
+                          className="m-press group/bar flex h-full flex-col items-center justify-end gap-[5px]">
+                          <em className={cn('not-italic font-tight text-[10.5px] font-semibold tabular-nums', on ? 'text-ink' : 'text-mute')}>{shortAmount(m.total)}</em>
+                          <i className={cn('block w-full max-w-[30px] rounded-t-[6px] rounded-b-[2px]', on ? 'bg-ink-2' : 'bg-[#D9DBDE] group-hover/bar:bg-[#C9CCD0]')} style={{ height: `${h}%` }} />
+                          <span className={cn('font-tight text-[11px] font-semibold', on ? 'text-ink' : 'text-mute')}>{m.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-2 text-[12px] text-mute">{months[months.length - 1].long} is up to today. Click a month to show its expenses.</p>
+                </div>
 
- const amount = parseFloat(formData.amount);
- if (!amount || amount <= 0) {
-   setFormError('Amount must be greater than 0.');
-   return;
- }
- // Description is optional now — fall back to the category label so the
- // row is never noteless in the list.
- const note = (formData.note || '').trim() || formData.category;
+                {cats.length > 0 && (
+                  <div className="rounded-[14px] border border-line bg-surface px-[18px] py-4">
+                    <div className="mb-1.5 flex items-baseline gap-2">
+                      <h3 className="font-tight text-[14.5px] font-semibold">Where it went</h3>
+                      {category !== 'ALL'
+                        ? <button type="button" onClick={() => setCategory('ALL')} className="ml-auto font-tight text-[12.5px] font-semibold text-amber-text">Clear</button>
+                        : <span className="ml-auto text-[12.5px] text-mute">{periodLabel}</span>}
+                    </div>
+                    {cats.map(([c, v]) => {
+                      const on = category === c;
+                      return (
+                        <button key={c} type="button" data-card onClick={() => setCategory(on ? 'ALL' : c)} aria-pressed={on}
+                          className={cn('m-press -mx-2 block w-[calc(100%+16px)] rounded-[10px] px-2 pt-1.5 pb-[7px] text-left', on ? 'bg-amber-soft' : 'hover:bg-tile')}>
+                          <span className="flex items-baseline justify-between gap-2 text-[13px] text-ink-2">
+                            <span className={cn('truncate', on && 'font-semibold text-amber-text')}>{c}</span>
+                            <span className="font-semibold tabular-nums text-ink">{rupees(v, sym)}</span>
+                          </span>
+                          <span className="my-[6px] mb-[3px] block h-1.5 overflow-hidden rounded-pill bg-well">
+                            <i className="block h-full rounded-pill bg-bad opacity-80" style={{ width: `${cats[0][1] ? Math.max(Math.round((v / cats[0][1]) * 100), 3) : 0}%` }} />
+                          </span>
+                          <small className="text-[11.5px] tabular-nums text-mute">{sum.spent ? Math.round((v / sum.spent) * 100) : 0}% of spending</small>
+                        </button>
+                      );
+                    })}
+                    <p className="mt-2 text-[12px] text-mute">Click a category to show only its expenses.</p>
+                  </div>
+                )}
+              </aside>
+            </div>
+          )}
+        </>
+      )}
 
- // GST/ITC: when claimable, back the tax component out of the (inclusive)
- // amount: gst = amount − amount/(1 + rate/100). Stored as the ITC value.
- let gst_rate = null, gst_amount = 0, vendor_gstin = null;
- if (formData.gst_claimable) {
-   const r = parseFloat(formData.gst_rate) || 0;
-   gst_rate = r;
-   gst_amount = r > 0 ? +(amount - amount / (1 + r / 100)).toFixed(2) : 0;
-   vendor_gstin = (formData.vendor_gstin || '').trim().toUpperCase() || null;
- }
- const expenseData = { ...formData, note, amount, gst_rate, gst_amount, vendor_gstin, location_id: formData.location_id || null };
+      <ExpenseDetail key={openId || 'none'} expense={opened} actions={expenseRowActions(opened, hasPermission)} sym={sym}
+        storeName={opened ? storeName(opened.location_id) : null}
+        onClose={() => setOpenId(null)} onEdit={openEdit} onDelete={removeExpense}
+        onReread={() => { refetch?.(); setOpenId(null); }}
+        onOpenRepeating={() => { setOpenId(null); setTab('REPEATING'); }}
+        onOpenPayroll={() => navigate('/payroll')} />
 
- setSaving(true);
- const { error } = editingExpense
-   ? await updateExpense({ ...expenseData, id: editingExpense.id })
-   : await addExpense(expenseData);
-
- // When Repeat is on for a NEW expense, also create a recurring template.
- // The expense just logged covers its own date; the nightly job (pg_cron,
- // generate_due_recurring_expenses) carries on from the day after.
- if (!error && !editingExpense && formData.repeat !== 'NONE') {
-   const { error: tplErr } = await addRecurringTemplate({
-     note: note, amount, category: formData.category, payment_method: formData.payment_method,
-     // Carried onto every logged copy: store, P&L flag and GST.
-     location_id: expenseData.location_id, exclude_from_pl: !!formData.exclude_from_pl,
-     gst_rate, gst_amount, vendor_gstin,
-     ...recurringTemplateFor({ frequency: formData.repeat, weekdays: formData.weekdays, date: formData.date, today: todayISOInAppTZ() }),
-   });
-   if (tplErr) {
-     setSaving(false);
-     console.error('[expenses] recurring setup failed', tplErr);
-     setFormError('Expense saved, but the repeat could not be set up: ' + (tplErr.message || 'unknown error'));
-     return;
-   }
- }
- setSaving(false);
-
- if (error) {
-   setFormError(error.message || 'Failed to save expense. Please try again.');
-   return;
- }
-
- // Money out → the DB trigger trg_expenses_post_ledger posts the OUT entry
- // server-side (idempotent per expense id, syncs on edit/delete too), so
- // web, desktop and mobile expenses all hit Cash & Bank identically.
- // Client-side posting removed — doing both double-counted.
-
- setIsAdding(false);
- setEditingExpense(null);
- setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH', repeat: 'NONE', weekdays: [1, 2, 3, 4, 5, 6, 7], gst_claimable: false, gst_rate: '18', vendor_gstin: '', location_id: '', exclude_from_pl: false });
-};
-
- const handleEdit = (expense) => {
-   if (!expense) return;
-   setEditingExpense(expense);
-   setFormData({
-     note: expense.note || '',
-     amount: (expense.amount || 0).toString(),
-     category: expense.category || 'Other',
-     date: expense.date ? expense.date.split('T')[0] : todayISOInAppTZ(),
-     payment_method: expense.payment_method || 'CASH',
-     repeat: 'NONE', weekdays: [1, 2, 3, 4, 5, 6, 7], // editing an existing one-off never re-arms recurring
-     gst_claimable: !!expense.vendor_gstin || Number(expense.gst_amount) > 0,
-     gst_rate: expense.gst_rate ? String(expense.gst_rate) : '18',
-     vendor_gstin: expense.vendor_gstin || '',
-     location_id: expense.location_id || '',
-     exclude_from_pl: !!expense.exclude_from_pl,
-   });
-   setIsAdding(true);
- };
-
- const handleCloseModal = () => {
-   setIsAdding(false);
-   setEditingExpense(null);
-   setFormError('');
-   setSaving(false);
-   setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH', repeat: 'NONE', weekdays: [1, 2, 3, 4, 5, 6, 7], gst_claimable: false, gst_rate: '18', vendor_gstin: '', location_id: '', exclude_from_pl: false });
- };
-
- useEffect(() => {
- if (isAdding) {
- document.body.style.overflow = 'hidden';
-} else {
- document.body.style.overflow = 'unset';
-}
- return () => { document.body.style.overflow = 'unset';};
-}, [isAdding]);
-
- return (
- <>
- <div className="animate-fade-in flex flex-col gap-4 pb-12">
- {/* Header Section */}
- <div className="flex justify-between items-center py-2 border-b border-black/5">
- <div className="flex items-center gap-3">
- <h1 className="text-xl font-black font-sora text-ink-primary leading-none">Expenses<span className="text-accent-signature">.</span></h1>
- <span className="text-[10px] font-semibold text-muted-foreground hidden sm:block">Operating costs & expenditure</span>
- <span className="hidden md:flex items-center gap-1.5 text-[10px] font-bold text-accent-signature-hover bg-accent-signature/10 border border-accent-signature/25 px-2.5 py-1 rounded-lg tabular-nums">
-   {getFilterLabel()}: <span className="text-accent-signature-hover font-bold ml-0.5">{businessProfile?.currencySymbol || '₹'}{Math.round(totalExpenses).toLocaleString('en-IN')}</span>
- </span>
- </div>
- <div className="flex items-center gap-2">
- {hasPermission('ADD_EXPENSE') && (
- <Button variant="amber" size="sm" onClick={() => setIsAdding(true)} className="gap-2">
- <Plus size={14} strokeWidth={2.5} /> Add Expense
- </Button>
- )}
- </div>
- </div>
-
- {/* Filter + date toolbar — single panel (matches Design 5 sample). */}
- <div className="rounded-2xl border border-black/8 bg-white shadow-sm p-3.5 mb-5">
- <div className="flex items-center justify-between gap-3 flex-wrap">
-   {/* Search */}
-   <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/[0.03] border border-black/8 flex-1 min-w-[200px] max-w-xs focus-within:border-accent-signature/70 focus-within:ring-2 focus-within:ring-accent-signature/15 transition-all">
-     <Search size={14} className="text-accent-signature shrink-0" />
-     <input
-       type="text"
-       placeholder="Search…"
-       className="bg-transparent outline-none text-[12px] font-semibold flex-1 text-ink-primary placeholder:text-muted-foreground"
-       value={searchTerm}
-       onChange={e => setSearchTerm(e.target.value)}
-     />
-   </div>
-   {/* Period segmented */}
-   <div className="flex items-center gap-0.5 p-1 rounded-xl bg-black/[0.04] overflow-x-auto">
-     {[
-       { k: 'all', label: 'All' }, { k: 'today', label: 'Today' }, { k: 'yesterday', label: 'Prev' },
-       { k: 'week', label: 'Week' }, { k: 'month', label: 'Month' }, { k: 'lastmonth', label: 'Last Mo' },
-     ].map(({ k, label }) => (
-       <button key={k} onClick={() => setFilterType(k)}
-         className={`h-7 px-3 rounded-pill text-[11px] font-semibold whitespace-nowrap transition-colors ${filterType === k ? 'bg-accent-signature text-white' : 'text-ink-secondary hover:text-ink-primary'}`}>
-         {label}
-       </button>
-     ))}
-     <button onClick={() => setFilterType('range')}
-       className={`h-7 px-3 rounded-pill text-[11px] font-semibold whitespace-nowrap inline-flex items-center gap-1.5 transition-colors ${filterType === 'range' ? 'bg-accent-signature text-white' : 'text-ink-secondary hover:text-ink-primary'}`}>
-       <Calendar size={12} /> Range
-     </button>
-   </div>
-   {/* Date range display / inputs */}
-   {filterType === 'range' ? (
-     <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-black/[0.03] border border-black/8">
-       <input type="date" value={rangeFrom} onChange={e => setRangeFrom(e.target.value)}
-         className="bg-transparent text-[12px] font-semibold text-ink-primary tabular-nums outline-none" />
-       <span className="text-muted-foreground text-[12px]">–</span>
-       <input type="date" value={rangeTo} onChange={e => setRangeTo(e.target.value)}
-         className="bg-transparent text-[12px] font-semibold text-ink-primary tabular-nums outline-none" />
-       {(rangeFrom || rangeTo) && (
-         <button onClick={() => { setRangeFrom(''); setRangeTo(''); }} className="text-muted-foreground hover:text-red-500 ml-1"><X size={12} /></button>
-       )}
-     </div>
-   ) : (
-     <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/[0.03] border border-black/8">
-       <Calendar size={13} className="text-muted-foreground" />
-       <span className="text-[12px] font-semibold text-muted-foreground tabular-nums">
-         {dateWindow.from ? fmtDate(dateWindow.from) : 'All time'}{dateWindow.to && dateWindow.from !== dateWindow.to ? ` – ${fmtDate(dateWindow.to)}` : ''}
-       </span>
-     </div>
-   )}
- </div>
-
- {/* Category chips row inside the panel */}
- <div className="flex items-center gap-2 mt-3 pt-3 border-t border-black/[0.06] flex-wrap">
-   <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mr-1">Category</span>
-   <button onClick={() => setCategoryFilter('ALL')}
-     className={`h-7 px-3 rounded-pill text-[11px] font-semibold border transition-colors ${categoryFilter === 'ALL' ? 'bg-accent-signature text-white border-accent-signature' : 'bg-surface border-black/10 text-ink-secondary hover:border-black/25'}`}>
-     All
-   </button>
-   {Object.entries(categoryBreakdown)
-     .sort((a, b) => b[1].total - a[1].total)
-     .map(([cat, info]) => (
-     <button key={cat} onClick={() => setCategoryFilter(cat === categoryFilter ? 'ALL' : cat)}
-       className={`h-7 px-3 rounded-pill text-[11px] font-semibold border transition-colors inline-flex items-center gap-1.5 ${categoryFilter === cat ? 'bg-accent-signature text-white border-accent-signature' : 'bg-surface border-black/10 text-ink-secondary hover:border-black/25'}`}>
-       {cat}
-       <span className={` tabular-nums ${categoryFilter === cat ? 'text-white/70' : 'text-accent-signature/70'}`}>
-         {businessProfile?.currencySymbol || '₹'}{Math.round(info.total).toLocaleString('en-IN')}
-       </span>
-     </button>
-   ))}
-   {categoryFilter !== 'ALL' && (
-     <button onClick={() => setCategoryFilter('ALL')} className="ml-auto text-[11px] font-semibold text-muted-foreground hover:text-ink-primary">Clear</button>
-   )}
- </div>
- </div>
-
- {/* Expenses Table/Ledger + insight rail */}
- <div className="flex flex-col lg:flex-row items-start gap-5">
- <div className="glass-panel !p-0 !rounded-bento border border-black/5 shadow-premium overflow-hidden flex-1 min-w-0 w-full">
- <div className="bg-white border-b border-black/5 px-5 py-3 flex items-center justify-between">
- <span className="text-[11px] font-semibold text-foreground truncate">
-                    {RANGE_LABEL[filterType] || 'Expenses'}
-                    {categoryFilter !== 'ALL' ? ` · ${categoryFilter}` : ''}
-                  </span>
- <div className="flex items-center gap-3 shrink-0">
-   <span className="tabular-nums text-[10px] font-semibold text-muted-foreground">
-     {filteredExpenses.length} {filteredExpenses.length === 1 ? 'row' : 'rows'}
-   </span>
-   <button
-     onClick={exportCSV}
-     disabled={filteredExpenses.length === 0}
-     className="inline-flex items-center gap-1.5 h-7 px-3 rounded-pill border border-black/10 hover:bg-black/[0.04] hover:border-black/20 text-ink-secondary hover:text-ink-primary text-[10px] font-bold uppercase tracking-wide transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-   >
-     <Download size={13} /> Export
-   </button>
- </div>
- </div>
-
- {/* Recurring templates — daily or monthly auto-logs. Pause or remove.
-     The nightly job logs each one on its days. */}
- {recurringTemplates && recurringTemplates.length > 0 && (
-   <div className="mb-3 rounded-2xl border border-black/5 bg-white p-4">
-     <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">
-       Recurring · {recurringTemplates.length}
-     </div>
-     <div className="grid gap-2 sm:grid-cols-2" data-testid="recurring-list">
-       {recurringTemplates.map(t => (
-         <div key={t.id} data-testid="recurring-item"
-           className={`rounded-xl border px-3 py-2.5 text-xs ${t.active ? 'border-accent-signature/40 bg-accent-signature/5' : 'border-black/10 bg-muted'}`}>
-           <div className="flex items-baseline justify-between gap-3">
-             <span className={`font-bold truncate ${t.active ? 'text-ink-primary' : 'text-ink-secondary'}`}>{t.note || t.category}</span>
-             <span className="tabular-nums font-semibold text-ink-primary shrink-0">{formatCurrency(t.amount)}</span>
-           </div>
-           <div className="mt-1 flex items-center justify-between gap-2">
-             <span className="text-[12px] text-ink-secondary">
-               {t.active ? '' : 'Paused · '}{describeRecurring(t)} · {paymentLabel(t.payment_method)}
-             </span>
-             <span className="flex items-center gap-1 shrink-0">
-               <button type="button" onClick={() => setRecurringActive(t.id, !t.active)}
-                 className="h-7 px-2.5 rounded-pill text-[12px] font-semibold text-accent-text hover:bg-accent-signature/10">
-                 {t.active ? 'Pause' : 'Resume'}
-               </button>
-               <button type="button" aria-label={`Remove ${t.note || t.category}`}
-                 onClick={() => { if (window.confirm('Remove this recurring expense?')) deleteRecurringTemplate(t.id); }}
-                 className="w-7 h-7 rounded-xl grid place-items-center text-muted-foreground hover:text-red-500 hover:bg-red-50">✕</button>
-             </span>
-           </div>
-           {t.last_error && (
-             <p className="mt-1.5 text-[12px] font-semibold text-[color:var(--color-neg)]" title={t.last_error}>
-               Couldn’t log{t.last_error_at ? ` on ${new Date(t.last_error_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}: {t.last_error.slice(0, 120)}
-             </p>
-           )}
-         </div>
-       ))}
-     </div>
-   </div>
- )}
-
- {/* Desktop table — hidden on small screens (mobile cards below). */}
- <div className="hidden sm:block overflow-x-auto">
- <table className="w-full text-left border-collapse">
- <thead className="sticky top-0 z-10">
- <tr className="border-b border-black/10 bg-white">
- <th className="px-6 py-3 w-full tabular-nums text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Description</th>
- <th className="px-4 py-3 text-left whitespace-nowrap">
-   <button onClick={() => toggleSort('date')} className="inline-flex items-center gap-1 tabular-nums text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-ink-primary transition-colors">
-     Date <span className={`transition-opacity ${sortKey === 'date' ? 'opacity-100 text-accent-signature' : 'opacity-30'}`}>{sortKey === 'date' && sortDir === 'asc' ? '↑' : '↓'}</span>
-   </button>
- </th>
- <th className="px-4 py-3 text-right whitespace-nowrap">
-   <button onClick={() => toggleSort('amount')} className="inline-flex items-center gap-1 tabular-nums text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-ink-primary transition-colors ml-auto">
-     Amount <span className={`transition-opacity ${sortKey === 'amount' ? 'opacity-100 text-accent-signature' : 'opacity-30'}`}>{sortKey === 'amount' && sortDir === 'asc' ? '↑' : '↓'}</span>
-   </button>
- </th>
- <th className="px-6 py-3 w-px"></th>
- </tr>
- </thead>
- <tbody className="divide-y divide-black/[0.04] bg-white font-inter">
- {pagedExpenses.map(expense => {
- return (
- <tr key={expense.id} className="group hover:bg-accent-signature/[0.04] transition-colors">
- <td className="px-6 py-3 max-w-0 w-full">
-   <div className="min-w-0">
-     <div className="flex items-center gap-1.5">
-       <span className="text-[14px] font-bold text-ink-primary truncate">{expense.note || '—'}</span>
-       {expense.recurring_template_id && (
-         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-pill bg-accent-signature/15 text-accent-signature-hover text-[8px] font-black uppercase tracking-wide shrink-0" title="Auto-generated from a recurring template">
-           ↻ Recurring
-         </span>
-       )}
-     </div>
-     <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-0.5 truncate">
-       {expense.category || 'Other'} · via {expense.payment_method || 'CASH'}
-     </div>
-   </div>
- </td>
- <td className="px-4 py-3 text-left whitespace-nowrap">
- <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground tabular-nums">
- <Calendar size={11} className="opacity-40" />
- {fmtDate(expense.date)}
- </div>
- </td>
- <td className="px-4 py-3 text-right whitespace-nowrap">
- <div className="text-[15px] font-bold text-ink-primary tabular-nums tracking-tight leading-none">
- <span className="text-accent-signature/70 mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{parseFloat(expense.amount).toLocaleString('en-IN')}
- </div>
- <div className="mt-1.5 h-[3px] w-16 ml-auto rounded-full bg-black/[0.06] overflow-hidden">
-   <div className="h-full rounded-full bg-accent-signature" style={{ width: `${totalExpenses ? Math.max(Math.round((parseFloat(expense.amount)||0) / totalExpenses * 100), 3) : 0}%` }} />
- </div>
- </td>
- <td className="px-4 py-3 text-right whitespace-nowrap">
- <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
- {hasPermission('EDIT_EXPENSE') && (
- <button
- aria-label="Edit expense"
- className="w-8 h-8 rounded-xl bg-canvas text-muted-foreground flex items-center justify-center hover:bg-accent-signature/15 hover:text-accent-signature-hover transition-colors"
- onClick={() => handleEdit(expense)}
- >
- <FileText size={14} />
- </button>
- )}
- {hasPermission('DELETE_EXPENSE') && (
- <button
- aria-label="Delete expense"
- className="w-8 h-8 rounded-xl bg-canvas text-muted-foreground flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors"
- onClick={() => { if(window.confirm('Delete record?')) deleteExpense(expense.id); }}
- >
- <X size={14} />
- </button>
- )}
- </div>
- </td>
- </tr>
- );
- })}
- </tbody>
- </table>
- </div>
-
- {/* Mobile cards — shown below sm breakpoint where a table cramps. */}
- <div className="sm:hidden divide-y divide-black/5">
- {pagedExpenses.map(expense => {
-   return (
-   <div key={expense.id} className="p-4">
-     <div className="flex-1 min-w-0">
-       <div className="flex items-center justify-between gap-2">
-         <span className="text-sm font-bold text-ink-primary truncate">{expense.note || '—'}</span>
-         <span className="text-base font-bold text-ink-primary tabular-nums shrink-0">
-           <span className="text-accent-signature/70 mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{parseFloat(expense.amount).toLocaleString('en-IN')}
-         </span>
-       </div>
-       <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1 tabular-nums">
-         {expense.category || 'Other'} · via {expense.payment_method || 'CASH'} · {fmtDate(expense.date)}
-         {expense.recurring_template_id && <span className="text-accent-signature ml-1">· ↻ Recurring</span>}
-       </div>
-       <div className="flex items-center gap-2 mt-2">
-         {hasPermission('EDIT_EXPENSE') && (
-           <button onClick={() => handleEdit(expense)} className="text-[11px] font-bold text-accent-signature">Edit</button>
-         )}
-         {hasPermission('DELETE_EXPENSE') && (
-           <button onClick={() => { if(window.confirm('Delete record?')) deleteExpense(expense.id); }} className="text-[11px] font-bold text-red-500">Delete</button>
-         )}
-       </div>
-     </div>
-   </div>
-   );
- })}
- </div>
-
- {/* Load more — pagination window grows by 50 at a time. */}
- {filteredExpenses.length > visibleCount && (
-   <div className="p-4 text-center border-t border-black/5">
-     <button
-       onClick={() => setVisibleCount(v => v + 50)}
-       className="px-5 py-2 rounded-pill bg-canvas hover:bg-black/5 text-xs font-bold text-ink-primary transition-colors"
-     >
-       Load more · {filteredExpenses.length - visibleCount} remaining
-     </button>
-   </div>
- )}
-
- {filteredExpenses.length === 0 && (
- <EmptyState
-   icon={Receipt}
-   title="No expenses found"
-   description={filterType === 'all' ? 'Log your first business expense to start tracking spend.' : 'No expenses in this period. Try a wider range or clear filters.'}
-   action={hasPermission('ADD_EXPENSE') ? { label: 'Log expense', icon: <Plus size={14} />, onClick: () => setIsAdding(true) } : null}
- />
- )}
- </div>
-
- {/* ── Insight rail — total, stats, category breakdown ── */}
- <aside className="w-full lg:w-[300px] shrink-0 space-y-4">
-   {/* Total card */}
-   <div className="rounded-bento border border-black/5 bg-white shadow-sm p-5">
-     <div className="tabular-nums text-[10px] font-bold uppercase tracking-widest text-accent-signature">
-       total · {filterType === 'all' ? 'all time' : filterType}
-     </div>
-     <div className="text-[30px] font-bold text-ink-primary tabular-nums leading-none mt-2">
-       <span className="text-accent-signature text-[20px] mr-1">{businessProfile?.currencySymbol || '₹'}</span>
-       {Math.round(totalExpenses).toLocaleString('en-IN')}
-     </div>
-     <div className="grid grid-cols-2 gap-3 mt-5 pt-5 border-t border-black/5">
-       <div>
-         <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Entries</div>
-         <div className="text-[18px] font-bold text-ink-primary mt-0.5 tabular-nums">{filteredExpenses.length}</div>
-       </div>
-       <div>
-         <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Avg / entry</div>
-         <div className="text-[18px] font-bold text-ink-primary mt-0.5 tabular-nums">
-           {businessProfile?.currencySymbol || '₹'}{Math.round(avgEntry).toLocaleString('en-IN')}
-         </div>
-       </div>
-     </div>
-     {totalITC > 0 && (
-       <div className="mt-3 pt-3 border-t border-black/5 flex items-center justify-between">
-         <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Claimable ITC</span>
-         <span className="text-[14px] font-bold text-emerald-600 tabular-nums">
-           {businessProfile?.currencySymbol || '₹'}{Math.round(totalITC).toLocaleString('en-IN')}
-         </span>
-       </div>
-     )}
-   </div>
-
-   {/* Category breakdown bars */}
-   {railCats.length > 0 && (
-     <div className="rounded-bento border border-black/5 bg-white shadow-sm p-5">
-       <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-4">Where it went</div>
-       {railCats.map(([cat, val]) => (
-         <button
-           key={cat}
-           onClick={() => setCategoryFilter(cat === categoryFilter ? 'ALL' : cat)}
-           className={`block w-full text-left mb-3 last:mb-0 group ${categoryFilter === cat ? 'opacity-100' : 'opacity-90 hover:opacity-100'}`}
-         >
-           <div className="flex items-center justify-between mb-1.5">
-             <span className={`text-[11px] font-semibold uppercase tracking-wide ${categoryFilter === cat ? 'text-accent-signature-hover' : 'text-muted-foreground group-hover:text-ink-primary'}`}>{cat}</span>
-             <span className="text-[12px] font-bold text-ink-primary tabular-nums">
-               {businessProfile?.currencySymbol || '₹'}{Math.round(val).toLocaleString('en-IN')}
-             </span>
-           </div>
-           <div className="h-[5px] rounded-full bg-black/[0.06] overflow-hidden">
-             <div className="h-full rounded-full bg-accent-signature transition-all" style={{ width: `${railMax ? Math.max(Math.round(val / railMax * 100), 3) : 0}%` }} />
-           </div>
-           <div className="text-[10px] text-muted-foreground font-medium mt-1 tabular-nums">
-             {totalExpenses ? Math.round(val / totalExpenses * 100) : 0}% of outflow
-           </div>
-         </button>
-       ))}
-     </div>
-   )}
- </aside>
- </div>
- </div>
-
- {/* Expense Form Modal */}
- {isAdding && (
- <div className="modal-overlay">
- <div className="glass-modal">
- {/* ── Header ───────────────────────────────────────── */}
- <div className="flex items-center justify-between mb-6">
-   <div className="flex items-center gap-3.5">
-     <div className="w-11 h-11 rounded-2xl bg-accent-signature/10 flex items-center justify-center text-accent-signature shrink-0">
-       <Receipt size={20} strokeWidth={2.2} />
-     </div>
-     <div>
-       <h2 className="text-xl font-black font-sora text-ink-primary leading-tight tracking-tight">
-         {editingExpense ? 'Edit Expense' : 'New Expense'}
-       </h2>
-       <p className="text-[11px] font-medium text-muted-foreground mt-0.5">
-         Log business expenditure details
-       </p>
-     </div>
-   </div>
-   <button
-     onClick={handleCloseModal}
-     aria-label="Close"
-     className="w-9 h-9 rounded-xl border border-black/8 flex items-center justify-center hover:bg-black/5 transition-colors cursor-pointer text-muted-foreground"
-   >
-     <X size={16} />
-   </button>
- </div>
-
- <form onSubmit={handleSubmit} className="space-y-5">
-
- {/* ── Amount — hero focal point ──────────────────────── */}
- <div className="rounded-2xl bg-accent-signature/5 border border-accent-signature/15 px-5 py-4 focus-within:border-accent-signature/40 focus-within:ring-4 focus-within:ring-accent-signature/10 transition-all">
-   <label htmlFor="exp-amount" className="block text-[11px] font-bold uppercase tracking-widest text-accent-signature/80 mb-1">Amount</label>
-   <div className="flex items-center">
-     <span className="tabular-nums text-3xl font-bold text-accent-signature/70 mr-2 leading-none">{businessProfile?.currencySymbol || '₹'}</span>
-     <input
-       id="exp-amount"
-       required
-       autoFocus
-       type="number"
-       step="0.01"
-       min="0.01"
-       inputMode="decimal"
-       placeholder="0.00"
-       className="flex-1 w-full bg-transparent border-none p-0 font-bold text-4xl text-ink-primary outline-none tabular-nums placeholder:text-ink-primary/20"
-       value={formData.amount}
-       onChange={e => setFormData({...formData, amount: e.target.value})}
-     />
-   </div>
- </div>
-
- {/* ── Category + Paid Via ────────────────────────────── */}
- <div className="grid grid-cols-2 gap-3">
-   <div>
-     <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Category</label>
-     <select
-       className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all appearance-none cursor-pointer"
-       value={formData.category}
-       onChange={e => {
-         if (e.target.value === '__ADD__') { setNewCategory(''); return; }
-         setFormData({...formData, category: e.target.value});
-       }}
-     >
-       {expenseCategories.map(c => <option key={c} value={c}>{c}</option>)}
-     </select>
-     {/* Quick add a new category inline. */}
-     <div className="flex items-center gap-2 mt-2">
-       <input
-         type="text"
-         value={newCategory}
-         onChange={e => setNewCategory(e.target.value)}
-         placeholder="+ New category"
-         className="flex-1 bg-canvas border border-black/8 rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-primary outline-none focus:border-accent-signature/40 placeholder:text-muted-foreground"
-       />
-       <button
-         type="button"
-         disabled={!newCategory.trim()}
-         onClick={async () => {
-           const name = newCategory.trim();
-           if (!name) return;
-           await addExpenseCategory(name);
-           setFormData(f => ({ ...f, category: name }));
-           setNewCategory('');
-         }}
-         className="px-3 py-1.5 rounded-pill bg-accent-signature/10 text-accent-signature text-xs font-bold disabled:opacity-40"
-       >Add</button>
-     </div>
-   </div>
-   <div>
-     <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Paid Via</label>
-     <select
-       className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all appearance-none cursor-pointer"
-       value={formData.payment_method}
-       onChange={e => setFormData({...formData, payment_method: e.target.value})}
-     >
-       <option value="CASH">Cash</option>
-       <option value="UPI">UPI</option>
-       <option value="BANK">Bank Transfer</option>
-       <option value="CARD">Card</option>
-     </select>
-   </div>
- </div>
-
- {/* ── Date ───────────────────────────────────────────── */}
- <div>
-   <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Date</label>
-   <input
-     type="date"
-     className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all"
-     value={formData.date}
-     onChange={e => setFormData({...formData, date: e.target.value})}
-   />
- </div>
-
- {/* ── Paid from store (multi-store only) ──────────────── */}
- {posStores.length > 1 && (
- <div>
-   <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Paid From Store</label>
-   <select
-     className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all appearance-none cursor-pointer"
-     value={formData.location_id}
-     onChange={e => setFormData({...formData, location_id: e.target.value})}
-   >
-     <option value="">Business-wide (no store)</option>
-     {posStores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-   </select>
- </div>
- )}
-
- {/* ── Description (optional) ──────────────────────────── */}
- <div>
-   <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">
-     Description <span className="text-muted-foreground font-medium normal-case tracking-normal">· optional</span>
-   </label>
-   <textarea
-     rows={2}
-     placeholder="E.g. Fuel for delivery van, office supplies…"
-     className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-medium text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all resize-none placeholder:text-muted-foreground"
-     value={formData.note}
-     onChange={e => setFormData({...formData, note: e.target.value})}
-   />
- </div>
-
- {/* ── GST / input tax credit ─────────────────────────── */}
- <div className="rounded-xl border border-black/8 bg-white overflow-hidden">
-   <label className="flex items-center justify-between gap-3 px-4 py-3.5 cursor-pointer">
-     <div className="flex items-center gap-3">
-       <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${formData.gst_claimable ? 'bg-accent-signature/10 text-accent-signature' : 'bg-canvas text-muted-foreground'}`}>
-         <Receipt size={16} />
-       </div>
-       <div>
-         <div className="text-sm font-bold text-ink-primary">Claim GST (input tax credit)</div>
-         <div className="text-[11px] text-muted-foreground">For registered vendors with a GSTIN</div>
-       </div>
-     </div>
-     <button
-       type="button"
-       role="switch"
-       aria-checked={formData.gst_claimable}
-       onClick={() => setFormData({ ...formData, gst_claimable: !formData.gst_claimable })}
-       className={`relative w-11 h-6 rounded-xl transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-accent-signature/20 shrink-0 ${formData.gst_claimable ? 'bg-accent-signature' : 'bg-black/15'}`}
-     >
-       <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${formData.gst_claimable ? 'translate-x-5' : 'translate-x-0'}`} />
-     </button>
-   </label>
-   {formData.gst_claimable && (
-     <div className="px-4 pb-4 pt-1 border-t border-black/5 space-y-3">
-       <div className="grid grid-cols-2 gap-3">
-         <div>
-           <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">GST Rate</label>
-           <select
-             className="w-full bg-canvas border border-black/10 rounded-xl px-3 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all appearance-none cursor-pointer"
-             value={formData.gst_rate}
-             onChange={e => setFormData({ ...formData, gst_rate: e.target.value })}
-           >
-             <option value="5">5%</option>
-             <option value="12">12%</option>
-             <option value="18">18%</option>
-             <option value="28">28%</option>
-             <option value="0">0% / Exempt</option>
-           </select>
-         </div>
-         <div>
-           <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">ITC (incl.)</label>
-           <div className="px-3 py-2.5 rounded-xl bg-accent-signature/5 border border-accent-signature/15 text-sm font-bold text-accent-signature tabular-nums">
-             {(() => {
-               const amt = parseFloat(formData.amount) || 0;
-               const r = parseFloat(formData.gst_rate) || 0;
-               const g = r > 0 ? amt - amt / (1 + r / 100) : 0;
-               return `${businessProfile?.currencySymbol || '₹'}${g.toFixed(2)}`;
-             })()}
-           </div>
-         </div>
-       </div>
-       <div>
-         <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Vendor GSTIN</label>
-         <input
-           type="text"
-           maxLength={15}
-           placeholder="29ABCDE1234F1Z5"
-           className="w-full bg-canvas border border-black/10 rounded-xl px-3 py-2.5 font-semibold text-sm uppercase tracking-wide text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-muted-foreground placeholder:normal-case"
-           value={formData.vendor_gstin}
-           onChange={e => setFormData({ ...formData, vendor_gstin: e.target.value.toUpperCase() })}
-         />
-       </div>
-     </div>
-   )}
- </div>
-
- {/* ── Exclude from profit (drawings / loan / capital) ── */}
- <label className="flex items-center justify-between gap-3 px-4 py-3.5 rounded-xl border border-black/8 bg-white cursor-pointer hover:border-black/15 transition-colors">
-   <div className="flex items-center gap-3">
-     <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${formData.exclude_from_pl ? 'bg-violet-500/10 text-violet-500' : 'bg-canvas text-muted-foreground'}`}>
-       <Wallet size={16} />
-     </div>
-     <div>
-       <div className="text-sm font-bold text-ink-primary">Not a business expense</div>
-       <div className="text-[11px] text-muted-foreground">Owner drawing, loan repayment or capital — kept out of profit</div>
-     </div>
-   </div>
-   <button
-     type="button"
-     role="switch"
-     aria-checked={formData.exclude_from_pl}
-     onClick={() => setFormData({ ...formData, exclude_from_pl: !formData.exclude_from_pl })}
-     className={`relative w-11 h-6 rounded-xl transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-violet-500/20 shrink-0 ${formData.exclude_from_pl ? 'bg-violet-500' : 'bg-black/15'}`}
-   >
-     <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${formData.exclude_from_pl ? 'translate-x-5' : 'translate-x-0'}`} />
-   </button>
- </label>
-
- {/* ── Repeat (new expense only) ──────────────────────── */}
- {!editingExpense && (() => {
-   const today = todayISOInAppTZ();
-   const plan = { ...recurringTemplateFor({ frequency: formData.repeat, weekdays: formData.weekdays, date: formData.date || today, today }),
-     asked_day: (formData.date || today).split('-')[2] };
-   const opts = [['NONE', 'No'], ['DAILY', 'Daily'], ['MONTHLY', 'Monthly']];
-   const pick = (k) => { setRepeatHint(''); setFormData({ ...formData, repeat: k }); };
-   const onKey = (e) => {
-     const idx = opts.findIndex(([k]) => k === formData.repeat);
-     const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
-     if (!step) return;
-     e.preventDefault();
-     const group = e.currentTarget;
-     const next = opts[(idx + step + opts.length) % opts.length][0];
-     pick(next);
-     setTimeout(() => group.querySelector(`[data-k="${next}"]`)?.focus(), 0);
-   };
-   return (
-   <div className="px-4 py-3.5 rounded-xl border border-black/8 bg-white" data-testid="repeat-control">
-     <div className="flex flex-col gap-3 min-[480px]:flex-row min-[480px]:items-center min-[480px]:justify-between">
-       <div className="flex items-center gap-3 min-w-0">
-         <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${formData.repeat !== 'NONE' ? 'bg-accent-signature/10 text-accent-signature' : 'bg-canvas text-muted-foreground'}`}>
-           <Calendar size={16} />
-         </div>
-         <div className="min-w-0">
-           <div className="text-sm font-bold text-ink-primary">Repeat</div>
-           <div className="text-[12px] text-muted-foreground" data-testid="repeat-line">
-             {formData.repeat === 'NONE' ? 'Log this once' : scheduleLine({ ...plan, frequency: formData.repeat })}
-           </div>
-         </div>
-       </div>
-       <div className="inline-flex h-9 p-0.5 rounded-pill bg-canvas border border-black/10 shrink-0 self-start min-[480px]:self-auto"
-         role="radiogroup" aria-label="Repeat" onKeyDown={onKey}>
-         {opts.map(([k, label]) => {
-           const on = formData.repeat === k;
-           return (
-             <button key={k} data-k={k} type="button" role="radio" aria-checked={on} tabIndex={on ? 0 : -1}
-               onClick={() => pick(k)}
-               className={`px-3.5 rounded-pill text-[12.5px] transition-[background-color,color] duration-(--dur-hover) ${on ? 'bg-white text-ink-primary font-semibold shadow-sm' : 'text-muted-foreground font-medium hover:text-ink-primary'}`}>
-               {label}
-             </button>
-           );
-         })}
-       </div>
-     </div>
-     {formData.repeat === 'DAILY' && (
-       <>
-         <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="Days to log">
-           {WEEKDAYS.map(w => {
-             const on = formData.weekdays.includes(w.n);
-             return (
-               <button key={w.n} type="button" aria-pressed={on}
-                 onClick={() => {
-                   const next = on ? formData.weekdays.filter(d => d !== w.n) : [...formData.weekdays, w.n];
-                   if (!next.length) { setRepeatHint('Keep at least one day'); return; }
-                   setRepeatHint('');
-                   setFormData({ ...formData, weekdays: next });
-                 }}
-                 className={`h-8 min-w-[44px] px-2 rounded-pill text-[12px] border transition-[background-color,color,border-color] duration-(--dur-hover) ${on ? 'border-ink-primary bg-ink-primary text-white font-semibold' : 'border-black/15 text-muted-foreground hover:text-ink-primary'}`}>
-                 {w.short}
-               </button>
-             );
-           })}
-         </div>
-         {repeatHint && <p className="mt-2 text-[12px] text-muted-foreground" role="status">{repeatHint}</p>}
-       </>
-     )}
-   </div>
-   );
- })()}
-
- {formError && (
-   <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-semibold" role="alert">
-     {formError}
-   </div>
- )}
-
- {/* ── Footer ─────────────────────────────────────────── */}
- <div className="flex items-center gap-3 pt-2">
-   <button type="button" className="px-6 py-3.5 rounded-pill border border-black/10 font-bold text-ink-primary text-xs uppercase tracking-wide hover:bg-black/5 transition-colors cursor-pointer disabled:opacity-50" onClick={handleCloseModal} disabled={saving}>
-     Cancel
-   </button>
-   <button type="submit" disabled={saving} className="flex-1 h-[52px] text-xs uppercase tracking-widest font-black flex items-center justify-center gap-2.5 px-6 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white shadow-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
-     {saving ? 'Saving…' : (editingExpense ? 'Save Changes' : 'Log Expense')}
-     {!saving && <Save size={16} />}
-   </button>
- </div>
- </form>
- </div>
- </div>
- )}
- </>
- );
+      <ExpenseForm open={!!form} editing={form?.editing || null} initial={form?.initial || null}
+        onClose={() => setForm(null)} onSaved={() => setForm(null)} refetch={refetch}
+        categories={expenseCategories} posStores={posStores} sym={sym}
+        addExpense={addExpense} updateExpense={updateExpense}
+        addRecurringTemplate={addRecurringTemplate} addExpenseCategory={addExpenseCategory} />
+    </div>
+  );
 };
 
 export default Expenses;

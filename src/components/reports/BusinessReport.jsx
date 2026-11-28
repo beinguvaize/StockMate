@@ -28,56 +28,28 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import ReportHeader from './ReportHeader';
 import usePLRanged from './usePLRanged';
 import PLTieOut from './PLTieOut';
 import { SectionHead, StatStrip } from './ReportBits';
+import { FigureTile } from './frame';
 import { isCountableSale, priorRange, pctChange } from './reportUtils';
 import { formatCurrency } from '../../lib/utils';
 import { useLinkedRange } from '../../lib/linkedRange';
 import useDateWindow from './useDateWindow';
 
 /* ─── Date preset helpers ─────────────────────────────────────────────────── */
-/* ─── Mini sparkline ──────────────────────────────────────────────────────── */
-const Spark = ({ data = [], color = 'var(--color-accent-signature)' }) => (
-  <ResponsiveContainer width="100%" height={36}>
-    <AreaChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
-      <defs>
-        <linearGradient id={`sg_${color.replace('#','')}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity={0.25} />
-          <stop offset="100%" stopColor={color} stopOpacity={0} />
-        </linearGradient>
-      </defs>
-      <Area type="monotone" dataKey="v" stroke={color} strokeWidth={1.5}
-        fill={`url(#sg_${color.replace('#','')})`} dot={false} isAnimationActive={false} />
-    </AreaChart>
-  </ResponsiveContainer>
-);
-
-/* ─── KPI card ────────────────────────────────────────────────────────────── */
-const KPI = ({ label, value, sub, spark, color = 'var(--color-accent-signature)', icon: Icon, loading }) => (
-  <div className="bg-card rounded-[10px] border border-border/60 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
-    <div className="flex items-center justify-between">
-      <div className={`w-9 h-9 rounded-xl flex items-center justify-center`}
-        style={{ background: `color-mix(in srgb, ${color} 10%, transparent)` }}>
-        <Icon size={16} style={{ color }} />
-      </div>
-      {sub !== undefined && (
-        <span className={`text-[10px] font-semibold flex items-center gap-0.5 ${
-          sub > 0 ? 'text-emerald-500' : sub < 0 ? 'text-red-400' : 'text-muted-foreground'
-        }`}>
-          {sub > 0 ? <ArrowUpRight size={11} /> : sub < 0 ? <ArrowDownRight size={11} /> : <Minus size={11} />}
-          {sub !== 0 ? `${Math.abs(sub).toFixed(1)}%` : '—'}
-        </span>
-      )}
-    </div>
-    {loading
-      ? <div className="h-7 w-24 bg-canvas animate-pulse rounded-lg" />
-      : <div className="tabular-nums text-2xl font-semibold text-foreground tabular-nums leading-none">{value}</div>
-    }
-    <div className="text-[11px] font-medium text-muted-foreground">{label}</div>
-    {spark && spark.length > 1 && <Spark data={spark} color={color} />}
-  </div>
+/* ─── Figure tile (reports-04): the trend, when there is one, as a line ─── */
+const KPI = ({ label, value, sub, note, loading }) => (
+  <FigureTile label={label} value={value} loading={loading}
+    sub={sub !== undefined ? (
+      <>
+        <span className={sub > 0 ? 'font-semibold text-good-text' : sub < 0 ? 'font-semibold text-bad-text' : 'text-body'}>
+          {sub > 0 ? '↑' : sub < 0 ? '↓' : ''} {sub !== 0 ? `${Math.abs(sub).toFixed(1)}%` : '—'}
+        </span> on the same length before
+      </>
+    ) : note} />
 );
 
 /* ─── Section header ──────────────────────────────────────────────────────── */
@@ -85,13 +57,13 @@ const KPI = ({ label, value, sub, spark, color = 'var(--color-accent-signature)'
 const ChartTip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-card border border-black/8 rounded-xl px-3 py-2 shadow-lg text-xs">
-      <div className="font-semibold text-ink-secondary mb-1">{label}</div>
+    <div className="bg-surface border border-line rounded-xl px-3 py-2 shadow-lg text-xs">
+      <div className="font-semibold text-ink-2 mb-1">{label}</div>
       {payload.map((p, i) => (
         <div key={i} className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
-          <span className="text-muted-foreground">{p.name}:</span>
-          <span className="font-semibold text-foreground">
+          <span className="text-body">{p.name}:</span>
+          <span className="font-semibold text-ink">
             {typeof p.value === 'number' && p.name?.toLowerCase().includes('rev')
               ? formatCurrency(p.value)
               : p.value}
@@ -113,28 +85,28 @@ const BusinessReport = () => {
   const [prodSort,    setProdSort]    = useState('REVENUE');
 
 
-  const { data: salesRaw,     loading: salesLoading }     = useReportData({ table: 'sales',     select: '*', dateColumn: 'date', filters });
+  const { data: salesRaw,     loading: salesLoading, error: rdErr1, refetch: rdRe1 } = useReportData({ table: 'sales',     select: '*', dateColumn: 'date', filters });
   const sales = useMemo(() => salesRaw.filter(isCountableSale), [salesRaw]);
-  const { data: purchases, loading: purchLoading }     = useReportData({ table: 'purchases', select: '*', dateColumn: 'date', filters });
-  const { data: clients }                              = useReportData({ table: 'clients',   select: 'id, name, outstanding_balance' });
+  const { data: purchases, loading: purchLoading, error: rdErr2, refetch: rdRe2 } = useReportData({ table: 'purchases', select: '*', dateColumn: 'date', filters });
+  const { data: clients, error: rdErr3, refetch: rdRe3 } = useReportData({ table: 'clients',   select: 'id, name, outstanding_balance' });
   // Collections banked in the period. These settle credit bills that may have
   // been raised earlier, so they are reported separately from sale-time cash
   // rather than added to it — adding them would double-count.
-  const { data: collections } = useReportData({
+  const { data: collections, error: rdErr4, refetch: rdRe4 } = useReportData({
     table: 'client_payments', select: 'id, amount, date, payment_method',
     dateColumn: 'date', filters,
   });
   // Per-product cost. Batch consumption is the real FIFO cost but covers only
   // part of the lines (356 of 436 sales here), so uncovered lines fall back to
   // products.costPrice — the same chain process_sale uses. See prodProfit.
-  const { data: products }    = useReportData({ table: 'products', select: 'id, costPrice, unit' });
-  const { data: consumption } = useReportData({
+  const { data: products, error: rdErr5, refetch: rdRe5 } = useReportData({ table: 'products', select: 'id, costPrice, unit' });
+  const { data: consumption, error: rdErr6, refetch: rdRe6 } = useReportData({
     table: 'sale_batch_consumption', select: 'sale_id, product_id, qty_taken, unit_cost',
   });
 
   /* Authoritative period P&L (returns netted, GST split per tax_mode,
      exclude_from_pl honoured). Never recomputed client-side. */
-  const { pl, loading: plLoading } = usePLRanged(range.start, range.end);
+  const { pl, loading: plLoading, error: plError, refetch: plRefetch } = usePLRanged(range.start, range.end);
   const pnl = useMemo(() => {
     const revenueNet  = Number(pl?.revenue_net   || 0);
     const cogs        = Number(pl?.cogs          || 0);
@@ -346,7 +318,7 @@ const BusinessReport = () => {
     <div className="space-y-4 pb-16">
 
       {/* ── HEADER ─────────────────────────────────────────────────────── */}
-      <ReportHeader
+      <ReportHeader error={loadError(plError, rdErr1, rdErr2, rdErr3, rdErr4, rdErr5, rdErr6)} onRetry={() => { plRefetch(); rdRe1(); rdRe2(); rdRe3(); rdRe4(); rdRe5(); rdRe6(); }}
         title="Business Report"
         {...win.headerProps}
         onExport={exportCSV}
@@ -369,7 +341,7 @@ const BusinessReport = () => {
             tone: pnl.netProfit >= 0 ? 'pos' : 'neg' },
         ]} />
         {!plLoading && (
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-[12px] text-body">
             {pnl.returnsTotal > 0 && <>{formatCurrency(pnl.returnsTotal)} of returns deducted · </>}
             Gross margin {pnl.grossMargin.toFixed(1)}% ·{' '}
             {pnl.netProfit >= 0
@@ -383,22 +355,17 @@ const BusinessReport = () => {
           Volume metrics only. Purchases and Outstanding deliberately live in
           "Cash & Stock" below: purchases are money out for stock that may not
           have sold yet, and showing them beside revenue read as a huge loss. */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <KPI label="Revenue billed (before returns)" loading={salesLoading}
           value={formatCurrency(salesMetrics.totalRevenue)}
-          sub={revenueChange ?? undefined}
-          spark={salesMetrics.dailyTrend.map(d => ({ v: d.revenue }))}
-          icon={TrendingUp} color="var(--color-accent-signature)" />
+          sub={revenueChange ?? undefined} />
         <KPI label="Total Orders"    loading={salesLoading}
-          value={salesMetrics.totalOrders}
-          spark={salesMetrics.dailyTrend.map(d => ({ v: d.orders }))}
-          icon={ShoppingBag} color="#10b981" />
+          value={salesMetrics.totalOrders} note="bills, voids left out" />
         <KPI label="Avg. Order Value" loading={salesLoading}
-          value={formatCurrency(salesMetrics.aov)}
-          icon={ChevronRight} color="#f59e0b" />
+          value={formatCurrency(salesMetrics.aov)} note="billed ÷ orders" />
       </div>
       {prior && revenueChange !== null && (
-        <p className="text-[11px] text-muted-foreground -mt-2">
+        <p className="text-[12px] text-body -mt-2">
           Compared with {prior.start === prior.end ? prior.start : `${prior.start} → ${prior.end}`}
           {' '}(same length): revenue {formatCurrency(Number(priorPl?.revenue_net || 0))},
           {' '}net profit {formatCurrency(Number(priorPl?.net_profit || 0))}.
@@ -411,8 +378,8 @@ const BusinessReport = () => {
           period — folding them into sale-time cash would double-count. */}
       <div className="space-y-2">
         <div>
-          <h2 className="text-sm font-semibold text-foreground">Cash position</h2>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
+          <h2 className="font-tight text-[15px] font-semibold text-ink">Cash position</h2>
+          <p className="text-[12px] text-body mt-0.5">
             Collected is taken from each bill&apos;s payment status. Credit sales count as money in
             only once they are settled.
           </p>
@@ -431,12 +398,12 @@ const BusinessReport = () => {
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-6">
 
         {/* Daily revenue trend */}
-        <div className="bg-card rounded-[10px] border border-border/60 p-6 shadow-sm">
+        <div className="bg-surface rounded-[14px] border border-line p-4">
           <SectionHead title="Revenue Trend" sub={`${salesMetrics.dailyTrend.length} days`} />
           {salesLoading
-            ? <div className="h-48 bg-canvas animate-pulse rounded-xl" />
+            ? <div className="h-48 bg-tile animate-pulse rounded-xl" />
             : salesMetrics.dailyTrend.length < 2
-            ? <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">Not enough data for selected range</div>
+            ? <div className="h-48 flex items-center justify-center text-xs text-body">Not enough data for selected range</div>
             : (
               <ResponsiveContainer width="100%" height={200}>
                 <AreaChart data={salesMetrics.dailyTrend} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
@@ -446,9 +413,9 @@ const BusinessReport = () => {
                       <stop offset="100%" stopColor="var(--color-accent-signature)" stopOpacity={0}   />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 600 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 600 }} axisLine={false} tickLine={false}
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-sep)" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--color-mute)', fontWeight: 600 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--color-mute)', fontWeight: 600 }} axisLine={false} tickLine={false}
                     tickFormatter={v => `₹${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
                   <Tooltip content={<ChartTip />} />
                   <Area type="monotone" dataKey="revenue" name="Revenue" stroke="var(--color-accent-signature)" strokeWidth={2}
@@ -459,12 +426,12 @@ const BusinessReport = () => {
         </div>
 
         {/* Payment method split */}
-        <div className="bg-card rounded-[10px] border border-border/60 p-6 shadow-sm">
+        <div className="bg-surface rounded-[14px] border border-line p-4">
           <SectionHead title="Billed vs Collected" sub="by payment method" />
           {salesLoading
-            ? <div className="h-48 bg-canvas animate-pulse rounded-xl" />
+            ? <div className="h-48 bg-tile animate-pulse rounded-xl" />
             : salesMetrics.paymentSplit.length === 0
-            ? <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">No data</div>
+            ? <div className="h-48 flex items-center justify-center text-xs text-body">No data</div>
             : (
               <div className="space-y-3 mt-2">
                 {salesMetrics.paymentSplit.map(p => {
@@ -478,17 +445,17 @@ const BusinessReport = () => {
                   return (
                     <div key={p.name}>
                       <div className="flex justify-between text-xs mb-1">
-                        <span className="font-medium text-foreground flex items-center gap-1.5">
+                        <span className="font-medium text-ink flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded-full" style={{ background: color }} />
                           {p.name}
                         </span>
-                        <span className="font-semibold text-foreground tabular-nums">{formatCurrency(p.billed)}</span>
+                        <span className="font-semibold text-ink tabular-nums">{formatCurrency(p.billed)}</span>
                       </div>
-                      <div className="h-2 rounded-full bg-canvas overflow-hidden" style={{ width: `${billedPct}%`, minWidth: '8%' }}>
+                      <div className="h-2 rounded-full bg-tile overflow-hidden" style={{ width: `${billedPct}%`, minWidth: '8%' }}>
                         <div className="h-full rounded-full transition-all duration-700"
                           style={{ width: `${collPct}%`, background: color }} />
                       </div>
-                      <div className="text-[10px] text-muted-foreground mt-0.5 flex justify-between">
+                      <div className="text-[11.5px] text-body mt-0.5 flex justify-between">
                         <span>{formatCurrency(p.collected)} collected</span>
                         {unpaid > 0.5 && <span className="text-[color:var(--color-neg)]">{formatCurrency(unpaid)} unpaid</span>}
                       </div>
@@ -501,68 +468,68 @@ const BusinessReport = () => {
       </div>
 
       {/* ── TOP PRODUCTS ────────────────────────────────────────────────── */}
-      <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-        <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
+      <div className="bg-surface rounded-[14px] border border-line overflow-hidden">
+        <div className="px-4 pt-3.5 pb-3 border-b border-line flex items-center justify-between">
           <SectionHead title="Top Products"
             sub={prodSort === 'PROFIT' ? 'by gross profit' : 'by revenue'} />
           <div className="flex items-center bg-muted rounded-lg p-0.5">
             {[['REVENUE', 'Revenue'], ['PROFIT', 'Profit']].map(([id, label]) => (
               <button key={id} onClick={() => setProdSort(id)}
-                className={`px-3 py-1.5 rounded-pill text-[11px] transition-colors ${
+                className={`px-3 py-1.5 rounded-pill text-[12px] transition-colors ${
                   prodSort === id
-                    ? 'bg-card text-foreground font-semibold shadow-sm'
-                    : 'text-muted-foreground font-medium hover:text-foreground'}`}>
+                    ? 'bg-surface text-ink font-semibold shadow-sm'
+                    : 'text-body font-medium hover:text-ink'}`}>
                 {label}
               </button>
             ))}
           </div>
         </div>
         {salesLoading
-          ? <div className="p-6 space-y-3">{[...Array(5)].map((_,i) => <div key={i} className="h-10 bg-canvas animate-pulse rounded-xl" />)}</div>
+          ? <div className="p-4 space-y-3">{[...Array(5)].map((_,i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}</div>
           : prodRows.length === 0
-          ? <div className="py-16 text-center text-sm text-muted-foreground">No sales data for selected period</div>
+          ? <div className="py-16 text-center text-sm text-body">No sales data for selected period</div>
           : (
             <div>
               {/* Table header */}
-              <div className="grid grid-cols-[36px_1fr_90px_70px_110px_110px_110px_92px] gap-4 px-6 py-2 bg-canvas/50 border-b border-border/60">
+              <div className="grid grid-cols-[36px_1fr_90px_70px_110px_110px_110px_92px] gap-4 px-4 py-2 bg-tile border-b border-line">
                 {['#','Product','Qty','Bills','Revenue','COGS','Gross profit','Margin'].map(h => (
-                  <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
+                  <span key={h} className="font-tight text-[12px] font-semibold text-mute">{h}</span>
                 ))}
               </div>
               {prodRows.map((p, i) => (
                 <div key={p.name}
-                  className={`grid grid-cols-[36px_1fr_90px_70px_110px_110px_110px_92px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors ${
+                  className={`grid grid-cols-[36px_1fr_90px_70px_110px_110px_110px_92px] gap-4 px-4 py-3.5 items-center border-b border-line last:border-0 hover:bg-tile/40 transition-colors ${
                     i === 0 ? 'bg-accent-signature/3' : ''
                   }`}>
                   {/* Rank */}
                   <span className={`text-sm font-semibold tabular-nums ${
-                    i===0?'text-accent-signature':i===1?'text-muted-foreground':i===2?'text-accent-signature-hover':'text-ink-tertiary'
+                    i===0?'text-amber-text':i===1?'text-body':i===2?'text-amber-text':'text-ink-tertiary'
                   }`}>{p.rank}</span>
 
                   {/* Name + share bar */}
                   <div>
-                    <div className="text-sm font-semibold text-foreground truncate">{p.name}</div>
+                    <div className="text-sm font-semibold text-ink truncate">{p.name}</div>
                     <div className="flex items-center gap-2 mt-1">
-                      <div className="w-20 h-1 rounded-full bg-canvas overflow-hidden">
+                      <div className="w-20 h-1 rounded-full bg-tile overflow-hidden">
                         <div className="h-full rounded-full bg-accent-signature transition-all duration-700"
                           style={{ width: `${Math.min(100, p.share)}%` }} />
                       </div>
-                      <span className="text-[9px] font-semibold text-accent-signature">{p.share.toFixed(1)}%</span>
+                      <span className="text-[12px] font-semibold text-amber-text">{p.share.toFixed(1)}%</span>
                     </div>
                   </div>
 
-                  <span className="text-sm text-foreground tabular-nums">
-                    {p.qty}{p.unit ? <span className="text-muted-foreground text-[11px] ml-1">{p.unit}</span> : null}
+                  <span className="text-sm text-ink tabular-nums">
+                    {p.qty}{p.unit ? <span className="text-body text-[12px] ml-1">{p.unit}</span> : null}
                   </span>
-                  <span className="text-sm text-ink-secondary tabular-nums">{p.txCount}</span>
-                  <span className="text-sm text-foreground tabular-nums">{formatCurrency(p.revenue)}</span>
-                  <span className="text-sm text-ink-secondary tabular-nums">{formatCurrency(p.cost)}</span>
+                  <span className="text-sm text-ink-2 tabular-nums">{p.txCount}</span>
+                  <span className="text-sm text-ink tabular-nums">{formatCurrency(p.revenue)}</span>
+                  <span className="text-sm text-ink-2 tabular-nums">{formatCurrency(p.cost)}</span>
                   <span className={`text-sm font-semibold tabular-nums ${
                     p.profit >= 0 ? 'text-[color:var(--color-pos)]' : 'text-[color:var(--color-neg)]'}`}>
                     {formatCurrency(p.profit)}
                   </span>
                   <span className={`text-sm tabular-nums ${
-                    p.profit >= 0 ? 'text-ink-secondary' : 'text-[color:var(--color-neg)]'}`}>
+                    p.profit >= 0 ? 'text-ink-2' : 'text-[color:var(--color-neg)]'}`}>
                     {p.margin.toFixed(1)}%
                   </span>
                 </div>
@@ -572,7 +539,7 @@ const BusinessReport = () => {
         {/* Per-product cost is an allocation, not a stored figure — say so
             rather than implying these profits are exact to the paisa. */}
         {!salesLoading && prodRows.length > 0 && (
-          <div className="px-6 py-3 border-t border-border/60 text-[11px] text-muted-foreground">
+          <div className="px-4 py-3 border-t border-line text-[12px] text-body">
             Cost per product uses FIFO batch cost where recorded, otherwise the product&apos;s cost
             price. Allocated COGS {formatCurrency(salesMetrics.allocatedCogs)} vs {formatCurrency(pnl.cogs)} in the P&amp;L
             {Math.abs(salesMetrics.allocatedCogs - pnl.cogs) > 1 && !plLoading && (
@@ -584,14 +551,14 @@ const BusinessReport = () => {
 
       {/* Loss-makers — the reason revenue ranking alone is not enough. */}
       {!salesLoading && salesMetrics.lossMakers.length > 0 && (
-        <div className="bg-card rounded-[10px] border border-border/60 shadow-sm p-5">
+        <div className="bg-surface rounded-[14px] border border-line p-5">
           <SectionHead title="Sold below cost"
             sub={`${salesMetrics.lossMakers.length} product${salesMetrics.lossMakers.length === 1 ? '' : 's'} this period`} />
           <div className="space-y-1.5 mt-1">
             {salesMetrics.lossMakers.slice(0, 6).map(p => (
               <div key={p.name} className="flex items-baseline justify-between gap-4 text-[13px]">
-                <span className="text-foreground truncate">{p.name}</span>
-                <span className="text-muted-foreground tabular-nums shrink-0">
+                <span className="text-ink truncate">{p.name}</span>
+                <span className="text-body tabular-nums shrink-0">
                   {p.qty}{p.unit ? ` ${p.unit}` : ''} · sold {formatCurrency(p.revenue)} · cost {formatCurrency(p.cost)}
                 </span>
                 <span className="text-[color:var(--color-neg)] font-semibold tabular-nums shrink-0 w-24 text-right">
@@ -600,7 +567,7 @@ const BusinessReport = () => {
               </div>
             ))}
           </div>
-          <p className="text-[11px] text-muted-foreground mt-3">
+          <p className="text-[12px] text-body mt-3">
             Either the selling price is below what the stock cost, or the recorded cost price is
             wrong. Both are worth checking before the next purchase.
           </p>
@@ -611,28 +578,28 @@ const BusinessReport = () => {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
         {/* Client leaderboard */}
-        <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-          <div className="px-6 pt-6 pb-4 border-b border-border/60">
+        <div className="bg-surface rounded-[14px] border border-line overflow-hidden">
+          <div className="px-4 pt-3.5 pb-3 border-b border-line">
             <SectionHead title="Top Clients" sub="by revenue" />
           </div>
           {salesLoading
-            ? <div className="p-6 space-y-3">{[...Array(4)].map((_,i) => <div key={i} className="h-10 bg-canvas animate-pulse rounded-xl" />)}</div>
+            ? <div className="p-4 space-y-3">{[...Array(4)].map((_,i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}</div>
             : salesMetrics.topClients.length === 0
-            ? <div className="py-12 text-center text-sm text-muted-foreground">No client data</div>
+            ? <div className="py-12 text-center text-sm text-body">No client data</div>
             : salesMetrics.topClients.map((c, i) => (
-              <div key={c.name} className="flex items-center gap-4 px-6 py-3.5 border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 ${
-                  i===0?'bg-accent-signature/15 text-accent-signature-hover':i===1?'bg-muted text-ink-secondary':'bg-accent-signature/10 text-accent-signature'
+              <div key={c.name} className="flex items-center gap-4 px-4 py-3.5 border-b border-line last:border-0 hover:bg-tile/40 transition-colors">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-semibold shrink-0 ${
+                  i===0?'bg-accent-signature/15 text-amber-text':i===1?'bg-muted text-ink-2':'bg-accent-signature/10 text-amber-text'
                 }`}>
                   {(c.name[0]||'?').toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-foreground truncate">{c.name}</div>
-                  <div className="text-[10px] text-muted-foreground font-medium">{c.orders} orders</div>
+                  <div className="text-sm font-semibold text-ink truncate">{c.name}</div>
+                  <div className="text-[11.5px] text-body font-medium">{c.orders} orders</div>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(c.revenue)}</div>
-                  <div className="text-[9px] font-semibold text-accent-signature">{c.share.toFixed(1)}%</div>
+                  <div className="text-sm font-semibold text-ink tabular-nums">{formatCurrency(c.revenue)}</div>
+                  <div className="text-[12px] font-semibold text-amber-text">{c.share.toFixed(1)}%</div>
                 </div>
               </div>
             ))
@@ -640,24 +607,24 @@ const BusinessReport = () => {
         </div>
 
         {/* Daily sales breakdown */}
-        <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-          <div className="px-6 pt-6 pb-4 border-b border-border/60">
+        <div className="bg-surface rounded-[14px] border border-line overflow-hidden">
+          <div className="px-4 pt-3.5 pb-3 border-b border-line">
             <SectionHead title="Daily Summary" />
           </div>
           {salesLoading
-            ? <div className="p-6 space-y-3">{[...Array(4)].map((_,i) => <div key={i} className="h-10 bg-canvas animate-pulse rounded-xl" />)}</div>
+            ? <div className="p-4 space-y-3">{[...Array(4)].map((_,i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}</div>
             : salesMetrics.dailyTrend.length === 0
-            ? <div className="py-12 text-center text-sm text-muted-foreground">No data</div>
+            ? <div className="py-12 text-center text-sm text-body">No data</div>
             : [...salesMetrics.dailyTrend].reverse().slice(0, 8).map(d => (
-              <div key={d.date} className="flex items-center gap-4 px-6 py-3 border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
-                <div className="w-8 h-8 rounded-xl bg-canvas flex items-center justify-center shrink-0">
-                  <Calendar size={13} className="text-muted-foreground" />
+              <div key={d.date} className="flex items-center gap-4 px-4 py-3 border-b border-line last:border-0 hover:bg-tile/40 transition-colors">
+                <div className="w-8 h-8 rounded-xl bg-tile flex items-center justify-center shrink-0">
+                  <Calendar size={13} className="text-body" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-foreground">{d.date}</div>
-                  <div className="text-[10px] text-muted-foreground font-medium">{d.orders} transactions</div>
+                  <div className="text-sm font-semibold text-ink">{d.date}</div>
+                  <div className="text-[11.5px] text-body font-medium">{d.orders} transactions</div>
                 </div>
-                <div className="text-sm font-semibold text-foreground tabular-nums shrink-0">
+                <div className="text-sm font-semibold text-ink tabular-nums shrink-0">
                   {formatCurrency(d.revenue)}
                 </div>
               </div>
@@ -673,61 +640,58 @@ const BusinessReport = () => {
           running balance as of today, so it ignores the date filter. */}
       <div className="space-y-3">
         <div>
-          <h2 className="text-sm font-semibold text-foreground">Cash &amp; Stock</h2>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
+          <h2 className="font-tight text-[15px] font-semibold text-ink">Cash &amp; Stock</h2>
+          <p className="text-[12px] text-body mt-0.5">
             Money out for stock this period, and what customers still owe. Not part of the profit
             calculation above — stock bought but unsold stays on the shelf, not in cost of goods.
           </p>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <KPI label="Stock purchased (money out)" loading={purchLoading}
-            value={formatCurrency(purchMetrics.total)}
-            icon={Truck} color="#8b5cf6" />
+            value={formatCurrency(purchMetrics.total)} note="stock bought, may not be sold yet" />
           <KPI label="Cost of goods sold (in P&L)" loading={plLoading}
-            value={formatCurrency(pnl.cogs)}
-            icon={Package} color="#0ea5e9" />
+            value={formatCurrency(pnl.cogs)} />
           <KPI label="Outstanding · all time, as of today" loading={false}
-            value={formatCurrency(salesMetrics.outstanding)}
-            icon={Clock} color="#ef4444" />
+            value={formatCurrency(salesMetrics.outstanding)} />
         </div>
       </div>
 
-      <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-        <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
+      <div className="bg-surface rounded-[14px] border border-line overflow-hidden">
+        <div className="px-4 pt-3.5 pb-3 border-b border-line flex items-center justify-between">
           <SectionHead title="Purchases" sub="by supplier" />
           <div className="text-right">
-            <div className="text-[11px] font-medium text-muted-foreground">Total Spend</div>
-            <div className="text-base font-semibold text-foreground tabular-nums">{formatCurrency(purchMetrics.total)}</div>
+            <div className="text-[12px] font-medium text-body">Total Spend</div>
+            <div className="text-base font-semibold text-ink tabular-nums">{formatCurrency(purchMetrics.total)}</div>
           </div>
         </div>
         {purchLoading
-          ? <div className="p-6 space-y-3">{[...Array(3)].map((_,i) => <div key={i} className="h-10 bg-canvas animate-pulse rounded-xl" />)}</div>
+          ? <div className="p-4 space-y-3">{[...Array(3)].map((_,i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}</div>
           : purchMetrics.topSuppliers.length === 0
-          ? <div className="py-16 text-center text-sm text-muted-foreground">No purchases for selected period</div>
+          ? <div className="py-16 text-center text-sm text-body">No purchases for selected period</div>
           : (
             <div>
-              <div className="grid grid-cols-[36px_1fr_80px_140px_120px] gap-4 px-6 py-2 bg-canvas/50 border-b border-border/60">
+              <div className="grid grid-cols-[36px_1fr_80px_140px_120px] gap-4 px-4 py-2 bg-tile border-b border-line">
                 {['#','Supplier','Orders','Share','Amount'].map(h => (
-                  <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
+                  <span key={h} className="font-tight text-[12px] font-semibold text-mute">{h}</span>
                 ))}
               </div>
               {purchMetrics.topSuppliers.map((s, i) => (
-                <div key={s.name} className="grid grid-cols-[36px_1fr_80px_140px_120px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
-                  <span className={`text-sm font-semibold ${i===0?'text-accent-signature':'text-ink-tertiary'}`}>{s.rank}</span>
+                <div key={s.name} className="grid grid-cols-[36px_1fr_80px_140px_120px] gap-4 px-4 py-3.5 items-center border-b border-line last:border-0 hover:bg-tile/40 transition-colors">
+                  <span className={`text-sm font-semibold ${i===0?'text-amber-text':'text-ink-tertiary'}`}>{s.rank}</span>
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-                      <span className="text-[10px] font-semibold text-blue-600">{s.name[0]?.toUpperCase()}</span>
+                    <div className="w-7 h-7 rounded-full bg-info-soft flex items-center justify-center shrink-0">
+                      <span className="text-[11.5px] font-semibold text-info-text">{s.name[0]?.toUpperCase()}</span>
                     </div>
-                    <span className="text-sm font-semibold text-foreground truncate">{s.name}</span>
+                    <span className="text-sm font-semibold text-ink truncate">{s.name}</span>
                   </div>
-                  <span className="tabular-nums text-ink-secondary text-sm">{s.orders}</span>
+                  <span className="tabular-nums text-ink-2 text-sm">{s.orders}</span>
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1.5 rounded-full bg-canvas overflow-hidden">
+                    <div className="flex-1 h-1.5 rounded-full bg-tile overflow-hidden">
                       <div className="h-full rounded-full bg-accent-signature" style={{ width: `${Math.min(100, s.share)}%` }} />
                     </div>
-                    <span className="text-[9px] font-semibold text-accent-signature w-8 text-right">{s.share.toFixed(0)}%</span>
+                    <span className="text-[12px] font-semibold text-amber-text w-8 text-right">{s.share.toFixed(0)}%</span>
                   </div>
-                  <span className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(s.amount)}</span>
+                  <span className="text-sm font-semibold text-ink tabular-nums">{formatCurrency(s.amount)}</span>
                 </div>
               ))}
             </div>

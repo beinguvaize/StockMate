@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Printer } from 'lucide-react';
-import { buildPayslip, money } from '../../lib/payslip';
+import { buildPayslip, money, ytdFor } from '../../lib/payslip';
 import { accountForMethod } from '../../hooks/useAccounts';
 import { formatDate } from '../../lib/utils';
 import { SLIP_CSS } from './paySlipStyles';
@@ -142,12 +142,18 @@ export const Slip = ({ s }) => (
         </div>
       ) : (
         <>
-          {/* the money */}
+          {/* the money: this period, and year to date beside it */}
           <div className="ps-col-sep">
-            <Section title="Earnings" lines={s.earnings}
-                     total={['Gross earnings', s.grossEarnings]} />
-            <Section title="Deductions" lines={s.deductionLines}
-                     total={['Total deductions', s.deductions]} emptyLabel="None" />
+            {s.ytdLines && (
+              <div className="ps-ln ps-ln3 ps-ln3-h"><span /><span>This period</span><span>Year to date</span></div>
+            )}
+            <Section title="Earnings" lines={s.earnings} ytd={s.ytdLines} kind="earnings"
+                     total={['Gross earnings', s.grossEarnings, s.ytdLines?.gross]} />
+            <Section title="Deductions" lines={s.deductionLines} ytd={s.ytdLines} kind="deductions"
+                     total={['Total deductions', s.deductions, s.ytdLines?.deductionsTotal]} emptyLabel="None" />
+            {s.ytdLines && (
+              <div className="ps-ln ps-ln3 ps-net3"><span>Net pay</span><span className="ps-a">{money(s.netPay)}</span><span className="ps-a">{money(s.ytdLines.net)}</span></div>
+            )}
           </div>
 
           {/* totals rail */}
@@ -239,19 +245,38 @@ const Fact = ({ k, v, mono }) => (
   </div>
 );
 
-const Section = ({ title, lines = [], total, emptyLabel }) => (
-  <div className="ps-sec">
-    <div className="ps-sec-h">{title}</div>
-    {lines.length === 0 ? (
-      <div className="ps-ln ps-none"><span>{emptyLabel || 'None'}</span><span className="ps-a">—</span></div>
-    ) : lines.map(l => (
-      <div className="ps-ln" key={l.label}>
-        <span>{l.label}{l.note && <div className="ps-d">{l.note}</div>}</span>
-        <span className="ps-a">{money(l.amount)}</span>
-      </div>
-    ))}
-    <div className="ps-ln ps-sum"><span>{total[0]}</span><span className="ps-a">{money(total[1])}</span></div>
-  </div>
-);
+/**
+ * One block of slip lines. With `ytd`, each line carries its financial-year
+ * total too, and a line the year has but this slip does not is listed with a
+ * dash for this period -- so the year-to-date column adds up to its total.
+ */
+const Section = ({ title, lines = [], total, emptyLabel, ytd, kind }) => {
+  const extra = ytd ? (ytd[kind] || []).filter((y) => !lines.some((l) => l.label === y.label)) : [];
+  const cls = ytd ? 'ps-ln ps-ln3' : 'ps-ln';
+  return (
+    <div className="ps-sec">
+      <div className="ps-sec-h">{title}</div>
+      {lines.length === 0 && extra.length === 0 ? (
+        <div className={`${cls} ps-none`}><span>{emptyLabel || 'None'}</span><span className="ps-a">—</span>{ytd && <span className="ps-a">—</span>}</div>
+      ) : (
+        <>
+          {lines.map(l => (
+            <div className={cls} key={l.label}>
+              <span>{l.label}{l.note && <div className="ps-d">{l.note}</div>}</span>
+              <span className="ps-a">{money(l.amount)}</span>
+              {ytd && <span className="ps-a">{money(ytdFor(ytd, kind, l.label))}</span>}
+            </div>
+          ))}
+          {extra.map(l => (
+            <div className={cls} key={`ytd-${l.label}`}>
+              <span>{l.label}</span><span className="ps-a">—</span><span className="ps-a">{money(l.amount)}</span>
+            </div>
+          ))}
+        </>
+      )}
+      <div className={`${cls} ps-sum`}><span>{total[0]}</span><span className="ps-a">{money(total[1])}</span>{ytd && <span className="ps-a">{money(total[2])}</span>}</div>
+    </div>
+  );
+};
 
 export default PaySlip;

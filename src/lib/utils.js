@@ -138,6 +138,23 @@ export const formatTime = (value) => {
   });
 };
 
+/**
+ * Short date and time for lists, the redesign's house style: "22 Nov, 4:10 pm".
+ * A date-only value (YYYY-MM-DD) prints just "22 Nov" rather than inventing
+ * a midnight time. Display only; returns '' for nothing or garbage.
+ */
+export const formatShortDateTime = (value) => {
+  if (!value) return '';
+  const ymd = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const d = ymd
+    ? (() => { const [y, m, day] = value.split('-').map(Number); return new Date(Date.UTC(y, m - 1, day)); })()
+    : new Date(value);
+  if (isNaN(d.getTime())) return '';
+  const date = d.toLocaleDateString(_appLocale, { day: 'numeric', month: 'short', timeZone: ymd ? 'UTC' : _appTimezone });
+  const time = ymd ? '' : formatTime(d);
+  return time ? `${date}, ${time}` : date;
+};
+
 export const formatDateTime = (dateString) => {
   if (!dateString) return 'N/A';
   const d = new Date(dateString);

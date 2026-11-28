@@ -138,6 +138,10 @@ serve(async (req) => {
         address: bizAddress || null,
         state: bizState || null,
         state_code: bizStateCode,
+        // New shops start on the new Modern invoice. Same value as
+        // DEFAULT_INVOICE_TEMPLATE in src/lib/printSettings.js; existing shops
+        // with no saved design keep LEGACY_INVOICE_TEMPLATE ('classic').
+        print_settings: { invoiceTemplate: "model-modern" },
       });
 
     if (bizError) throw bizError;

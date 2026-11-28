@@ -4,6 +4,7 @@
  */
 import React, { useState, useMemo } from 'react';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import { StatStrip } from './ReportBits';
 import ReportHeader from './ReportHeader';
 import ReportFilterRow from './ReportFilterRow';
@@ -38,16 +39,16 @@ const BillWiseProfitReport = () => {
 
   const filters = useMemo(() => ({ dateRange: range }), [range]);
 
-  const { data: salesRaw, loading } = useReportData({
+  const { data: salesRaw, loading, error: rdErr1, refetch: rdRe1 } = useReportData({
     table: 'sales', select: 'id, date, totalAmount, totalCogs, customerInfo, shopId, items, status, paymentStatus, voided_at',
     dateColumn: 'date', filters,
   });
   // Voided / cancelled sales owe nothing — keep them out of profit rows.
   const sales = useMemo(() => salesRaw.filter(isCountableSale), [salesRaw]);
-  const { data: products } = useReportData({ table: 'products', select: 'id, costPrice' });
+  const { data: products, error: rdErr2, refetch: rdRe2 } = useReportData({ table: 'products', select: 'id, costPrice' });
   // FIFO actual costs from batch consumption (where available). Per-sale
   // COGS uses these first, falls back to products.costPrice otherwise.
-  const { data: consumption } = useReportData({
+  const { data: consumption, error: rdErr3, refetch: rdRe3 } = useReportData({
     table: 'sale_batch_consumption', select: 'sale_id, qty_taken, unit_cost',
   });
   // Returns credit the customer AND give the sale's cost back — process_sales_return
@@ -55,7 +56,7 @@ const BillWiseProfitReport = () => {
   // netted the same way or a part-returned bill reads as more profitable than it
   // was: full revenue against reduced cost. get_pl_ranged already nets returns,
   // so this also brings bill-level agreement with the P&L.
-  const { data: returns } = useReportData({
+  const { data: returns, error: rdErr4, refetch: rdRe4 } = useReportData({
     table: 'sales_returns', select: 'sale_id, total_amount',
   });
 
@@ -158,7 +159,7 @@ const BillWiseProfitReport = () => {
 
   return (
     <div className="space-y-4 pb-16">
-      <ReportHeader
+      <ReportHeader error={loadError(rdErr1, rdErr2, rdErr3, rdErr4)} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); rdRe4(); }}
         title="Bill-wise Profit"
         subtitle={`${range.start === range.end ? range.start : `${range.start} → ${range.end}`}${loading ? '' : ` · ${rows.length} bill${rows.length === 1 ? '' : 's'}`}`}
         preset={preset}

@@ -1,8 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Barcode from 'react-barcode';
-import { Printer, ScanBarcode, Search, Wand2, Minus, Plus } from 'lucide-react';
+import { Printer, Search, Wand2, Minus, Plus, Package, ScanBarcode, ChevronDown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useTenant } from '../context/TenantContext';
+import { Button } from '../components/ui/button';
+import Dialog from '../components/ui/Dialog';
+import { Note, Eyebrow, EmptyCard } from '../components/tools/parts';
+import LabelSheet from '../components/labels/LabelSheet';
+import { isTransportFailure } from '../lib/writeOutcome';
+import { cn } from '../lib/utils';
 import {
   LABEL_TEMPLATES, barcodeFormat, genInternalBarcode, printLabels, paginate,
 } from '../lib/labelPrint';
@@ -11,6 +17,24 @@ import {
 // Pick products + qty → choose a label template + fields → preview → print.
 // Barcodes render as SVG (react-barcode); print clones the hidden sheet HTML
 // into a popup with exact-mm @page CSS (works on thermal + A4 printers).
+//
+// Web redesign (approved mockups labels-01..06). The print sheet is
+// components/labels/LabelSheet, unchanged, and pinned by its test: only the
+// screen changed. Generating barcodes now asks first and says which saved.
+
+// Names as the mockup writes them; the template itself (sizes) is untouched.
+const TEMPLATE_NAMES = {
+  T38x2: '38 × 25 mm · thermal roll, 2 across',
+  T38:   '38 × 25 mm · thermal roll, 1 across',
+  T50:   '50 × 25 mm · thermal roll',
+  A4_65: 'A4 sheet · 65 labels (38.1 × 21.2 mm)',
+  A4_40: 'A4 sheet · 40 labels (52.5 × 29.7 mm)',
+  A4_24: 'A4 sheet · 24 labels (70 × 37.1 mm)',
+};
+
+const inr2 = (n) => `₹${Number(n || 0).toFixed(2)}`;
+const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
 const LabelPrinting = () => {
   const { currentTenantId, businessProfile } = useTenant();
   const [products, setProducts] = useState([]);
@@ -20,7 +44,7 @@ const LabelPrinting = () => {
   const [templateId, setTemplateId] = useState('T38x2');
   // Per-field config: visible, font size (pt) and bold — like big-brand label tools.
   const DEFAULT_FIELDS = {
-    biz:   { on: true,  size: 6,  bold: true,  label: 'Business name' },
+    biz:   { on: true,  size: 6,  bold: true,  label: 'Shop name' },
     name:  { on: true,  size: 7,  bold: true,  label: 'Product name' },
     sku:   { on: false, size: 5,  bold: false, label: 'SKU' },
     price: { on: true,  size: 8,  bold: true,  label: 'MRP price' },
@@ -30,6 +54,10 @@ const LabelPrinting = () => {
   const [fields, setFields] = useState(DEFAULT_FIELDS);
   const [generating, setGenerating] = useState(false);
   const [savedTick, setSavedTick] = useState(false);
+  // Generate dialog: the codes it will write, worked out when it opens so the
+  // shopkeeper sees the exact numbers before anything is saved.
+  const [genPlan, setGenPlan] = useState(null);   // [{ p, code }] | null
+  const [genResult, setGenResult] = useState(null);
 
   // Load saved settings once per tenant.
   useEffect(() => {
@@ -64,7 +92,7 @@ const LabelPrinting = () => {
   const [msg, setMsg] = useState('');
   const sheetRef = useRef(null);
 
-  const template = LABEL_TEMPLATES.find(t => t.id === templateId);
+  const template = LABEL_TEMPLATES.find(t => t.id === templateId) || LABEL_TEMPLATES[0];
 
   const load = async () => {
     if (!currentTenantId) return;
@@ -100,109 +128,103 @@ const LabelPrinting = () => {
 
   // Fill products.barcode for every product that lacks one. Internal numeric
   // codes in the GS1 in-store range (prefix 21) with EAN-13 check digit.
+  const openGenerate = () => {
+    const taken = new Set(products.map(p => p.barcode).filter(Boolean));
+    const plan = products.filter(p => !p.barcode).map(p => {
+      const code = genInternalBarcode(taken);
+      taken.add(code);
+      return { p, code };
+    });
+    setGenPlan(plan);
+  };
+
+  // Same writes as before, one product at a time, stopping at the first
+  // failure. What changed: it asks first, and afterwards it says which saved,
+  // which did not and why, and re-reads the list either way.
   const generateMissing = async () => {
+    const plan = genPlan || [];
     setGenerating(true);
     setMsg('');
+    setGenResult(null);
+    const saved = [];
+    let failed = null;
     try {
-      const taken = new Set(products.map(p => p.barcode).filter(Boolean));
-      const missing = products.filter(p => !p.barcode);
-      for (const p of missing) {
-        const code = genInternalBarcode(taken);
-        taken.add(code);
+      for (const { p, code } of plan) {
         const { error } = await supabase
           .from('products')
           .update({ barcode: code, barcode_type: 'EAN13' })
           .eq('id', p.id)
           .eq('tenant_id', currentTenantId);
-        if (error) throw error;
+        if (error) { failed = { p, error }; break; }
+        saved.push({ p, code });
       }
-      await load();
-      setMsg(`Generated barcodes for ${missing.length} product${missing.length === 1 ? '' : 's'}.`);
     } catch (e) {
-      setMsg(`Generate failed: ${e.message || e}`);
+      failed = { p: plan[saved.length]?.p, error: e };
     } finally {
+      setGenPlan(null);
+      // Re-read either way: after a dropped connection only the server knows.
+      await load();
       setGenerating(false);
+    }
+    if (!failed) {
+      setMsg(`Generated barcodes for ${saved.length} product${saved.length === 1 ? '' : 's'}.`);
+    } else {
+      setGenResult({
+        total: plan.length,
+        saved,
+        failed: { name: failed.p?.name || 'A product', reason: String(failed.error?.message || failed.error || ''), unsure: isTransportFailure(failed.error) },
+        notTried: plan.length - saved.length - 1,
+      });
     }
   };
 
   const handlePrint = () => {
     if (!sheetRef.current || totalLabels === 0) return;
     const ok = printLabels(template, sheetRef.current.innerHTML);
-    if (!ok) setMsg('Popup blocked — allow popups for this site to print.');
+    setMsg(ok ? '' : 'POPUP_BLOCKED');
   };
 
-  // One label cell. Used for both on-screen preview and the hidden print sheet.
-  const fs = (k) => ({ fontSize: `${fields[k].size}pt`, fontWeight: fields[k].bold ? 800 : 500 });
-  const LabelCell = ({ p }) => (
-    <div className="label">
-      {fields.biz.on && businessProfile?.name && <div className="biz" style={fs('biz')}>{businessProfile.name}</div>}
-      {fields.name.on && <div className="name" style={fs('name')}>{p.name}</div>}
-      {fields.sku.on && p.sku && <div className="sku" style={fs('sku')}>{p.sku}</div>}
-      {p.barcode ? (
-        <div className="bc">
-          <Barcode
-            value={p.barcode}
-            format={barcodeFormat(p.barcode)}
-            width={1}
-            height={template.label.h >= 30 ? 34 : 22}
-            fontSize={8}
-            margin={0}
-            displayValue
-          />
-        </div>
-      ) : (
-        <div className="sku">no barcode</div>
-      )}
-      {fields.price.on && (
-        <div className="price" style={fs('price')}>MRP ₹{Number(p.sellingPrice || 0).toFixed(2)}</div>
-      )}
-      {fields.tax.on && <div className="tax" style={fs('tax')}>Incl. of all taxes</div>}
-    </div>
-  );
-
-  // On-screen cell at preview scale; mirrors LabelCell using pt->px conversion.
-  const pvs = (k) => ({ fontSize: pt2px(fields[k].size), fontWeight: fields[k].bold ? 800 : 500, lineHeight: 1.25 });
+  // On-screen cell at preview scale; mirrors the print cell using pt->px conversion.
+  // A4 sheets are drawn at half the thermal scale so a whole page fits the card.
+  const previewScale = template.kind === 'a4' ? 1.6 : 3.2;
+  const pvs = (k) => ({ fontSize: pt2px(fields[k].size) * (previewScale / 3.2), fontWeight: fields[k].bold ? 800 : 500, lineHeight: 1.15 });
   const PreviewCell = ({ p }) => (
-    <div className="overflow-hidden text-center flex flex-col items-center justify-center border border-dashed border-black/10"
+    <div className="flex flex-col items-center justify-center overflow-hidden border border-dashed border-[#E1E1DE] text-center text-[#111]"
       style={{ padding: 2 }}>
-      {fields.biz.on && businessProfile?.name && <div className="uppercase truncate w-full" style={pvs('biz')}>{businessProfile.name}</div>}
-      {fields.name.on && <div className="truncate w-full" style={pvs('name')}>{p.name}</div>}
+      {fields.biz.on && businessProfile?.name && <div className="w-full truncate uppercase" style={pvs('biz')}>{businessProfile.name}</div>}
+      {fields.name.on && <div className="w-full truncate" style={pvs('name')}>{p.name}</div>}
       {fields.sku.on && p.sku && <div style={pvs('sku')}>{p.sku}</div>}
       {p.barcode ? (
-        <Barcode value={p.barcode} format={barcodeFormat(p.barcode)} width={1} height={template.label.h >= 30 ? 30 : 20} fontSize={8} margin={0} displayValue />
-      ) : <div className="text-[7px] text-red-500">no barcode</div>}
-      {fields.price.on && <div style={pvs('price')}>MRP ₹{Number(p.sellingPrice || 0).toFixed(2)}</div>}
+        <Barcode value={p.barcode} format={barcodeFormat(p.barcode)} width={previewScale < 3 ? 0.5 : 1}
+          height={(template.label.h >= 30 ? 30 : 20) * (previewScale / 3.2)} fontSize={8 * (previewScale / 3.2)} margin={0} displayValue />
+      ) : <div className="text-[7px] text-bad-text">no barcode</div>}
+      {fields.price.on && <div style={pvs('price')}>MRP {inr2(p.sellingPrice)}</div>}
       {fields.tax.on && <div style={pvs('tax')}>Incl. of all taxes</div>}
     </div>
   );
 
   // Big single-label sample with mm dimension rulers (first selected or sample data).
   const sampleProduct = selected[0] || products[0] || { name: 'Item 1', sku: 'SKU-001', barcode: '2100000000013', sellingPrice: 100 };
-  const bigScale = Math.min(8, 420 / template.label.w);
+  const bigScale = Math.min(6.5, 440 / template.label.w);
+  const sfs = (k) => ({ fontSize: pt2px(fields[k].size) * (bigScale / 3.2), fontWeight: fields[k].bold ? 800 : 500 });
   const SampleLabel = () => (
-    <div className="flex flex-col items-center py-4">
-      {/* width ruler */}
-      <div className="flex items-center gap-1 mb-1" style={{ width: template.label.w * bigScale }}>
-        <div className="flex-1 border-t border-red-400 relative">
-          <span className="absolute left-1/2 -translate-x-1/2 -top-4 text-[10px] font-mono text-red-500">{template.label.w}mm</span>
-        </div>
-      </div>
+    <div className="flex flex-col items-center pb-2 pt-[18px]">
+      <div className="mb-1.5 border-t border-amber pt-[3px] text-center font-mono text-[10.5px] font-medium text-amber-text"
+        style={{ width: template.label.w * bigScale }}>{template.label.w} mm</div>
       <div className="flex items-center gap-2">
-        <div className="bg-white border border-black/15 shadow-sm overflow-hidden text-center flex flex-col items-center justify-center"
-          style={{ width: template.label.w * bigScale, height: template.label.h * bigScale, padding: 4 }}>
-          {fields.biz.on && businessProfile?.name && <div className="uppercase truncate w-full" style={{ fontSize: pt2px(fields.biz.size) * (bigScale / 3.2), fontWeight: fields.biz.bold ? 800 : 500 }}>{businessProfile.name}</div>}
-          {fields.name.on && <div className="truncate w-full" style={{ fontSize: pt2px(fields.name.size) * (bigScale / 3.2), fontWeight: fields.name.bold ? 800 : 500 }}>{sampleProduct.name}</div>}
-          {fields.sku.on && sampleProduct.sku && <div style={{ fontSize: pt2px(fields.sku.size) * (bigScale / 3.2), fontWeight: fields.sku.bold ? 800 : 500 }}>{sampleProduct.sku}</div>}
+        <div className="flex flex-col items-center justify-center overflow-hidden border border-[#D9D9D6] bg-white text-center leading-[1.2] text-[#111] shadow-[0_2px_8px_-4px_rgba(17,20,24,0.25)]"
+          style={{ width: template.label.w * bigScale, height: template.label.h * bigScale, padding: 5 }}>
+          {fields.biz.on && businessProfile?.name && <div className="w-full truncate uppercase" style={sfs('biz')}>{businessProfile.name}</div>}
+          {fields.name.on && <div className="w-full truncate" style={sfs('name')}>{sampleProduct.name}</div>}
+          {fields.sku.on && sampleProduct.sku && <div style={sfs('sku')}>{sampleProduct.sku}</div>}
           {sampleProduct.barcode && (
             <Barcode value={sampleProduct.barcode} format={barcodeFormat(sampleProduct.barcode)} width={Math.max(1, bigScale / 3)} height={template.label.h * bigScale * 0.3} fontSize={10} margin={0} displayValue />
           )}
-          {fields.price.on && <div style={{ fontSize: pt2px(fields.price.size) * (bigScale / 3.2), fontWeight: fields.price.bold ? 800 : 500 }}>MRP ₹{Number(sampleProduct.sellingPrice || 0).toFixed(2)}</div>}
-          {fields.tax.on && <div style={{ fontSize: pt2px(fields.tax.size) * (bigScale / 3.2), fontWeight: fields.tax.bold ? 800 : 500 }}>Incl. of all taxes</div>}
+          {fields.price.on && <div style={sfs('price')}>MRP {inr2(sampleProduct.sellingPrice)}</div>}
+          {fields.tax.on && <div style={sfs('tax')}>Incl. of all taxes</div>}
         </div>
-        {/* height ruler */}
-        <div className="border-l border-red-400 relative" style={{ height: template.label.h * bigScale }}>
-          <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] font-mono text-red-500 whitespace-nowrap">{template.label.h}mm</span>
-        </div>
+        <div className="flex items-center border-l border-amber pl-[5px] font-mono text-[10.5px] font-medium text-amber-text whitespace-nowrap"
+          style={{ height: template.label.h * bigScale }}>{template.label.h} mm</div>
       </div>
     </div>
   );
@@ -210,160 +232,162 @@ const LabelPrinting = () => {
   // Expanded cells: each product repeated qty times.
   const cells = selected.flatMap(p => Array.from({ length: qty[p.id] || 0 }, (_, i) => ({ p, key: `${p.id}-${i}` })));
   const pages = paginate(cells, template);
+  const rollNote = template.kind === 'thermal'
+    ? ` · one page is one ${template.cols > 1 ? `${template.cols}-label row` : 'label'} of the roll` : '';
 
-  // Screen preview scale: mm → px at ~3.2 px/mm capped to container.
-  const previewScale = 3.2;
+  const card = 'rounded-[14px] border border-line bg-surface';
 
   return (
-    <div className="p-4 md:p-6 max-w-7xl mx-auto">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-        <div>
-          <h1 className="text-xl font-black text-ink-primary flex items-center gap-2">
-            <ScanBarcode size={20} className="text-accent-signature" /> Barcode &amp; Labels
-          </h1>
-          <p className="text-[12px] text-ink-tertiary">Generate product barcodes and print price labels — thermal rolls or A4 sticker sheets.</p>
+    <div className="flex flex-col pb-16">
+      <header className="m-rise mb-3 flex flex-wrap items-center gap-2.5" style={{ '--i': 0 }}>
+        <div className="min-w-0 flex-1">
+          <div className="font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-mute">Barcode and labels</div>
+          <p className="mt-0.5 text-[13px] text-body">Give products a barcode and print price labels, on thermal rolls or A4 sticker sheets</p>
         </div>
-        <div className="flex items-center gap-2">
-          {missingBarcodes > 0 && (
-            <button
-              onClick={generateMissing}
-              disabled={generating}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-pill border border-accent-signature/40 text-accent-signature text-[12px] font-bold hover:bg-accent-signature/10 disabled:opacity-60"
-            >
-              <Wand2 size={14} /> {generating ? 'Generating…' : `Generate ${missingBarcodes} missing barcode${missingBarcodes === 1 ? '' : 's'}`}
-            </button>
-          )}
-          <button
-            onClick={handlePrint}
-            disabled={totalLabels === 0}
-            className="flex items-center gap-2 px-4 py-2 rounded-pill bg-accent-signature text-white text-[12px] font-black disabled:opacity-40"
-          >
-            <Printer size={14} /> Print {totalLabels > 0 ? `${totalLabels} label${totalLabels === 1 ? '' : 's'}` : ''}
-          </button>
-        </div>
-      </div>
+        {missingBarcodes > 0 && (
+          <Button variant="secondary" size="sm" className="h-9" onClick={openGenerate} disabled={generating}>
+            <Wand2 aria-hidden="true" />
+            {generating ? 'Generating…' : `Generate ${missingBarcodes} missing barcode${missingBarcodes === 1 ? '' : 's'}`}
+          </Button>
+        )}
+        <Button size="sm" className="h-9 px-4" onClick={handlePrint} disabled={totalLabels === 0}>
+          <Printer aria-hidden="true" /> Print{totalLabels > 0 ? ` ${totalLabels} label${totalLabels === 1 ? '' : 's'}` : ''}
+        </Button>
+      </header>
 
-      {msg && (
-        <div className="mb-4 px-4 py-2.5 rounded-lg bg-accent-signature/10 border border-accent-signature/30 text-[12px] font-semibold text-ink-primary">
-          {msg}
-        </div>
+      {msg === 'POPUP_BLOCKED' ? (
+        <Note tone="a" role="alert" className="mb-3.5">
+          <b>The print window was blocked.</b> Allow pop-ups for this site in the browser, then press Print again.
+        </Note>
+      ) : msg ? (
+        <Note tone={msg.startsWith('Generated') ? 'g' : 'a'} role="status" className="mb-3.5">{msg}</Note>
+      ) : null}
+
+      {genResult && (
+        <Note tone="a" role="alert" className="mb-3.5">
+          <b>{genResult.saved.length} of {genResult.total} barcodes saved.</b>{' '}
+          {genResult.saved.length > 0 && (
+            <>
+              {genResult.saved.slice(0, 3).map(({ p, code }) => `${p.name} now has ${code}`).join(', ')}
+              {genResult.saved.length > 3 ? ` and ${genResult.saved.length - 3} more` : ''}.{' '}
+            </>
+          )}
+          {genResult.failed.unsure
+            ? <>{genResult.failed.name} could not be confirmed ({genResult.failed.reason || 'connection dropped'}). The list has been re-read from the shop, so it shows whether it saved.</>
+            : <>{genResult.failed.name} did not save ({genResult.failed.reason || 'no reason given'}) and still has none.</>}
+          {genResult.notTried > 0 && <> {plural(genResult.notTried, 'more product')} {genResult.notTried === 1 ? 'was' : 'were'} not tried.</>}
+          {missingBarcodes > 0 && (
+            <> <button type="button" onClick={openGenerate} className="font-tight font-semibold text-amber-text underline-offset-4 hover:underline">Try again</button></>
+          )}
+        </Note>
       )}
 
-      <div className="grid lg:grid-cols-2 gap-5">
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_520px]">
         {/* ── Left: product picker ── */}
-        <div className="bg-white rounded-xl border border-black/5 shadow-sm">
-          <div className="p-3 border-b border-black/5">
-            <div className="flex items-center gap-2 bg-surface rounded-lg px-3">
-              <Search size={14} className="text-ink-tertiary shrink-0" />
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search name, SKU or barcode…"
-                className="flex-1 bg-transparent py-2.5 text-[13px] outline-none"
-              />
-            </div>
-          </div>
-          <div className="max-h-[520px] overflow-y-auto divide-y divide-black/5">
+        <div className="m-rise min-w-0" style={{ '--i': 1 }}>
+          <div className={cn(card, 'overflow-hidden')}>
+            <label className="m-3 flex items-center gap-2 rounded-pill bg-well py-2 pl-3.5 pr-3 text-[13px] text-mute">
+              <Search size={15} aria-hidden="true" className="shrink-0" />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, SKU or barcode"
+                aria-label="Search name, SKU or barcode"
+                className="min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-mute" />
+            </label>
             {loading ? (
-              <div className="p-6 text-center text-[12px] text-ink-tertiary">Loading products…</div>
-            ) : filtered.length === 0 ? (
-              <div className="p-6 text-center text-[12px] text-ink-tertiary">No products found.</div>
-            ) : filtered.map(p => (
-              <div key={p.id} className="flex items-center gap-3 px-4 py-2.5">
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-semibold text-ink-primary truncate">{p.name}</div>
-                  <div className="text-[11px] text-ink-tertiary font-mono truncate">
-                    {p.barcode || 'no barcode'} · ₹{Number(p.sellingPrice || 0).toFixed(2)} · stock {p.stock ?? 0}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button onClick={() => setCount(p.id, (qty[p.id] || 0) - 1)}
-                    className="w-7 h-7 rounded-xl border border-black/10 flex items-center justify-center hover:bg-surface">
-                    <Minus size={12} />
-                  </button>
-                  <input
-                    type="number"
-                    value={qty[p.id] || 0}
-                    onChange={e => setCount(p.id, parseInt(e.target.value, 10) || 0)}
-                    className="w-14 text-center text-[13px] font-bold border border-black/10 rounded-md py-1 outline-none focus:border-accent-signature"
-                  />
-                  <button onClick={() => setCount(p.id, (qty[p.id] || 0) + 1)}
-                    className="w-7 h-7 rounded-xl border border-black/10 flex items-center justify-center hover:bg-surface">
-                    <Plus size={12} />
-                  </button>
-                  {p.stock > 0 && (
-                    <button onClick={() => setCount(p.id, p.stock)}
-                      className="text-[10px] font-bold text-accent-signature px-1.5 hover:underline" title="Set to stock count">
-                      =stock
-                    </button>
-                  )}
-                </div>
+              <div className="border-t border-sep p-6 text-center text-[13px] text-mute">Loading products…</div>
+            ) : filtered.length === 0 ? null : (
+              <div className="max-h-[620px] overflow-y-auto">
+                {filtered.map(p => {
+                  const n = qty[p.id] || 0;
+                  return (
+                    <div key={p.id} className={cn('grid grid-cols-[minmax(0,1fr)_auto_46px] items-center gap-3 border-t border-sep px-4 py-2.5', n > 0 && 'bg-[#FFFBF4]')}>
+                      <div className="min-w-0">
+                        <b className="block truncate font-tight text-[13.5px] font-semibold text-ink">{p.name}</b>
+                        <small className="block truncate text-[12px] tabular-nums text-mute">
+                          {p.barcode ? p.barcode : <span className="text-bad-text">no barcode</span>} · {inr2(p.sellingPrice)} · stock {p.stock ?? 0}
+                        </small>
+                      </div>
+                      <div className={cn('inline-flex h-[30px] items-center rounded-pill', n > 0 ? 'bg-amber-soft' : 'bg-well')}>
+                        <button type="button" onClick={() => setCount(p.id, n - 1)} aria-label={`One label fewer for ${p.name}`}
+                          className="m-press grid h-[30px] w-[30px] place-items-center rounded-pill text-ink-2"><Minus size={14} /></button>
+                        <input type="number" value={n} aria-label={`Labels for ${p.name}`}
+                          onChange={e => setCount(p.id, parseInt(e.target.value, 10) || 0)}
+                          className="w-10 appearance-none bg-transparent text-center font-tight text-[13px] font-semibold tabular-nums text-ink outline-none [&::-webkit-inner-spin-button]:appearance-none" />
+                        <button type="button" onClick={() => setCount(p.id, n + 1)} aria-label={`One label more for ${p.name}`}
+                          className="m-press grid h-[30px] w-[30px] place-items-center rounded-pill text-ink-2"><Plus size={14} /></button>
+                      </div>
+                      {p.stock > 0 ? (
+                        <button type="button" onClick={() => setCount(p.id, p.stock)} title="Set to stock count"
+                          className="text-right font-tight text-[12px] font-semibold text-amber-text hover:underline">= stock</button>
+                      ) : <span />}
+                    </div>
+                  );
+                })}
               </div>
-            ))}
+            )}
           </div>
+          {!loading && filtered.length === 0 && (
+            <EmptyCard icon={Package} title="No products found" className="mt-3">
+              {products.length === 0 ? 'Add products in Inventory first.' : 'Clear the search to see every product.'}
+            </EmptyCard>
+          )}
         </div>
 
         {/* ── Right: template + preview ── */}
-        <div className="space-y-4">
-          <div className="bg-white rounded-xl border border-black/5 shadow-sm p-4">
-            <label className="block text-[10px] font-black uppercase tracking-wider text-ink-tertiary mb-1.5">Label template</label>
-            <select
-              value={templateId}
-              onChange={e => setTemplateId(e.target.value)}
-              className="w-full border border-black/10 rounded-lg px-3 py-2.5 text-[13px] font-semibold outline-none focus:border-accent-signature bg-white"
-            >
-              {LABEL_TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
+        <div className="m-rise flex min-w-0 flex-col gap-3" style={{ '--i': 2 }}>
+          <div className={cn(card, 'p-4')}>
+            <label htmlFor="label-template" className="mb-1.5 block font-tight text-[12px] font-semibold text-ink-2">Label template</label>
+            <div className="relative">
+              <select id="label-template" value={templateId} onChange={e => setTemplateId(e.target.value)}
+                className="h-10 w-full appearance-none rounded-[10px] bg-surface pl-3 pr-9 text-[13.5px] text-ink shadow-[inset_0_0_0_1px_var(--color-line)] outline-none focus:shadow-[inset_0_0_0_2px_var(--color-ink)]">
+                {LABEL_TEMPLATES.map(t => <option key={t.id} value={t.id}>{TEMPLATE_NAMES[t.id] || t.name}</option>)}
+              </select>
+              <ChevronDown size={14} aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-mute" />
+            </div>
 
-            <div className="mt-4 divide-y divide-black/5 border border-black/5 rounded-lg">
-              {Object.entries(fields).map(([k, f]) => (
-                <div key={k} className="flex items-center gap-3 px-3 py-2">
-                  <label className="flex items-center gap-2 text-[12px] font-semibold text-ink-secondary cursor-pointer flex-1">
-                    <input
-                      type="checkbox"
-                      checked={f.on}
-                      onChange={e => setField(k, { on: e.target.checked })}
-                      className="accent-accent-signature"
-                    />
-                    {f.label}
-                  </label>
+            <div className="mt-3 rounded-xl border border-line">
+              {Object.entries(fields).map(([k, f], i) => (
+                <div key={k} className={cn('grid grid-cols-[20px_1fr_auto] items-center gap-2.5 px-3 py-2 text-[13px]', i > 0 && 'border-t border-sep', !f.on && 'text-mute')}>
+                  <button type="button" role="checkbox" aria-checked={f.on} aria-label={`Show ${f.label}`}
+                    onClick={() => setField(k, { on: !f.on })}
+                    className={cn('m-press grid h-[18px] w-[18px] place-items-center rounded-[5px]', f.on ? 'bg-ink text-white' : 'bg-white shadow-[inset_0_0_0_1.5px_var(--color-faint)]')}>
+                    {f.on && <svg viewBox="0 0 12 12" className="h-3 w-3" aria-hidden="true"><path d="M2.5 6.2l2.2 2.2 4.8-4.9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                  </button>
+                  <span>{f.label}</span>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => setField(k, { size: Math.max(3, +(f.size - 0.5).toFixed(1)) })}
-                      className="w-6 h-6 rounded border border-black/10 text-[12px] font-bold hover:bg-surface">−</button>
-                    <span className="w-8 text-center text-[11px] font-mono font-bold">{f.size}</span>
-                    <button onClick={() => setField(k, { size: Math.min(14, +(f.size + 0.5).toFixed(1)) })}
-                      className="w-6 h-6 rounded border border-black/10 text-[12px] font-bold hover:bg-surface">+</button>
-                    <button onClick={() => setField(k, { bold: !f.bold })}
-                      className={`ml-1 w-6 h-6 rounded border text-[12px] font-black ${f.bold ? 'bg-accent-signature text-white border-accent-signature' : 'border-black/10 text-ink-tertiary hover:bg-surface'}`}>B</button>
+                    <button type="button" onClick={() => setField(k, { size: Math.max(3, +(f.size - 0.5).toFixed(1)) })} aria-label={`Smaller ${f.label}`}
+                      className="m-press grid h-[26px] w-[26px] place-items-center rounded-[7px] font-tight text-[13px] font-semibold text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile">−</button>
+                    <span className="min-w-8 text-center font-tight text-[12px] font-semibold tabular-nums text-ink">{f.size} pt</span>
+                    <button type="button" onClick={() => setField(k, { size: Math.min(14, +(f.size + 0.5).toFixed(1)) })} aria-label={`Larger ${f.label}`}
+                      className="m-press grid h-[26px] w-[26px] place-items-center rounded-[7px] font-tight text-[13px] font-semibold text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile">+</button>
+                    <button type="button" onClick={() => setField(k, { bold: !f.bold })} aria-pressed={f.bold} aria-label={`Bold ${f.label}`}
+                      className={cn('m-press grid h-[26px] w-[26px] place-items-center rounded-[7px] font-tight text-[13px] font-extrabold',
+                        f.bold ? 'bg-ink text-white' : 'text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile')}>B</button>
                   </div>
                 </div>
               ))}
             </div>
-            <button
-              onClick={saveSettings}
-              className="mt-3 w-full py-2 rounded-pill bg-ink-primary text-white text-[12px] font-black hover:opacity-90"
-            >
-              {savedTick ? '✓ Saved' : 'Save Settings'}
-            </button>
+            <div className="mt-2.5 flex items-center gap-2.5">
+              <span className="text-[12px] text-mute">Saved on this computer only</span>
+              <span className="flex-1" />
+              <Button variant="secondary" size="xs" onClick={saveSettings}>{savedTick ? '✓ Saved' : 'Save settings'}</Button>
+            </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-black/5 shadow-sm p-4">
-            <div className="text-[10px] font-black uppercase tracking-wider text-ink-tertiary mb-2">
-              Label sample
-            </div>
+          <div className={cn(card, 'p-4')}>
+            <Eyebrow>Label sample</Eyebrow>
             <SampleLabel />
-            <div className="text-[10px] font-black uppercase tracking-wider text-ink-tertiary mb-2 mt-2">
-              Page preview {pages.length > 0 && `· ${pages.length} page${pages.length === 1 ? '' : 's'}`}
-            </div>
+            <Eyebrow className="mt-3.5">
+              Page preview{totalLabels > 0 && pages.length > 0 && ` · ${plural(pages.length, 'page')}`}
+            </Eyebrow>
             {totalLabels === 0 ? (
-              <div className="py-10 text-center text-[12px] text-ink-tertiary">
+              <div className="flex flex-col items-center rounded-xl bg-tile px-3.5 py-[34px] text-[13px] text-body">
                 Pick products on the left to preview labels.
               </div>
             ) : (
-              <div className="overflow-auto max-h-[440px] rounded-lg bg-surface p-3">
+              <div className="flex max-h-[560px] flex-col items-center overflow-auto rounded-xl bg-tile p-3.5">
                 {/* first page only on screen, scaled */}
                 <div
-                  className="bg-white shadow border border-black/10 mx-auto"
+                  className="bg-white shadow-[0_1px_4px_rgba(17,20,24,0.15)]"
                   style={{
                     width: template.page.w * previewScale,
                     minHeight: template.page.h * previewScale,
@@ -381,7 +405,7 @@ const LabelPrinting = () => {
                   ))}
                 </div>
                 {pages.length > 1 && (
-                  <div className="text-center text-[11px] text-ink-tertiary mt-2">+ {pages.length - 1} more page{pages.length === 2 ? '' : 's'} when printed</div>
+                  <span className="mt-2 text-[12px] text-mute">+ {pages.length - 1} more page{pages.length === 2 ? '' : 's'} when printed{rollNote}</span>
                 )}
               </div>
             )}
@@ -389,13 +413,30 @@ const LabelPrinting = () => {
         </div>
       </div>
 
+      <Dialog open={!!genPlan} onClose={() => { if (!generating) setGenPlan(null); }}
+        title={`Give ${plural(genPlan?.length || 0, 'product')} a barcode?`} subtitle="For products that have none yet"
+        footer={<>
+          <Button variant="secondary" onClick={() => setGenPlan(null)} disabled={generating}>Cancel</Button>
+          <Button onClick={generateMissing} disabled={generating || !genPlan?.length}>
+            <ScanBarcode aria-hidden="true" />
+            {generating ? 'Generating…' : `Generate ${plural(genPlan?.length || 0, 'barcode')}`}
+          </Button>
+        </>}>
+        <div className="max-h-[320px] space-y-1.5 overflow-y-auto">
+          {(genPlan || []).map(({ p, code }) => (
+            <div key={p.id} className="flex justify-between gap-3 rounded-[10px] bg-tile px-3 py-[9px] text-[13px]">
+              <span className="truncate">{p.name}</span><span className="tabular-nums">{code}</span>
+            </div>
+          ))}
+        </div>
+        <p className="mt-2.5 text-[12px] text-mute">
+          Shop-only numbers that start with 21, so they never clash with a maker's barcode. They are saved on the product and print on every label after this.
+        </p>
+      </Dialog>
+
       {/* Hidden full print sheet — innerHTML is cloned into the print popup */}
       <div ref={sheetRef} style={{ display: 'none' }}>
-        {pages.map((page, pi) => (
-          <div className="sheet" key={pi}>
-            {page.map(({ p, key }) => <LabelCell key={key} p={p} />)}
-          </div>
-        ))}
+        <LabelSheet pages={pages} fields={fields} template={template} bizName={businessProfile?.name} />
       </div>
     </div>
   );

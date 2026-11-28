@@ -1,19 +1,24 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { ChevronUp, ChevronDown, X } from 'lucide-react';
 import { isService } from '../../../lib/productTypes';
 import { useDialogClose } from '../../../hooks/useDialogClose';
-import { createPortal } from 'react-dom';
-import {
-  ScanLine, SlidersHorizontal, Pencil, Trash2, X, ChevronUp, ChevronDown,
-} from 'lucide-react';
 import SegmentedTabs from '../../../components/motion/SegmentedTabs';
+import HoldButton from '../../../components/motion/HoldButton';
+import { Button } from '../../../components/ui/button';
+import { Badge } from '../../../components/ui/badge';
+import WriteFailure from '../../../components/invoices/WriteFailure';
 import { supabase } from '../../../lib/supabase';
-import { formatCurrency } from '../../../lib/utils';
+import { formatCurrency, cn } from '../../../lib/utils';
+import { productPill, dayMonth } from '../../../lib/inventoryView';
+import { ProductAvatar } from './parts';
 
 /**
- * ItemDetailView — full product profile, myBillBook-style.
- * Tabs: Item Details · Stock Details · Party Wise Report · Godown · Party Wise Prices.
- * Header actions: Print Barcode · Adjust Stock · Edit · Delete.
- * Batches / sales / clients / party-prices are fetched on open.
+ * The product panel (approved inventory-07, -08): figures, stock by
+ * location, recent movements and details; batches and manual adjustments;
+ * sales by client; and its prices. Batches / sales / clients / party prices
+ * are fetched on open. Read only, apart from the actions in its footer,
+ * which are the page's own.
  */
 const TABS = [
   { key: 'OVERVIEW', label: 'Overview' },
@@ -31,9 +36,12 @@ const batchSource = (b) => {
   return note;
 };
 
+// Manual adjustments only: anything NOT written by an automated flow.
+const SYSTEM_REASON = /^(sale|purchase|van |loaded on vehicle|dispatch to vehicle|void sale|unvoid sale)/i;
+
 const ItemDetailView = ({
   product, locations = [], balances = [], tenantId,
-  onClose, onEdit, onAdjust, onPrintBarcode, onDelete, onReorder, currencySymbol = '₹',
+  onClose, onEdit, onAdjust, onPrintBarcode, onDelete, onReorder, onBatches, onReread, currencySymbol = '₹',
   items = [], onSelect,
 }) => {
   const [tab, setTab] = useState('OVERVIEW');
@@ -45,6 +53,8 @@ const ItemDetailView = ({
   const [suppliers, setSuppliers] = useState({});
   const [prices, setPrices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
 
   const pid = product?.id;
 
@@ -52,6 +62,7 @@ const ItemDetailView = ({
   // detail panel scroll (and tab) on selection change.
   useEffect(() => {
     setTab('OVERVIEW');
+    setDeleteError(null);
     if (detailRef.current) detailRef.current.scrollTop = 0;
   }, [pid]);
 
@@ -126,11 +137,11 @@ const ItemDetailView = ({
   //
   // costPrice is a weighted average; FIFO consumes real batch costs, so valuing
   // stock at the average made this card disagree with the COGS the same stock
-  // will produce (LD Cover 0: card ₹8,859.17 vs batches ₹8,595.70).
+  // will produce.
   //
-  // Batches can also under-cover the balance — that item shows 66 in stock with
-  // 65 across its batches. Rather than hide the gap, value what the batches
-  // cover at their own cost and the remainder at costPrice, and say so.
+  // Batches can also under-cover the balance. Rather than hide the gap, value
+  // what the batches cover at their own cost and the remainder at costPrice,
+  // and say so.
   const stockValue = useMemo(() => {
     const qty = batches.reduce((s, b) => s + Number(b.qty_remaining || 0), 0);
     const val = batches.reduce((s, b) => s + Number(b.qty_remaining || 0) * Number(b.unit_cost || 0), 0);
@@ -141,25 +152,15 @@ const ItemDetailView = ({
 
   const sell = Number(product?.sellingPrice ?? 0);
   const margin = sell > 0 ? ((sell - cost) / sell) * 100 : 0;
-  const itemCode = product?.sku || product?.barcode || '—';
+  const itemCode = product?.sku || product?.barcode || '';
   const lowThreshold = product?.low_stock_threshold ?? product?.lowStockThreshold ?? 10;
   // A service is neither in stock nor out of it. Showing a red "Out of Stock"
   // badge on a tuition hour reads as a problem the shop cannot fix.
   const svc = isService(product);
   const inStock = totalStock > 0;
+  const pill = productPill(product, totalStock, { service: svc });
 
-  const [closing, setClosing] = useState(false);
-  const closeTimer = React.useRef(null);
-  const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  useEffect(() => () => clearTimeout(closeTimer.current), []);
-  // Slide out first, then unmount; reduced motion closes at once.
-  const requestClose = () => {
-    if (closing) return;
-    if (reduced) { onClose?.(); return; }
-    setClosing(true);
-    closeTimer.current = setTimeout(() => onClose?.(), 300);
-  };
-  useDialogClose(requestClose);
+  useDialogClose(onClose);
   const panelRef = React.useRef(null);
   useEffect(() => { panelRef.current?.focus(); }, []);
   // Keep Tab inside the panel while it is open.
@@ -176,197 +177,235 @@ const ItemDetailView = ({
   const prevItem = idx > 0 ? items[idx - 1] : null;
   const nextItem = idx >= 0 && idx < items.length - 1 ? items[idx + 1] : null;
   const lastBuyCost = batches.length ? Number(batches[0].unit_cost) : null;
-  const unit = product?.unit || '';
+  const unit = (product?.unit || '').toUpperCase();
   const money = (n) => formatCurrency(n, currencySymbol);
+  const manual = movements.filter(m => { const r = (m.reason || '').trim(); return r !== '' && !SYSTEM_REASON.test(r); });
 
-  const Stat = ({ label, value, cls = 'text-foreground', hint }) => (
-    <div>
-      <div className="text-[11px] text-muted-foreground">{label}</div>
-      <div className={`text-sm font-semibold tabular-nums mt-0.5 ${cls}`}>{value}</div>
-      {hint && <div className="text-[11px] text-amber-600 mt-0.5">{hint}</div>}
-    </div>
-  );
-  const Row = ({ label, value }) => (
-    <div className="flex justify-between gap-3 py-2 border-b border-border/50 last:border-0 text-xs">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium text-foreground tabular-nums text-right break-all">{value}</span>
-    </div>
-  );
-  const outline = 'inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-pill border border-border text-xs font-semibold text-foreground hover:bg-black/[0.03] transition-colors active:scale-[0.97]';
+  const marginTone = margin < 5 ? 'text-bad-text' : margin < 15 ? 'text-amber-text' : 'text-ink';
+  const lastTone = lastBuyCost == null || Math.abs(lastBuyCost - cost) <= 0.5 ? 'text-ink' : lastBuyCost > cost ? 'text-bad-text' : 'text-good-text';
+  const stockTone = !inStock ? 'text-bad-text' : pill.tone === 'warn' ? 'text-amber-text' : 'text-ink';
 
-  // Portal to <body>: AppLayout's <main> animates with a transform, which would
-  // otherwise trap this `fixed inset-0` overlay inside <main>. z-[200] keeps it
-  // above the navbar (z-50).
+  const del = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    setDeleteError(null);
+    const res = await onDelete?.(product);
+    setDeleting(false);
+    if (res?.error) setDeleteError(res.error);
+  };
+
+  // Portal to <body>: the shell's <main> animates with a transform, which
+  // would otherwise trap this fixed overlay inside it.
   return createPortal((
-    <div className="fixed inset-0 z-[200]" onKeyDown={trapTab}>
-      <div className="drawer-backdrop absolute inset-0 bg-black/30" data-closing={closing} onClick={requestClose} aria-hidden="true" />
-      <aside ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={product?.name || 'Product'} data-closing={closing}
-        className="drawer-panel absolute right-0 top-0 bottom-0 w-full sm:w-[420px] bg-card border-l border-border/60 flex flex-col outline-none">
+    <div className="fixed inset-0 z-[150]" onKeyDown={trapTab}>
+      <div className="m-scrim absolute inset-0 bg-[rgba(17,20,24,0.28)]" onClick={onClose} aria-hidden="true" />
+      <aside ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={product?.name || 'Product'}
+        style={{ width: 'min(480px, 100vw)' }}
+        className="m-panel absolute inset-y-0 right-0 flex flex-col bg-surface text-ink outline-none shadow-[-24px_0_48px_-24px_rgba(17,20,24,0.35)]">
         {/* Header */}
-        <div className="flex items-start gap-3 px-5 pt-5 pb-3">
-          <div className="min-w-0 flex-1">
-            <h2 className="text-[17px] font-semibold text-foreground leading-snug break-words">{product?.name}</h2>
-            <p className="text-xs text-muted-foreground mt-0.5 truncate">{[itemCode !== '—' ? itemCode : null, product?.category].filter(Boolean).join(' · ') || '—'}</p>
+        <div className="px-[22px] pt-[18px] pb-3.5 border-b border-sep">
+          <div className="flex items-center gap-1.5">
+            <Badge tone={pill.tone}>{pill.label}</Badge>
+            <div className="ml-auto flex items-center gap-1">
+              {(prevItem || nextItem) && (<>
+                <NavBtn label="Previous product" onClick={() => prevItem && onSelect?.(prevItem)} disabled={!prevItem}><ChevronUp size={15} /></NavBtn>
+                <NavBtn label="Next product" onClick={() => nextItem && onSelect?.(nextItem)} disabled={!nextItem}><ChevronDown size={15} /></NavBtn>
+              </>)}
+              <Button variant="secondary" size="icon-sm" onClick={onClose} aria-label="Close" title="Close"><X size={14} /></Button>
+            </div>
           </div>
-          <div className="flex items-center gap-1 shrink-0">
-            {(prevItem || nextItem) && (<>
-              <button onClick={() => prevItem && onSelect?.(prevItem)} disabled={!prevItem} aria-label="Previous product"
-                className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-black/[0.04] disabled:opacity-30"><ChevronUp size={16} /></button>
-              <button onClick={() => nextItem && onSelect?.(nextItem)} disabled={!nextItem} aria-label="Next product"
-                className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-black/[0.04] disabled:opacity-30"><ChevronDown size={16} /></button>
-            </>)}
-            <button onClick={requestClose} aria-label="Close"
-              className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-black/[0.04]"><X size={16} /></button>
+          <div className="mt-2.5 flex items-center gap-3">
+            <ProductAvatar product={product} size="md" />
+            <div className="min-w-0">
+              <h3 className="font-tight text-[19px] font-semibold tracking-[-0.01em] leading-snug break-words">{product?.name}</h3>
+              <p className="mt-0.5 truncate text-[13px] text-body">{[itemCode || null, product?.category].filter(Boolean).join(' · ') || '—'}</p>
+            </div>
           </div>
+          <SegmentedTabs className="mt-3.5 !flex w-full [&>button]:flex-1 [&>button]:justify-center" items={TABS} value={tab} onChange={setTab}
+            trackClass="bg-well" indicatorClass="bg-surface shadow-[0_1px_2px_rgba(17,20,24,0.12)]" activeClass="text-ink" />
         </div>
 
-        <div className="px-5">
-          <SegmentedTabs className="w-full" items={TABS} value={tab} onChange={setTab}
-            indicatorClass="bg-card shadow-sm" />
-        </div>
-
-        <div ref={detailRef} className="flex-1 overflow-y-auto px-5 py-4">
+        <div ref={detailRef} className="flex-1 overflow-y-auto px-[22px] py-4">
           {tab === 'OVERVIEW' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-                {!svc && <Stat label="In stock" value={`${totalStock} ${unit}`} cls={inStock ? 'text-foreground' : 'text-red-600'} />}
+            <>
+              <div className="mb-[18px] grid grid-cols-3 gap-2">
+                {!svc && <Stat label="In stock" value={`${totalStock} ${unit}`} cls={stockTone} />}
                 {!svc && <Stat label="Reorder at" value={`${lowThreshold} ${unit}`} />}
+                <Stat label="Margin" value={`${margin.toFixed(1)}%`} cls={marginTone} />
                 <Stat label="Avg cost" value={money(cost)} />
-                <Stat label="Last buy" value={lastBuyCost == null ? '—' : money(lastBuyCost)}
-                  cls={lastBuyCost == null || Math.abs(lastBuyCost - cost) <= 0.5 ? 'text-foreground' : lastBuyCost > cost ? 'text-red-600' : 'text-emerald-600'} />
+                <Stat label="Last buy" value={lastBuyCost == null ? '—' : money(lastBuyCost)} cls={lastTone} />
                 <Stat label="Sell" value={money(sell)} />
-                <Stat label="Margin" value={`${margin.toFixed(1)}%`} cls={margin < 5 ? 'text-red-600' : margin < 15 ? 'text-amber-600' : 'text-foreground'} />
-                {!svc && <Stat label="Stock value at cost" value={money(stockValue.value)}
-                  hint={stockValue.uncosted > 0 ? `${stockValue.uncosted} ${unit} not in any batch, valued at average cost` : null} />}
+                {!svc && (
+                  <div className="col-span-3 flex items-baseline justify-between gap-3 rounded-[10px] bg-tile px-3 py-[9px]">
+                    <span className="font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-mute">Stock value at cost</span>
+                    <span className="text-right">
+                      <b className="block font-tight text-[17px] font-semibold tabular-nums">{money(stockValue.value)}</b>
+                      {stockValue.uncosted > 0 && (
+                        <small className="block text-[11.5px] text-amber-text">{stockValue.uncosted} {unit} not in any batch, valued at average cost</small>
+                      )}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {!svc && byGodown.length > 0 && (
-                <section>
-                  <h3 className="text-xs font-semibold text-foreground mb-1">Stock by location</h3>
-                  {byGodown.map((g, i) => <Row key={i} label={g.name} value={`${g.qty} ${unit}`} />)}
-                </section>
+                <Block title="Stock by location">
+                  {byGodown.map((g, i) => <KV key={i} label={g.name} value={`${g.qty} ${unit}`} />)}
+                </Block>
               )}
 
               {!svc && (
-                <section>
-                  <h3 className="text-xs font-semibold text-foreground mb-1">Recent movements</h3>
-                  {loading ? <p className="text-xs text-muted-foreground py-3">Loading…</p>
-                    : movements.length === 0 ? <p className="text-xs text-muted-foreground py-3">No movements yet</p>
+                <Block title="Recent movements">
+                  {loading ? <Muted>Loading…</Muted>
+                    : movements.length === 0 ? <Muted>No movements yet</Muted>
                     : movements.slice(0, 8).map(m => {
                       const isIn = String(m.type).toUpperCase() === 'IN';
                       return (
-                        <div key={m.id} className="flex items-baseline gap-3 py-2 border-b border-border/50 last:border-0 text-xs">
-                          <span className="text-muted-foreground tabular-nums shrink-0">{m.date ? String(m.date).slice(0, 10) : '—'}</span>
-                          <span className="flex-1 min-w-0 truncate text-foreground">{m.reason || (isIn ? 'Stock in' : 'Stock out')}</span>
-                          <span className={`font-semibold tabular-nums ${isIn ? 'text-emerald-600' : 'text-red-500'}`}>{isIn ? '+' : '−'}{Math.abs(Number(m.quantity) || 0)}</span>
+                        <div key={m.id} className="grid grid-cols-[52px_1fr_auto] items-baseline gap-2.5 border-t border-sep py-2 text-[13px] first:border-t-0">
+                          <span className="text-[12.5px] text-mute tabular-nums">{dayMonth(m.date)}</span>
+                          <span className="min-w-0 truncate text-ink-2">{m.reason || (isIn ? 'Stock in' : 'Stock out')}</span>
+                          <b className={cn('font-tight text-[13px] font-semibold tabular-nums', isIn ? 'text-good-text' : 'text-bad-text')}>{isIn ? '+' : '−'}{Math.abs(Number(m.quantity) || 0)}</b>
                         </div>
                       );
                     })}
-                </section>
+                </Block>
               )}
 
-              <section>
-                <h3 className="text-xs font-semibold text-foreground mb-1">Details</h3>
-                <Row label="GST" value={`${product?.taxRate ?? 0}%`} />
-                <Row label="HSN code" value={product?.hsn_code || product?.hsn || '—'} />
-                <Row label="Barcode" value={product?.barcode || '—'} />
-                <Row label="Unit" value={product?.unit || '—'} />
-                <Row label="Serialized" value={product?.track_serial ? 'Yes (IMEI/serial)' : 'No'} />
-              </section>
-            </div>
+              <Block title="Details">
+                <KV label="GST" value={`${product?.taxRate ?? 0}%`} />
+                <KV label="HSN code" value={product?.hsn_code || product?.hsn || '—'} />
+                <KV label="Barcode" value={product?.barcode || '—'} />
+                <KV label="Unit" value={product?.unit || '—'} />
+                <KV label="Serial numbers" value={product?.track_serial ? 'Yes (IMEI or serial)' : 'No'} />
+              </Block>
+            </>
           )}
 
           {tab === 'BATCHES' && (
             <div>
-              {loading ? <Empty text="Loading…" /> : batches.length === 0 ? <Empty text="No batch records" /> : (
-                <Tbl head={['Received', 'Source', 'Remaining', 'Unit cost']}
-                  rows={batches.map(b => [
-                    b.received_date || '—',
-                    // Stock added by hand or by a cost reconciliation has no
-                    // supplier_id; fall back to the batch note.
-                    suppliers[b.supplier_id] || batchSource(b),
-                    `${b.qty_remaining ?? 0}/${b.qty_received ?? '—'}`, money(b.unit_cost),
-                  ])} />
+              <h4 className="mb-0.5 font-tight text-[13px] font-semibold">Batches</h4>
+              {loading ? <Muted>Loading…</Muted> : batches.length === 0 ? <Muted>No batch records</Muted> : (
+                <MiniTable head={['Received', 'Source', 'Left', 'Unit cost']}
+                  rows={batches.map(b => ({
+                    key: b.id,
+                    dim: Number(b.qty_remaining || 0) === 0,
+                    cells: [
+                      dayMonth(b.received_date),
+                      // Stock added by hand or by a cost reconciliation has no
+                      // supplier_id; fall back to the batch note.
+                      suppliers[b.supplier_id] || batchSource(b),
+                      `${b.qty_remaining ?? 0}/${b.qty_received ?? '—'}`,
+                      money(b.unit_cost),
+                    ],
+                  }))} />
               )}
-              {/* Manual adjustments only: anything NOT written by an automated flow. */}
-              {(() => {
-                const SYSTEM_REASON = /^(sale|purchase|van |loaded on vehicle|dispatch to vehicle|void sale|unvoid sale)/i;
-                const manual = movements.filter(m => { const r = (m.reason || '').trim(); return r !== '' && !SYSTEM_REASON.test(r); });
-                return (
-                  <>
-                    <h3 className="text-xs font-semibold text-foreground mt-6 mb-1">Manual adjustments</h3>
-                    {loading ? <Empty text="Loading…" /> : manual.length === 0 ? <Empty text="No manual adjustments" /> : (
-                      <Tbl head={['Date', 'Reason', 'Qty']}
-                        rows={manual.map(m => {
-                          const isIn = String(m.type).toUpperCase() === 'IN';
-                          return [
-                            m.date ? String(m.date).slice(0, 10) : '—', m.reason || '—',
-                            <span key="q" className={isIn ? 'text-emerald-600' : 'text-red-500'}>{isIn ? '+' : '−'}{Math.abs(Number(m.quantity) || 0)}</span>,
-                          ];
-                        })} />
-                    )}
-                  </>
-                );
-              })()}
+              <h4 className="mt-[18px] mb-0.5 font-tight text-[13px] font-semibold">Manual adjustments</h4>
+              {loading ? <Muted>Loading…</Muted> : manual.length === 0 ? <Muted>No manual adjustments</Muted> : (
+                <MiniTable head={['Date', 'Reason', 'Qty']}
+                  rows={manual.map(m => {
+                    const isIn = String(m.type).toUpperCase() === 'IN';
+                    return {
+                      key: m.id,
+                      cells: [
+                        dayMonth(m.date), m.reason || '—',
+                        <span key="q" className={isIn ? 'text-good-text' : 'text-bad-text'}>{isIn ? '+' : '−'}{Math.abs(Number(m.quantity) || 0)}</span>,
+                      ],
+                    };
+                  })} />
+              )}
+              {onBatches && !svc && (
+                <Button variant="secondary" size="xs" className="mt-3.5 h-8 px-3.5" onClick={() => onBatches(product)}>See all batches with margin</Button>
+              )}
             </div>
           )}
 
           {tab === 'CLIENTS' && (
-            loading ? <Empty text="Loading…" /> : partyReport.length === 0 ? <Empty text="No sales for this item yet" /> : (
-              <Tbl head={['Client', 'Bills', 'Qty', 'Value']}
-                rows={partyReport.map(p => [p.party, p.count, p.qty, money(p.value)])} />
+            loading ? <Muted>Loading…</Muted> : partyReport.length === 0 ? <Muted>No sales for this item yet</Muted> : (
+              <MiniTable head={['Client', 'Bills', 'Qty', 'Value']}
+                rows={partyReport.map(p => ({ key: p.party, cells: [p.party, p.count, p.qty, money(p.value)] }))} />
             )
           )}
 
           {tab === 'PRICES' && (
-            <Tbl head={['Client / tier', 'Price']}
+            <MiniTable head={['Client or tier', 'Price']}
               rows={[
-                ['All clients', money(sell)],
-                ...prices.map(p => [
-                  (p.client_id ? (clients[p.client_id] || 'Client') : (p.price_tier || p.tier || 'Tier')) +
-                    (p.min_qty > 1 ? ` (min ${p.min_qty})` : ''),
-                  money(p.price),
-                ]),
+                { key: 'all', cells: ['All clients', money(sell)] },
+                ...prices.map((p, i) => ({
+                  key: p.id || i,
+                  cells: [
+                    (p.client_id ? (clients[p.client_id] || 'Client') : (p.price_tier || p.tier || 'Tier')) +
+                      (p.min_qty > 1 ? ` (min ${p.min_qty})` : ''),
+                    money(p.price),
+                  ],
+                })),
               ]} />
           )}
         </div>
 
         {/* Actions: one primary */}
-        <div className="border-t border-border/60 px-5 py-3 flex flex-wrap items-center gap-2">
-          <button onClick={() => onDelete?.(product)} aria-label="Delete product" title="Delete"
-            className="w-9 h-9 rounded-xl border border-border flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors active:scale-[0.97]">
-            <Trash2 size={14} />
-          </button>
-          <button onClick={() => onPrintBarcode?.(product)} className={outline}><ScanLine size={14} /> Print barcode</button>
-          <button onClick={() => onEdit?.(product)} className={outline}><Pencil size={14} /> Edit</button>
-          {onAdjust && !svc && (
-            <button onClick={() => onAdjust(product)} className={outline}><SlidersHorizontal size={14} /> Adjust stock</button>
-          )}
-          {onReorder && !svc && (
-            <button onClick={() => onReorder(product)}
-              className="ml-auto inline-flex items-center h-9 px-5 rounded-pill bg-accent-signature text-white text-xs font-semibold hover:bg-accent-signature-hover transition-colors active:scale-[0.97]">
-              Reorder
-            </button>
-          )}
+        <div className="border-t border-sep px-[22px] pt-3.5 pb-[18px]">
+          <WriteFailure error={deleteError} noun="delete" onReread={onReread} className="mb-2.5" />
+          <div className="flex flex-wrap items-center gap-[5px]">
+            <HoldButton onConfirm={del} disabled={deleting} title="Hold to delete this product"
+              className="h-8 rounded-pill bg-surface px-3 font-tight text-[12.5px] font-semibold text-bad-text shadow-[inset_0_0_0_1px_#F5C2C2] disabled:opacity-50">
+              {deleting ? 'Deleting…' : 'Hold to delete'}
+            </HoldButton>
+            <Button variant="secondary" size="xs" className="h-8 px-[11px]" onClick={() => onPrintBarcode?.(product)}>Print barcode</Button>
+            <Button variant="secondary" size="xs" className="h-8 px-[11px]" onClick={() => onEdit?.(product)}>Edit</Button>
+            {onAdjust && !svc && (
+              <Button variant="secondary" size="xs" className="h-8 px-[11px]" onClick={() => onAdjust(product)}>Adjust stock</Button>
+            )}
+            <span className="flex-1" />
+            {onReorder && !svc && (
+              <Button size="xs" className="h-8 px-3.5" onClick={() => onReorder(product)}>Reorder</Button>
+            )}
+          </div>
         </div>
       </aside>
     </div>
   ), document.body);
 };
 
-const Empty = ({ text }) => <div className="py-8 text-center text-xs text-muted-foreground">{text}</div>;
-const Tbl = ({ head, rows }) => (
+const NavBtn = ({ label, onClick, disabled, children }) => (
+  <button type="button" onClick={onClick} disabled={disabled} aria-label={label} title={label}
+    className="m-press grid h-8 w-8 place-items-center rounded-xl text-ink-2 hover:bg-well disabled:opacity-30 disabled:hover:bg-transparent">{children}</button>
+);
+const Stat = ({ label, value, cls = 'text-ink' }) => (
+  <div className="min-w-0 rounded-[10px] bg-tile px-3 py-[9px]">
+    <span className="block font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-mute">{label}</span>
+    <b className={cn('mt-px block truncate font-tight text-[15px] font-semibold tabular-nums', cls)}>{value}</b>
+  </div>
+);
+const Block = ({ title, children }) => (
+  <section className="mb-[18px]">
+    <h4 className="mt-1 mb-0.5 font-tight text-[13px] font-semibold">{title}</h4>
+    {children}
+  </section>
+);
+const KV = ({ label, value }) => (
+  <div className="flex justify-between gap-3 border-t border-sep py-2 text-[13px] first:border-t-0">
+    <span className="text-body">{label}</span>
+    <span className="break-all text-right font-tight font-medium text-ink-2 tabular-nums">{value}</span>
+  </div>
+);
+const Muted = ({ children }) => <p className="py-6 text-center text-[13px] text-mute">{children}</p>;
+const MiniTable = ({ head, rows }) => (
   <div className="overflow-x-auto">
-    <table className="w-full text-left">
+    <table className="w-full border-collapse text-left">
       <thead>
-        <tr className="text-[11px] font-medium text-muted-foreground border-b border-border/60">
-          {head.map((h, i) => <th key={i} className={`py-2 pr-2 ${i === head.length - 1 ? 'text-right pr-0' : ''}`}>{h}</th>)}
+        <tr>
+          {head.map((h, i) => (
+            <th key={i} className={cn('py-2 font-tight text-[11.5px] font-semibold text-mute border-b border-line', i > 0 && 'pl-2.5', i >= head.length - 2 && head.length > 2 && i > 1 && 'text-right', i === head.length - 1 && 'text-right')}>{h}</th>
+          ))}
         </tr>
       </thead>
       <tbody>
-        {rows.map((r, i) => (
-          <tr key={i} className="border-b border-border/40 last:border-0">
-            {r.map((c, j) => <td key={j} className={`py-2 pr-2 text-xs text-foreground tabular-nums ${j === r.length - 1 ? 'text-right font-semibold pr-0' : ''}`}>{c}</td>)}
+        {rows.map((r) => (
+          <tr key={r.key} className={r.dim ? '[&>td]:text-faint' : ''}>
+            {r.cells.map((c, j) => (
+              <td key={j} className={cn('py-[9px] text-[13px] tabular-nums border-b border-sep', j > 0 && 'pl-2.5',
+                j >= r.cells.length - 2 && r.cells.length > 2 && j > 1 && 'text-right font-tight', j === r.cells.length - 1 && 'text-right font-tight font-semibold')}>{c}</td>
+            ))}
           </tr>
         ))}
       </tbody>

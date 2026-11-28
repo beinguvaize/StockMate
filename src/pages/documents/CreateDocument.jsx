@@ -1,19 +1,27 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  ArrowLeft, FileText, FileCheck, Wallet,
-  RotateCcw, ReceiptText, Truck, FileSpreadsheet, FilePen,
+  ChevronLeft, AlertCircle, FileText, FileCheck, Wallet,
+  RotateCcw, ReceiptText, Truck, FileSpreadsheet, FilePen, Copy,
 } from 'lucide-react';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Seg } from '../../components/documents/DocParts';
+import { classifyWriteFailure } from '../../lib/writeOutcome';
+import { duplicateInvoiceDraft } from '../../lib/duplicateInvoice';
+import { formatShortDateTime, todayISOInAppTZ } from '../../lib/utils';
 import InvoiceTemplate from '../../components/invoice/InvoiceTemplate';
 import { useTenant } from '../../context/TenantContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { useSales } from '../../hooks/useSales';
 import { useInventory } from '../../hooks/useInventory';
 import { useEstimates } from '../../hooks/useEstimates';
-import { useAccounts, accountForMethod } from '../../hooks/useAccounts';
-import { calculateGST, shareToWhatsApp } from '../../lib/gstEngine';
+import { usePeople } from '../../hooks/usePeople';
+import { shareToWhatsApp } from '../../lib/gstEngine';
+import { documentGst, documentFinalTotal, documentPaidNow, estimateGrandTotal } from '../../lib/documentTotals';
 import { tierPrice } from '../../lib/priceResolver';
-import { PartyPicker, DocItemGrid, TotalsPanel, Field, inr } from '../../components/documents/DocParts';
+import { collectionGoesToClientSettlement, clientSettlementBlocker, creditInvoiceTakesMoney, CREDIT_INVOICE_PAID_MSG } from '../../lib/documentLedger';
+import { PartyPicker, DocItemGrid, TotalsPanel, Field, SaveToast, inr } from '../../components/documents/DocParts';
 
 const genId = (p) => `${p}-${Date.now().toString(36).toUpperCase()}`;
 
@@ -32,17 +40,40 @@ const DOC_TYPES = {
   MANUAL_INVOICE:  { label: 'Manual bill',      prefix: 'MB',  icon: FilePen,         gst: true,  stock: 'NONE', party: 'Bill to',   save: 'manual', manual: true },
 };
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+// Where each save path's documents are listed: the page a successful save
+// already goes to, offered when a save could not be confirmed so the user can
+// look before saving again.
+const LIST_FOR_SAVE = {
+  invoice: ['/invoices', 'Invoices'], estimate: ['/estimates', 'Estimates'], manual: ['/estimates', 'Estimates'],
+  return: ['/sales', 'Sales'], payment: ['/clients', 'Clients'],
+};
+
+// What a document does, under its total (approved newdoc-03, 04, 06). Each
+// line says only what that type's save path does today.
+const totalsNote = (docType, party) => {
+  if (docType === 'CREDIT_NOTE' && party?.name) return `Credits ${party.name}'s account. The items go back into stock.`;
+  if (docType === 'SALES_RETURN' && party?.name) return `Goes back into stock and is credited to ${party.name}'s account.`;
+  if (docType === 'DELIVERY_CHALLAN') return 'A challan goes with the goods. No GST and no bill: make the invoice later.';
+  if (docType === 'MANUAL_INVOICE') return 'A manual bill is not a sale: no stock, GST return or ledger entry.';
+  return undefined;
+};
+
+// The shop's today, not UTC's: between midnight and 5:30 am IST the UTC date
+// is still yesterday, and a new document defaulted to it.
+const todayISO = () => todayISOInAppTZ();
 
 const CreateDocument = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [params] = useSearchParams();
   const { currentTenantId, currentTenant, businessProfile = {} } = useTenant();
   const { addNotification } = useNotifications();
-  const { clients = [], sales = [], placeSale, processSalesReturn, settleSale } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
+  const { clients = [], sales = [], invoices = [], placeSale, processSalesReturn, settleSale } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
   const { products = [] } = useInventory(currentTenantId);
   const { create: createEstimate } = useEstimates(currentTenantId);
-  const { accounts = [], addTxn } = useAccounts(currentTenantId);
+  // Collect Payment's own call (settle_client_payment), reused for a payment
+  // in against a credit sale. No second copy of that write lives here.
+  const { recordClientPayment } = usePeople(currentTenantId);
 
   const initialType = DOC_TYPES[params.get('type')] ? params.get('type') : 'SALES_INVOICE';
   const [docType, setDocType] = useState(initialType);
@@ -60,18 +91,15 @@ const CreateDocument = () => {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [printBill, setPrintBill] = useState(null); // manual bill → invoice template preview
+  // A failed save, said in a toast (approved newdoc-09, 10): the server's
+  // reason, or "may have saved" with a way to the list.
+  const [failure, setFailure] = useState(null);
+  // Save pressed before the document is complete (approved newdoc-08).
+  const [tried, setTried] = useState(false);
 
-  // Money lands in the payment method's account (no separate picker).
-  const depAcc = accountForMethod(accounts, payMethod);
-
-  // Post a money-in ledger entry to the chosen account (best-effort; a missing
-  // account just skips the ledger, the sale/payment still succeeds).
-  const postIncome = async (amount, refType, refId) => {
-    if (!depAcc || !(Number(amount) > 0)) return;
-    try {
-      await addTxn({ account_id: depAcc, direction: 'IN', amount, mode: payMethod, ref_type: refType, ref_id: refId, note: party?.name || refType });
-    } catch { /* ledger is non-blocking */ }
-  };
+  // The database posts every rupee this page takes in (post_sale_to_ledger
+  // and post_client_payment_to_ledger, see lib/documentLedger.js). Nothing in
+  // this page writes the ledger or a balance.
 
   const businessState = businessProfile?.state || businessProfile?.business_state || '';
 
@@ -95,18 +123,13 @@ const CreateDocument = () => {
   const taxModeLocked = cfg.save === 'invoice';
 
   // Live GST totals — single source of truth, recomputed from the lines.
-  const gst = useMemo(() => calculateGST(
-    lines.map((l) => ({
-      qty: l.qty, rate: l.rate, discountPercent: l.disc,
-      taxRate: cfg.gst ? l.taxRate : 0, hsn_code: l.hsn,
-    })),
-    businessState, party?.state || '',
-    { taxMode: cfg.gst ? taxMode : 'NONE' },
-  ), [lines, cfg.gst, businessState, party, taxMode]);
+  // (lib/documentTotals: the same expressions, moved there unchanged.)
+  const gst = useMemo(() => documentGst(lines, cfg.gst, businessState, party?.state, taxMode),
+    [lines, cfg.gst, businessState, party, taxMode]);
 
   // Final payable = line totals + extra charges − bill discount.
-  const finalTotal = Math.max(0, (Number(gst.grandTotal) || 0) + (Number(charges) || 0) - (Number(billDiscount) || 0));
-  const paidNow = markPaid ? finalTotal : (Number(received) || 0);
+  const finalTotal = documentFinalTotal(gst, charges, billDiscount);
+  const paidNow = documentPaidNow(markPaid, finalTotal, received);
 
   const addLine = (p) => setLines((prev) => [...prev, {
     uid: `${p.id}-${Date.now()}`, productId: p.id, name: p.name,
@@ -133,12 +156,27 @@ const CreateDocument = () => {
   );
 
   const handleSave = async () => {
-    if (!canSave) return;
+    if (!canSave) { setTried(true); return; }
+    setFailure(null);
     setSaving(true);
-    const fail = (m) => { addNotification(`Save failed: ${m}`, 'error'); setSaving(false); };
+    // A refusal says "Not saved" and the server's reason. A dropped connection
+    // may still have committed, so it says it could not confirm instead.
+    const fail = (m) => {
+      const f = classifyWriteFailure(typeof m === 'string' ? new Error(m) : m, { noun: cfg.label.toLowerCase() });
+      setFailure({
+        title: f.title,
+        detail: f.maySaved ? `It may have been saved: check the list before saving again. ${f.detail}` : f.detail,
+        maySaved: f.maySaved,
+        list: LIST_FOR_SAVE[cfg.save],
+      });
+      setSaving(false);
+    };
     try {
       let res;
       if (cfg.save === 'invoice') {
+        // A Credit invoice with money received: the ledger trigger posts
+        // nothing for CREDIT, so the money would land nowhere. Refuse it.
+        if (creditInvoiceTakesMoney({ payMethod, paidNow })) return fail(CREDIT_INVOICE_PAID_MSG);
         res = await placeSale({
           clientId: party.id, items: lineItems(), totalAmount: finalTotal,
           paymentMethod: payMethod,
@@ -146,7 +184,8 @@ const CreateDocument = () => {
           paidAmount: paidNow, date, discount: Number(billDiscount) || 0, note: notes || null,
         });
         if (res?.error) return fail(res.error.message);
-        if (paidNow > 0) await postIncome(paidNow, 'SALE', res?.id);
+        // No ledger write here: post_sale_to_ledger posted the paid amount
+        // when process_sale inserted the sale.
         addNotification('Sales invoice saved', 'success');
         return navigate('/invoices');
       }
@@ -162,7 +201,7 @@ const CreateDocument = () => {
           taxable_amount: gst.taxable, tax_total: gst.totalTax, cgst_amount: gst.cgst,
           sgst_amount: gst.sgst, igst_amount: gst.igst,
           discount_total: (gst.totalDiscount || 0) + (Number(billDiscount) || 0),
-          round_off: gst.roundOff, grand_total: cfg.gst ? finalTotal : (Number(gst.subtotal) + (Number(charges) || 0) - (Number(billDiscount) || 0)),
+          round_off: gst.roundOff, grand_total: estimateGrandTotal(cfg.gst, gst, finalTotal, charges, billDiscount),
           notes: notes || null, status: 'DRAFT',
         });
         if (res?.error) return fail(res.error.message);
@@ -220,9 +259,24 @@ const CreateDocument = () => {
             && Math.max(0, (Number(s.totalAmount) || 0) - (Number(s.paidAmount) || 0)) > 0.5)
           .sort((a, b) => new Date(a.date) - new Date(b.date));
         if (!open.length) return fail('No open invoice for this party to settle.');
+        if (collectionGoesToClientSettlement(open[0])) {
+          // Oldest open bill is on Credit: settle_sale_payment's trigger would
+          // post nothing, so this goes through Collect Payment's server path.
+          // settle_client_payment spreads the amount over the client's open
+          // bills, oldest first, and its client_payments row is posted to the
+          // ledger by the database.
+          const blocked = clientSettlementBlocker(party, open[0]);
+          if (blocked) return fail(blocked);
+          const r = await recordClientPayment(party.id, Number(payAmount), date, notes, [], payMethod);
+          if (!r || r.success === false) return fail(r?.error || 'The server gave no reason.');
+          addNotification(r.queued
+            ? `Payment of ${inr(payAmount)} saved on this device; it will sync when online`
+            : `Payment of ${inr(payAmount)} recorded`, 'success');
+          return navigate('/clients');
+        }
+        // Non-credit sale: settle_sale_payment's trigger posts the collection.
         res = await settleSale(open[0].id, Number(payAmount));
-        if (res?.error) return fail(res.error.message);
-        await postIncome(Number(payAmount), 'PAYMENT', open[0].id);
+        if (res?.error) return fail(res.error.message || res.error);
         addNotification(`Payment of ${inr(payAmount)} recorded`, 'success');
         return navigate('/clients');
       }
@@ -231,46 +285,112 @@ const CreateDocument = () => {
     }
   };
 
-  const Icon = cfg.icon;
+  // ?client=<id>: the party filled in, when the page was opened for one client
+  // (Issue credit note on an invoice). Only fills an empty party, once.
+  const clientParam = params.get('client');
+  useEffect(() => {
+    if (!clientParam || party) return;
+    const c = clients.find((x) => String(x.id) === String(clientParam));
+    if (c) setParty(c);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientParam, clients]);
+
+  // ?duplicate=<invoice id>: a NEW sales invoice filled from an old one
+  // (lib/duplicateInvoice): client, items, prices and notes. Never payments,
+  // e-Way bill, IRN, number or date. Applied once, when the invoice is loaded.
+  const duplicateId = params.get('duplicate');
+  const [dupSource, setDupSource] = useState(null);
+  useEffect(() => {
+    if (!duplicateId || dupSource) return;
+    const src = invoices.find((i) => String(i.id) === String(duplicateId));
+    if (!src) return;
+    const draft = duplicateInvoiceDraft(src, clients);
+    setDocType('SALES_INVOICE');
+    if (draft.party) setParty(draft.party);
+    setLines(draft.lines);
+    setNotes(draft.notes);
+    setMarkPaid(false);
+    setReceived('');
+    setDupSource(draft.source);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [duplicateId, invoices, clients]);
+
+  // Where "back" goes, as its words: the page that opened this one says what
+  // it is (the Invoices list passes "Invoices"); otherwise just "Back".
+  const backLabel = location.state?.from || 'Back';
+  const goBack = () => navigate(-1);
+  const partyMeta = cfg.noItems ? 'Payment' : cfg.label;
+  // What is missing, said beside Save once Save was pressed (newdoc-08).
+  const missingParty = !party?.name;
+  const missingBody = cfg.save === 'payment' ? !(Number(payAmount) > 0) : lines.length === 0;
+  const showMissing = tried && !saving && (missingParty || missingBody);
+  const missingWords = cfg.save === 'payment'
+    ? (missingParty && missingBody ? 'Add a party and the amount received to save' : missingParty ? 'Add a party to save' : 'Enter the amount received to save')
+    : (missingParty && missingBody ? 'Add a party and at least one item to save' : missingParty ? 'Add a party to save' : 'Add at least one item to save');
+  useEffect(() => { if (tried && !missingParty && !missingBody) setTried(false); }, [tried, missingParty, missingBody]);
 
   return (
-    <div className="min-h-screen bg-canvas">
-      {/* Header */}
-      <div className="sticky top-0 z-20 bg-white border-b border-black/5 px-4 sm:px-6 py-3 flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="p-1.5 rounded-pill hover:bg-black/5"><ArrowLeft size={18} /></button>
-        <div className="w-7 h-7 rounded-lg bg-accent-signature text-white grid place-items-center font-black text-sm">B</div>
-        <div className="font-black text-base text-ink-primary">Create {cfg.label.toLowerCase()}</div>
-        <div className="ml-auto flex gap-2">
-          <button onClick={() => navigate(-1)} className="px-3 py-2 rounded-pill text-[12px] font-bold border border-black/10 hover:bg-black/5">Cancel</button>
-          <button disabled={!canSave} onClick={handleSave}
-            className="px-4 py-2 rounded-pill text-[12px] font-black bg-accent-signature text-white disabled:opacity-40 hover:opacity-90">
-            {saving ? 'Saving…' : `Save ${cfg.label.toLowerCase()}`}
-          </button>
-        </div>
+    <div className="flex flex-col pb-16">
+      {/* Header: back, title, cancel and save (approved newdoc-01) */}
+      <div className="m-rise mb-[18px] flex flex-wrap items-center gap-3.5">
+        <button type="button" onClick={goBack}
+          className="m-press inline-flex items-center gap-1.5 font-tight text-[13px] font-semibold text-body hover:text-ink">
+          <ChevronLeft size={15} /> {backLabel}
+        </button>
+        <h3 className="font-tight text-[20px] font-semibold tracking-[-0.02em] text-ink">Create {cfg.label.toLowerCase()}</h3>
+        <span className="flex-1" />
+        {showMissing && (
+          <span role="status" className="inline-flex items-center gap-2 text-[12.5px] text-bad-text">
+            <AlertCircle size={15} /> {missingWords}
+          </span>
+        )}
+        <Button variant="secondary" onClick={goBack}>Cancel</Button>
+        {/* Looks disabled until the document is complete, but still answers a
+            press: it then says what is missing instead of doing nothing. */}
+        <Button aria-disabled={!canSave} disabled={saving} onClick={handleSave}
+          className={!canSave && !saving ? 'opacity-40' : undefined}>
+          {saving ? 'Saving…' : `Save ${cfg.label.toLowerCase()}`}
+        </Button>
       </div>
 
+      {dupSource && (
+        <div className="m-rise mb-3.5 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-tile px-3.5 py-2.5 text-[13px] text-body">
+          <Copy size={16} className="shrink-0 text-ink-2" />
+          <span className="min-w-0 flex-1">
+            Copied from <b className="font-semibold text-ink">{dupSource.number || 'an invoice'}</b>
+            {dupSource.date ? ` · ${formatShortDateTime(dupSource.date)}` : ''}{dupSource.clientName ? ` · ${dupSource.clientName}` : ''}.
+            {' '}Items, prices and client are filled in. Date is today; the new number is given on save. Payments are not copied.
+          </span>
+          {dupSource.id && (
+            <button type="button" onClick={() => navigate(`/invoices/${encodeURIComponent(dupSource.id)}`)}
+              className="font-tight text-[13px] font-semibold text-amber-text hover:underline underline-offset-4">
+              Open {dupSource.number || 'invoice'}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Doc-type switch */}
-      <div className="px-4 sm:px-6 py-3 flex gap-2 flex-wrap border-b border-black/5 bg-white">
+      <div role="group" aria-label="Document type" className="m-rise mb-4 flex flex-wrap gap-1.5" style={{ '--i': 1 }}>
         {Object.entries(DOC_TYPES).map(([k, d]) => (
-          <button key={k} onClick={() => { setDocType(k); }}
-            className={`px-3 py-1.5 rounded-pill text-[12px] font-bold transition-colors ${
-              docType === k ? 'bg-accent-signature text-white' : 'text-muted-foreground border border-black/10 hover:text-ink-primary'
+          <button key={k} type="button" aria-pressed={docType === k} onClick={() => { setDocType(k); setTried(false); }}
+            className={`m-press whitespace-nowrap rounded-pill px-3.5 py-[7px] font-tight text-[13px] font-semibold ${
+              docType === k ? 'bg-ink text-white' : 'text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile'
             }`}>{d.label}</button>
         ))}
       </div>
 
-      <div className="max-w-6xl mx-auto p-4 sm:p-6 flex flex-col gap-4">
+      <div className="flex flex-col gap-4">
         {/* Party + meta */}
-        <div className="grid md:grid-cols-2 gap-4">
-          <PartyPicker label={cfg.party} party={party} clients={clients} onChange={setParty} manual={cfg.manual} />
+        <div className="m-rise grid gap-4 md:grid-cols-2" style={{ '--i': 2 }}>
+          <PartyPicker label={cfg.party} party={party} clients={clients} onChange={setParty} manual={cfg.manual} invalid={showMissing && missingParty} />
 
-          <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-4 grid grid-cols-2 gap-3">
-            <Field label={`${cfg.prefix} no.`} value={`${cfg.prefix}-XXXX`} mono />
-            <div>
-              <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Date</div>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-                className="w-full text-[13px] font-bold border border-black/10 rounded-lg px-2 py-1.5 outline-none focus:border-accent-signature/40" />
-            </div>
+          <div className="grid grid-cols-2 content-start gap-x-4 gap-y-3 rounded-[14px] border border-line bg-surface px-5 py-[18px]">
+            <Field label={`${partyMeta} no.`} value="Given on save" muted />
+            <label className="block">
+              <span className="block font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-mute">Date</span>
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-[3px] h-8" aria-label="Date" />
+            </label>
             <Field label="Place of supply" value={party?.state || businessState || '—'} />
             <Field label="Type" value={cfg.gst ? 'GST document' : 'Non-GST'} />
           </div>
@@ -278,66 +398,71 @@ const CreateDocument = () => {
 
         {/* Item grid */}
         {!cfg.noItems && (
-          <DocItemGrid lines={lines} products={products} gstOn={cfg.gst} onAdd={addLine} onPatch={patchLine} onRemove={removeLine} manual={cfg.manual} onAddBlank={addBlankLine} />
+          <div className="m-rise" style={{ '--i': 3 }}>
+            <DocItemGrid lines={lines} products={products} gstOn={cfg.gst} onAdd={addLine} onPatch={patchLine} onRemove={removeLine} manual={cfg.manual} onAddBlank={addBlankLine} />
+          </div>
         )}
 
         {/* Payment In — amount card (no line items) */}
         {cfg.noItems && (
-          <div className="bg-white rounded-2xl border border-black/10 shadow-sm p-4 max-w-sm">
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Amount received</div>
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-black text-muted-foreground">₹</span>
-              <input type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} placeholder="0.00"
-                className="flex-1 text-xl font-black tabular-nums border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40" />
+          <div className="m-rise max-w-[440px] rounded-[14px] border border-line bg-surface px-5 py-[18px]" style={{ '--i': 3 }}>
+            <label htmlFor="pay-in-amt" className="mb-1.5 block font-tight text-[12.5px] font-semibold text-ink-2">Amount received</label>
+            <div className="flex h-[52px] items-center gap-2 rounded-xl px-4 shadow-[inset_0_0_0_1px_var(--color-line)] focus-within:shadow-[inset_0_0_0_2px_var(--color-ink)]">
+              <span className="font-tight text-[20px] font-semibold text-mute">₹</span>
+              <input id="pay-in-amt" type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} placeholder="0.00"
+                className="w-full bg-transparent font-tight text-[26px] font-semibold tracking-[-0.02em] tabular-nums text-ink outline-none placeholder:text-faint" />
             </div>
-            <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}
-              className="mt-3 w-full text-[12px] border border-black/10 rounded-lg px-2 py-2 outline-none">
-              <option>CASH</option><option>BANK</option><option>UPI</option>
-            </select>
-            <div className="text-[11px] text-muted-foreground mt-2">Settles the party's oldest open invoice.</div>
+            <span className="mt-3.5 mb-1.5 block font-tight text-[12.5px] font-semibold text-ink-2">Paid by</span>
+            <Seg value={payMethod} onChange={setPayMethod} ariaLabel="Paid by"
+              options={[['CASH', 'Cash'], ['BANK', 'Bank'], ['UPI', 'UPI']]} />
+            <p className="mt-3 text-[12px] text-mute">Settles the party's oldest open invoice. On a credit bill it spreads over their open bills, oldest first.</p>
           </div>
         )}
 
-        {/* Footer: terms + totals */}
+        {/* Footer: notes + terms, totals */}
         {!cfg.noItems && (
-        <div className="grid md:grid-cols-2 gap-4">
-          <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-4">
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Notes</div>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Notes for the customer…"
-              className="w-full text-[12px] border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40 resize-none" />
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground mt-3 mb-1">Terms</div>
-            <div className="text-[12px] text-muted-foreground leading-relaxed">
+        <div className="m-rise grid items-start gap-4 md:grid-cols-[minmax(0,1fr)_360px]" style={{ '--i': 4 }}>
+          <div className="rounded-[14px] border border-line bg-surface px-5 py-[18px]">
+            <label htmlFor="doc-notes" className="mb-1.5 block font-tight text-[12.5px] font-semibold text-ink-2">Notes</label>
+            <textarea id="doc-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Notes for the customer"
+              className="min-h-[64px] w-full resize-none rounded-[10px] px-3 py-[9px] text-[13.5px] text-ink shadow-[inset_0_0_0_1px_var(--color-line)] outline-none placeholder:text-mute focus:shadow-[inset_0_0_0_2px_var(--color-ink)]" />
+            <span className="mt-3.5 block font-tight text-[12.5px] font-semibold text-ink-2">Terms</span>
+            <p className="mt-1 text-[12.5px] leading-relaxed text-body">
               Goods once sold are not taken back. Disputes subject to local jurisdiction.
-            </div>
+            </p>
           </div>
-          <div>
-            <TotalsPanel gst={gst} gstOn={cfg.gst} interstate={interstate} showPayment={cfg.save === 'invoice'}
-              markPaid={markPaid} setMarkPaid={setMarkPaid} payMethod={payMethod} setPayMethod={setPayMethod}
-              charges={charges} setCharges={setCharges} billDiscount={billDiscount} setBillDiscount={setBillDiscount}
-              received={received} setReceived={setReceived}
-              taxMode={taxMode} setTaxMode={setTaxMode} taxModeLocked={taxModeLocked}
-              taxModeHint={taxModeLocked
-                ? 'Set by your GST settings; a sales invoice is taxed server-side.'
-                : undefined} />
-          </div>
+          <TotalsPanel gst={gst} gstOn={cfg.gst} interstate={interstate} showPayment={cfg.save === 'invoice'}
+            markPaid={markPaid} setMarkPaid={setMarkPaid} payMethod={payMethod} setPayMethod={setPayMethod}
+            charges={charges} setCharges={setCharges} billDiscount={billDiscount} setBillDiscount={setBillDiscount}
+            received={received} setReceived={setReceived}
+            taxMode={taxMode} setTaxMode={setTaxMode} taxModeLocked={taxModeLocked}
+            taxModeHint={taxModeLocked
+              ? 'Set by your GST settings; a sales invoice is taxed when it is saved.'
+              : undefined}
+            note={totalsNote(docType, party)} />
         </div>
         )}
       </div>
 
-      {/* Manual bill — printable invoice preview */}
+      {/* Manual bill: the saved bill on the shop's invoice layout (approved
+          newdoc-07). The template is its own full-screen viewer. */}
       {printBill && (
-        <div className="fixed inset-0 z-50 bg-black/50 overflow-auto p-4 sm:p-8" onClick={() => setPrintBill(null)}>
-          <div className="max-w-3xl mx-auto" onClick={(e) => e.stopPropagation()}>
-            <InvoiceTemplate
-              invoice={printBill}
-              businessProfile={businessProfile}
-              client={{ name: printBill.client_name, gst_no: printBill.client_gstin, state: printBill.place_of_supply }}
-              onPrint={() => window.print()}
-              onShare={() => shareToWhatsApp(printBill, { name: printBill.client_name, gst_no: printBill.client_gstin, state: printBill.place_of_supply }, businessProfile)}
-              onClose={() => { setPrintBill(null); navigate('/estimates'); }}
-            />
-          </div>
-        </div>
+        <InvoiceTemplate
+          invoice={printBill}
+          businessProfile={businessProfile}
+          client={{ name: printBill.client_name, gst_no: printBill.client_gstin, state: printBill.place_of_supply }}
+          title={`Manual bill ${printBill.invoice_number}`}
+          subtitle="Saved. Shown on your invoice layout."
+          printLabel="Print"
+          onPrint={() => window.print()}
+          onShare={() => shareToWhatsApp(printBill, { name: printBill.client_name, gst_no: printBill.client_gstin, state: printBill.place_of_supply }, businessProfile)}
+          onClose={() => { setPrintBill(null); navigate('/estimates'); }}
+        />
+      )}
+
+      {failure && (
+        <SaveToast title={failure.title} detail={failure.detail} onClose={() => setFailure(null)}
+          action={failure.maySaved && failure.list ? { label: `Open ${failure.list[1]}`, onClick: () => navigate(failure.list[0]) } : null} />
       )}
     </div>
   );

@@ -44,7 +44,9 @@ const sourceFiles = (dir) =>
  * batches yet, and an import or a correction is someone asserting a figure.
  */
 const TYPED_BY_A_HUMAN = [
-  'pages/inventory/components/AddItemModal.jsx',   // the item form
+  // The item form, on CREATE only: a new item has no batches yet. Its edit
+  // path is not an allowed writer -- see the test at the bottom.
+  'pages/inventory/components/AddItemModal.jsx',
   'pages/purchases/components/QuickCreateProductModal.jsx',
   'pages/ImportData.jsx',
   'pages/BulkAdd.jsx',
@@ -94,5 +96,20 @@ describe('products.costPrice', () => {
     // database are two answers again.
     const TABLE = readFileSync(join(SRC, 'pages', 'inventory', 'components', 'StockTable.jsx'), 'utf8');
     expect(TABLE).toMatch(/const cost = toNum\(p\.costPrice\);/);
+  });
+
+  it('the item form edit path is not a cost (or stock) writer', () => {
+    // The form is allowed above for CREATE only. An edit used to send the
+    // cost (and the stock loaded when the page opened) on every save, which
+    // overwrote recompute_product_cost and every sale since. It must save
+    // through editFieldsFor, which strips both.
+    const FORM = readFileSync(join(SRC, 'pages', 'inventory', 'components', 'AddItemModal.jsx'), 'utf8');
+    expect(FORM).toMatch(/const row = editingProduct \? editFieldsFor\(parsedData\) : parsedData;/);
+    expect(FORM).toMatch(/onSave\(row\)/);
+    expect(FORM).not.toMatch(/onSave\(parsedData\)/);
+    // The cost input is read-only on an edit, with the plain reason.
+    expect(FORM).toMatch(/Cost comes from purchases\./);
+    const LIB = readFileSync(join(SRC, 'lib', 'itemForm.js'), 'utf8');
+    expect(LIB).toMatch(/SERVER_OWNED_ON_EDIT = \['stock', 'costPrice'\]/);
   });
 });

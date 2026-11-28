@@ -1,1035 +1,119 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
-  User, Building, Printer, Users as UsersIcon, CreditCard,
-  LifeBuoy, ChevronRight, Check, BellRing, Zap, Tag, Database,
-  FileText, RotateCcw, ShieldCheck, Blocks, Lock, } from 'lucide-react';
+  User, Store, LayoutGrid, Tag, MapPin, Printer, BellRing, Users as UsersIcon, CreditCard,
+  RefreshCw, Database, KeyRound, LifeBuoy,
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useTenant } from '../../context/TenantContext';
-import { supabase, uploadProductImage } from '../../lib/supabase';
-import { PLANS, getRequiredPlan } from '../../lib/tenancy';
-import {
-  BUSINESS_TYPES, VERTICAL_META, DEFAULT_MODULES,
-  MODULE_KEYS, MODULE_META, overridesFrom,
-} from '../../lib/verticals';
-import Settings from '../Settings';
 import Users from '../Users';
-import CashBillPrint from '../sales/components/CashBillPrint';
-import POSReceipt from '../../components/invoice/POSReceipt';
-import InvoiceTemplate from '../../components/invoice/InvoiceTemplate';
-import { INVOICE_LAYOUT_META, RECEIPT_META, DEFAULT_DOC_TEXTS, DEFAULT_INV_OPTS, ACCENT_SWATCHES } from '../../components/invoice/invoiceLayouts';
-import { linkPhone, confirmPhoneLink, formatPhone, toE164 } from '../../lib/phoneAuth';
-import AskSettingsCard from '../../components/ask/AskSettingsCard';
+import BackupRestore from '../BackupRestore';
+import AccountPanel from './AccountPanel';
+import BusinessPanel from './BusinessPanel';
+import ModulesPanel from './ModulesPanel';
+import CategoriesPanel from './CategoriesPanel';
+import LocationsPanel from './LocationsPanel';
+import PrintPanel from './PrintPanel';
+import RemindersPanel from './RemindersPanel';
+import PlanPanel from './PlanPanel';
+import DataPanel from './DataPanel';
+import ApiPanel from './ApiPanel';
+import { SupportPanel, NoSettingsAccess } from './SupportPanel';
+import { cn } from '../../lib/utils';
 
-// Sample documents for the print previews — exact production components.
-const SAMPLE_SALE = {
-  id: 'SALE-2026-001042', date: new Date().toISOString(), paymentMethod: 'CASH',
-  totalAmount: 405,
-  items: [
-    { name: 'Basmati Rice 5kg', quantity: 2, price: 80 },
-    { name: 'Sunflower Oil 1L', quantity: 1, price: 245 },
-  ],
-};
-const SAMPLE_INVOICE = {
-  invoice_no: 'INV-1042', date: new Date().toISOString(), client_name: 'Sample Client',
-  due_date: new Date(Date.now() + 15 * 864e5).toISOString(),
-  is_interstate: false, taxable_amount: 0, tax_total: 0, grand_total: 0, paid_amount: 0,
-  items: [
-    { name: 'Basmati Rice 5kg', sku: 'RICE-5KG', hsn_code: '1006', qty: 2, rate: 80,  taxRate: 5,  unit: 'PCS' },
-    { name: 'Sunflower Oil 1L', sku: 'OIL-1L',   hsn_code: '1512', qty: 1, rate: 245, taxRate: 5,  unit: 'PCS' },
-    { name: 'Detergent 2kg',    sku: 'DET-2KG',  hsn_code: '3402', qty: 3, rate: 120, taxRate: 18, unit: 'PCS' },
-  ],
-};
-const SAMPLE_CLIENT = { name: 'Sample Client', address: '12 MG Road, Bengaluru', contact: '98765 43210', state: 'Karnataka', outstanding_balance: 2500 };
+/**
+ * Settings hub (approved settings-01 to 19): a grouped rail on the left and
+ * one panel at a time. ?tab=<id> opens a panel directly (the invoice page's
+ * "Change" link uses ?tab=print).
+ *
+ * Business, Categories, Locations, Data tools and API need the Settings
+ * permission, as they always have; the other panels do not.
+ */
 
-// Settings hub — corporate-SaaS layout: grouped left rail + card panels with
-// header / body / footer structure and label-left form rows.
-
-const NAV_GROUPS = [
+export const NAV_GROUPS = [
   { caption: 'General', items: [
-    { id: 'account',  label: 'Account',     icon: <User size={15} /> },
-    { id: 'business', label: 'Business',    icon: <Building size={15} /> },
-    { id: 'modules',  label: 'Business type & modules', icon: <Blocks size={15} /> },
+    { id: 'account',  label: 'Account',  Icon: User },
+    { id: 'business', label: 'Business', Icon: Store, perm: true },
+    { id: 'modules',  label: 'Business type & modules', Icon: LayoutGrid },
   ]},
   { caption: 'Catalog', items: [
-    { id: 'categories', label: 'Categories', icon: <Tag size={15} /> },
-    { id: 'locations',  label: 'Locations',  icon: <Database size={15} /> },
+    { id: 'categories', label: 'Categories', Icon: Tag, perm: true },
+    { id: 'locations',  label: 'Locations',  Icon: MapPin, perm: true },
   ]},
   { caption: 'Sales & printing', items: [
-    { id: 'print',     label: 'Printing',          icon: <Printer size={15} /> },
-    { id: 'reminders', label: 'Payment reminders', icon: <BellRing size={15} /> },
+    { id: 'print',     label: 'Printing',          Icon: Printer },
+    { id: 'reminders', label: 'Payment reminders', Icon: BellRing },
   ]},
   { caption: 'Team & billing', items: [
-    { id: 'users',    label: 'Users & roles',  icon: <UsersIcon size={15} /> },
-    { id: 'pricing',  label: 'Plan & billing', icon: <CreditCard size={15} /> },
+    { id: 'users',   label: 'Users & roles',  Icon: UsersIcon },
+    { id: 'pricing', label: 'Plan & billing', Icon: CreditCard },
   ]},
   { caption: 'Advanced', items: [
-    { id: 'data',     label: 'Data tools', icon: <RotateCcw size={15} /> },
-    { id: 'api',      label: 'API',        icon: <ShieldCheck size={15} /> },
-    { id: 'support',  label: 'Help & support', icon: <LifeBuoy size={15} /> },
+    { id: 'data',    label: 'Data tools', Icon: RefreshCw, perm: true },
+    { id: 'backup',  label: 'Backup & restore', Icon: Database },
+    { id: 'api',     label: 'API', Icon: KeyRound, perm: true },
+    { id: 'support', label: 'Help & support', Icon: LifeBuoy },
   ]},
 ];
 
-// Hub ids that map to a section of the classic Settings page.
-const CLASSIC_SECTIONS = {
-  business: 'tab-business', categories: 'tab-categories',
-  locations: 'tab-locations', data: 'tab-data', api: 'tab-api',
+const PANELS = {
+  account: AccountPanel, business: BusinessPanel, modules: ModulesPanel,
+  categories: CategoriesPanel, locations: LocationsPanel,
+  print: PrintPanel, reminders: RemindersPanel,
+  pricing: PlanPanel, data: DataPanel, api: ApiPanel, support: SupportPanel,
 };
 
+const NEEDS_PERMISSION = new Set(NAV_GROUPS.flatMap((g) => g.items).filter((i) => i.perm).map((i) => i.id));
+const PANEL_IDS = new Set(NAV_GROUPS.flatMap((g) => g.items).filter((i) => !i.href).map((i) => i.id));
 
-// Corporate reskin applied to embedded legacy pages (same rules the classic
-// Settings sections use) — neutral cards, normalized typography, dark buttons.
-const EMBED_SKIN_CSS = `
-  .settings-embedded .glass-panel { background:#fff !important; border:1px solid #e5e7eb !important; border-radius:8px !important; box-shadow:none !important; }
-  .settings-embedded [class*="shadow-"] { box-shadow:none !important; }
-  .settings-embedded .bg-ink-primary { background:#f9fafb !important; border-bottom:1px solid #f3f4f6 !important; }
-  .settings-embedded .bg-ink-primary h2, .settings-embedded .bg-ink-primary .text-surface,
-  .settings-embedded .bg-ink-primary .text-white { color:#111827 !important; font-size:14px !important; font-weight:600 !important; }
-  .settings-embedded .bg-ink-primary .text-accent-signature, .settings-embedded .bg-ink-primary svg { color:#6b7280 !important; }
-  .settings-embedded .btn-signature, .settings-embedded button.bg-accent-signature, .settings-embedded a.bg-accent-signature {
-    background:#111827 !important; color:#fff !important; border-radius:6px !important; box-shadow:none !important; }
-  .settings-embedded .text-accent-signature { color:#374151 !important; }
-  .settings-embedded .border-accent-signature { border-color:#d1d5db !important; }
-  .settings-embedded h1, .settings-embedded h2 { font-size:14px !important; font-weight:600 !important; color:#111827 !important; letter-spacing:0 !important; font-family:inherit !important; }
-  .settings-embedded h3, .settings-embedded h4 { font-size:13px !important; font-weight:600 !important; color:#111827 !important; letter-spacing:0 !important; }
-  .settings-embedded label, .settings-embedded [class*="text-[9px]"], .settings-embedded [class*="text-[10px]"], .settings-embedded [class*="text-[11px]"] {
-    font-size:12.5px !important; font-weight:500 !important; color:#6b7280 !important; letter-spacing:0 !important; text-transform:none !important; }
-  .settings-embedded [class*="text-[12px]"], .settings-embedded .text-xs, .settings-embedded [class*="text-[13px]"], .settings-embedded .text-sm { font-size:13px !important; letter-spacing:0 !important; }
-  .settings-embedded [class*="text-2xl"], .settings-embedded [class*="text-3xl"], .settings-embedded [class*="text-4xl"], .settings-embedded [class*="text-xl"] { font-size:15px !important; font-weight:600 !important; color:#111827 !important; }
-  .settings-embedded [class*="font-black"] { font-weight:600 !important; }
-  .settings-embedded [class*="uppercase"] { text-transform:none !important; letter-spacing:0 !important; }
-  .settings-embedded [class*="tracking-"] { letter-spacing:0 !important; }
-  .settings-embedded [class*="font-sora"] { font-family:inherit !important; }
-  .settings-embedded input, .settings-embedded select, .settings-embedded textarea { border-radius:6px !important; border-color:#d1d5db !important; background:#fff !important; font-size:13px !important; color:#111827 !important; }
-  .settings-embedded .rounded-pill, .settings-embedded [class*="rounded-2xl"], .settings-embedded [class*="rounded-xl"], .settings-embedded [class*="rounded-bento"] { border-radius:8px !important; }
-  .settings-embedded .bg-canvas { background:#f9fafb !important; }
-`;
-
-const EmbedSkin = ({ children }) => (
-  <div className="settings-embedded">
-    <style dangerouslySetInnerHTML={{ __html: EMBED_SKIN_CSS }} />
-    {children}
-  </div>
-);
-
-// ── Shared primitives ────────────────────────────────────────────────────────
-const Card = ({ title, description, footer, children }) => (
-  <section className="bg-white border border-border rounded-lg overflow-hidden">
-    {(title || description) && (
-      <header className="px-5 py-4 border-b border-border">
-        <h2 className="text-[14px] font-semibold text-foreground">{title}</h2>
-        {description && <p className="text-[12.5px] text-muted-foreground mt-0.5">{description}</p>}
-      </header>
-    )}
-    <div className="px-5 py-4">{children}</div>
-    {footer && (
-      <footer className="px-5 py-3 bg-muted border-t border-border flex items-center justify-end gap-2">
-        {footer}
-      </footer>
-    )}
-  </section>
-);
-
-const FormRow = ({ label, hint, children }) => (
-  <div className="grid sm:grid-cols-[180px_1fr] gap-1.5 sm:gap-6 py-3.5 first:pt-0 last:pb-0 border-b border-border last:border-0 items-start">
-    <div>
-      <div className="text-[13px] font-medium text-ink-secondary">{label}</div>
-      {hint && <div className="text-[12px] text-muted-foreground mt-0.5">{hint}</div>}
-    </div>
-    <div className="min-w-0">{children}</div>
-  </div>
-);
-
-const PrimaryBtn = ({ children, ...props }) => (
-  <button {...props}
-    className="px-3.5 py-2 rounded-pill bg-gray-900 text-white text-[13px] font-semibold hover:bg-gray-800 disabled:opacity-50 transition-colors">
-    {children}
-  </button>
-);
-
-const Toggle = ({ checked, onChange }) => (
-  <button type="button" onClick={() => onChange(!checked)} aria-pressed={checked}
-    className={`relative w-9 h-5 rounded-xl transition-colors ${checked ? 'bg-gray-900' : 'bg-gray-300'}`}>
-    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${checked ? 'left-[18px]' : 'left-0.5'}`} />
-  </button>
-);
-
-const inputCls = 'w-full max-w-sm border border-border rounded-md px-3 py-2 text-[13px] text-foreground placeholder:text-muted-foreground outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10 transition';
-
-// ── WhatsApp sign-in ─────────────────────────────────────────────────────────
-// Adding a number here is what makes phone login possible at all: the login
-// screen refuses any number it does not recognise, so that an unknown number
-// can never mint a fresh auth user with no `users` row behind it (an account
-// in that state signs in and then belongs to no business — there is one in
-// production already). Linking from inside a session attaches the number to
-// the uid the user ALREADY has, so they keep their tenant, role and history.
-const WhatsAppSignInCard = () => {
-  const [current, setCurrent] = useState(null);   // number already on the account
-  const [input, setInput] = useState('');
-  const [code, setCode] = useState('');
-  const [step, setStep] = useState('idle');       // 'idle' | 'code'
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState('');
-  const [err, setErr] = useState('');
-
-  // auth.users.phone is the only source of truth here. Mirroring it into
-  // public.users would give two copies to drift apart for no gain.
-  useEffect(() => {
-    let alive = true;
-    supabase.auth.getUser().then(({ data }) => {
-      if (alive) setCurrent(data?.user?.phone ? `+${String(data.user.phone).replace(/^\+/, '')}` : null);
-    });
-    return () => { alive = false; };
-  }, []);
-
-  const send = async () => {
-    setErr(''); setMsg(''); setBusy(true);
-    const { error } = await linkPhone(input);
-    setBusy(false);
-    if (error) { if (error.cause) console.error('[phone-link] send failed', error.cause); setErr(error.message); return; }
-    setStep('code');
-    setMsg('Code sent on WhatsApp.');
-  };
-
-  const confirm = async () => {
-    setErr(''); setMsg(''); setBusy(true);
-    const { error, phone } = await confirmPhoneLink(input, code);
-    setBusy(false);
-    if (error) { if (error.cause) console.error('[phone-link] verify failed', error.cause); setErr(error.message); return; }
-    setCurrent(phone);
-    setStep('idle'); setInput(''); setCode('');
-    setMsg('This number can now sign in.');
-  };
-
-  return (
-    <Card
-      title="WhatsApp sign-in"
-      description="Sign in with a one-time code instead of a password. The code arrives on WhatsApp."
-      footer={
-        step === 'code'
-          ? <PrimaryBtn onClick={confirm} disabled={busy || code.length < 4}>{busy ? 'Checking…' : 'Confirm number'}</PrimaryBtn>
-          : <PrimaryBtn onClick={send} disabled={busy || !toE164(input)}>{busy ? 'Sending…' : current ? 'Change number' : 'Send code'}</PrimaryBtn>
-      }
-    >
-      <FormRow label="Current number">
-        <div className="text-[13px] text-foreground py-1.5">
-          {current ? formatPhone(current) : <span className="text-ink-secondary">Not set — password sign-in only</span>}
-        </div>
-      </FormRow>
-
-      {step === 'idle' ? (
-        <FormRow label={current ? 'New number' : 'Mobile number'} hint="Indian mobile. The code arrives on WhatsApp, not SMS.">
-          <input type="tel" inputMode="numeric" autoComplete="tel" className={inputCls}
-            placeholder="98765 43210" value={input} onChange={e => setInput(e.target.value)} />
-        </FormRow>
-      ) : (
-        <FormRow label="Code" hint={`Sent to ${formatPhone(toE164(input))} on WhatsApp.`}>
-          <input type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={8} className={inputCls}
-            placeholder="000000" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} />
-          <button type="button" onClick={() => { setStep('idle'); setCode(''); setErr(''); setMsg(''); }}
-            className="text-[12px] text-ink-secondary underline mt-2 bg-transparent border-0 cursor-pointer">Cancel</button>
-        </FormRow>
-      )}
-
-      {(msg || err) && (
-        <p className={`text-[12px] mt-2 ${err ? 'text-red-600' : 'text-ink-secondary'}`}>{err || msg}</p>
-      )}
-    </Card>
-  );
+export const tabFromSearch = (search) => {
+  try {
+    const t = new URLSearchParams(search).get('tab');
+    return PANEL_IDS.has(t) ? t : 'account';
+  } catch { return 'account'; }
 };
 
-// ── Account ──────────────────────────────────────────────────────────────────
-const AccountPanel = () => {
-  const { currentUser, logout } = useAuth();
-  const [pw, setPw] = useState('');
-  const [pw2, setPw2] = useState('');
-  const [msg, setMsg] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const changePassword = async () => {
-    setMsg('');
-    if (pw.length < 8) { setMsg('Password must be at least 8 characters.'); return; }
-    if (pw !== pw2) { setMsg('Passwords do not match.'); return; }
-    setBusy(true);
-    const { error } = await supabase.auth.updateUser({ password: pw });
-    setBusy(false);
-    setMsg(error ? error.message : 'Password updated.');
-    if (!error) { setPw(''); setPw2(''); }
-  };
+// initialTab: /users opens the hub on Users & roles, and /backup on Backup &
+// restore, so those pages sit in the rail as drawn (users-01 to 08).
+export default function SettingsHub({ initialTab } = {}) {
+  const { hasPermission } = useAuth();
+  const [active, setActive] = useState(() => (PANEL_IDS.has(initialTab) ? initialTab
+    : tabFromSearch(typeof window !== 'undefined' ? window.location.search : '')));
+  const allowed = !NEEDS_PERMISSION.has(active) || hasPermission('MANAGE_SETTINGS');
+  const Panel = PANELS[active];
 
   return (
-    <div className="max-w-2xl space-y-4">
-      <Card title="Profile" description="Your personal account details.">
-        <FormRow label="Name">
-          <div className="text-[13px] text-foreground py-1.5">{currentUser?.name || '—'}</div>
-        </FormRow>
-        <FormRow label="Email">
-          <div className="text-[13px] text-foreground py-1.5">{currentUser?.email}</div>
-        </FormRow>
-        <FormRow label="Roles">
-          <div className="flex flex-wrap gap-1.5 py-1">
-            {(currentUser?.roles || []).map(r => (
-              <span key={r} className="px-2 py-0.5 rounded text-[11px] font-medium bg-muted text-ink-secondary">{r}</span>
-            ))}
-          </div>
-        </FormRow>
-      </Card>
-
-      <Card
-        title="Password"
-        description="Use at least 8 characters. You'll stay signed in on this device."
-        footer={<PrimaryBtn onClick={changePassword} disabled={busy}>{busy ? 'Saving…' : 'Update password'}</PrimaryBtn>}
-      >
-        <FormRow label="New password">
-          <input type="password" className={inputCls} placeholder="••••••••" value={pw} onChange={e => setPw(e.target.value)} />
-        </FormRow>
-        <FormRow label="Confirm password">
-          <input type="password" className={inputCls} placeholder="••••••••" value={pw2} onChange={e => setPw2(e.target.value)} />
-          {msg && <p className="text-[12px] text-ink-secondary mt-2">{msg}</p>}
-        </FormRow>
-      </Card>
-
-      <WhatsAppSignInCard />
-
-      <Card title="Session">
-        <FormRow label="Sign out" hint="Sign out of bookledger on this device.">
-          <button onClick={logout}
-            className="px-3.5 py-2 rounded-pill border border-red-200 text-red-600 text-[13px] font-semibold hover:bg-red-50 transition-colors">
-            Log out
-          </button>
-        </FormRow>
-      </Card>
-    </div>
-  );
-};
-
-// ── Printing ─────────────────────────────────────────────────────────────────
-const PrintPanel = ({ tenantId }) => {
-  const { businessProfile, updateBusinessProfile } = useTenant();
-  // Receipt content toggles live in business_profile.bill_settings (shared
-  // with the POS receipt) — consolidated here from the old Bill layout tab.
-  const BILL_DEFAULTS = {
-    show_business_name: true,
-    show_address: true, show_phone: true, show_gstin: true, show_customer_name: true,
-    show_customer_phone: true, show_customer_gstin: true, show_bill_no: true, show_date: true,
-    show_tax_breakdown: true, show_upi: true, show_discount: true,
-    show_party_balance: true, show_payment_status: true, show_footer: true, show_terms: true,
-    paper_width: '80',
-    labels: {},
-  };
-  const [billSet, setBillSet] = useState({ ...BILL_DEFAULTS, ...(businessProfile?.bill_settings || {}) });
-  useEffect(() => {
-    setBillSet({ ...BILL_DEFAULTS, ...(businessProfile?.bill_settings || {}) });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [businessProfile?.bill_settings]);
-  const key = `print_settings_${tenantId || 'default'}`;
-  const PREF_BASE = { paper: '80', copies: 1, autoPrint: false, invoiceTemplate: 'classic', receiptTemplate: 'classic', docTexts: {}, invOpts: {}, invAccent: '#0f172a', customFields: [] };
-  const [prefs, setPrefs] = useState(() => {
-    // Tenant-level settings (DB) are the source of truth; localStorage only
-    // bridges saves made before print_settings moved server-side.
-    try { return { ...PREF_BASE, ...(JSON.parse(localStorage.getItem(key)) || {}) }; }
-    catch { return PREF_BASE; }
-  });
-  useEffect(() => {
-    if (businessProfile?.print_settings && typeof businessProfile.print_settings === 'object') {
-      setPrefs(prev => ({ ...PREF_BASE, ...prev, ...businessProfile.print_settings }));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [businessProfile?.print_settings]);
-  const [saved, setSaved] = useState(false);
-  const [docTab, setDocTab] = useState('receipt');
-  const [sigBusy, setSigBusy] = useState(false);
-
-  const uploadSignature = async (file) => {
-    if (!file) return;
-    setSigBusy(true);
-    const { url, error } = await uploadProductImage(file, tenantId);
-    if (!error && url) await updateBusinessProfile?.({ signature_url: url });
-    setSigBusy(false);
-  };
-  const removeSignature = async () => {
-    setSigBusy(true);
-    await updateBusinessProfile?.({ signature_url: null });
-    setSigBusy(false);
-  };
-  const [saveErr, setSaveErr] = useState('');
-  const save = async () => {
-    localStorage.setItem(key, JSON.stringify(prefs)); // same-browser cache
-    setSaveErr('');
-    // Tenant-level: every device + the mobile app print with these settings.
-    const res = await updateBusinessProfile?.({
-      print_settings: prefs,
-      bill_settings: { ...(businessProfile?.bill_settings || {}), ...billSet },
-    });
-    if (res && !res.success) {
-      setSaveErr(`Could not save to your workspace: ${res.error?.message || 'permission denied'}. Other devices won't see these settings.`);
-      return;
-    }
-    setSaved(true); setTimeout(() => setSaved(false), 1500);
-  };
-  const onEditText = (k, v) =>
-    setPrefs(prev => ({ ...prev, docTexts: { ...(prev.docTexts || {}), [k]: v } }));
-  const texts = { ...DEFAULT_DOC_TEXTS, ...(prefs.docTexts || {}) };
-  const invOpts = { ...DEFAULT_INV_OPTS, ...(prefs.invOpts || {}) };
-  const setOpt = (k, v) => setPrefs(prev => ({ ...prev, invOpts: { ...(prev.invOpts || {}), [k]: v } }));
-
-  const OPT_GROUPS = [
-    ['Invoice details', [['logo', 'Business logo'], ['gstin', 'GSTIN'], ['words', 'Amount in words']]],
-    ['Party details', [['clientAddr', 'Client address'], ['phone', 'Phone numbers'], ['partyBalance', 'Party balance']]],
-    ['Item table', [['hsn', 'HSN column'], ['desc', 'Item description']]],
-    ['Footer', [['terms', 'Terms & conditions'], ['sign', 'Signature block'], ['bank', 'Bank details'], ['upiQr', 'UPI QR code']]],
-  ];
-
-  return (
-    <div className="max-w-3xl space-y-4">
-      {saveErr && (
-        <div className="px-4 py-2.5 rounded-md bg-red-50 border border-red-200 text-[12.5px] text-red-700 font-medium">
-          {saveErr}
-        </div>
-      )}
-      <Card
-        title="Receipt printer"
-        description="Applies to cash receipts printed after each sale."
-        footer={<PrimaryBtn onClick={save}>{saved ? <span className="inline-flex items-center gap-1.5"><Check size={13} /> Saved</span> : 'Save changes'}</PrimaryBtn>}
-      >
-        <FormRow label="Paper width" hint="Match your thermal printer roll.">
-          <div className="inline-flex rounded-md border border-border overflow-hidden">
-            {[['58', '58 mm'], ['80', '80 mm'], ['A4', 'A4']].map(([v, l], i) => (
-              <button key={v} onClick={() => setPrefs({ ...prefs, paper: v })}
-                className={`px-4 py-2 text-[13px] font-medium transition-colors ${i > 0 ? 'border-l border-border' : ''} ${
-                  prefs.paper === v ? 'bg-gray-900 text-white' : 'bg-white text-ink-secondary hover:bg-muted'}`}>
-                {l}
-              </button>
-            ))}
-          </div>
-        </FormRow>
-        <FormRow label="Copies per receipt">
-          <div className="inline-flex items-center rounded-md border border-border overflow-hidden">
-            <button onClick={() => setPrefs({ ...prefs, copies: Math.max(1, prefs.copies - 1) })}
-              className="w-9 h-9 text-ink-secondary hover:bg-muted text-[15px]">−</button>
-            <span className="w-10 text-center text-[13px] font-semibold text-foreground border-x border-border leading-9">{prefs.copies}</span>
-            <button onClick={() => setPrefs({ ...prefs, copies: Math.min(3, prefs.copies + 1) })}
-              className="w-9 h-9 text-ink-secondary hover:bg-muted text-[15px]">+</button>
-          </div>
-        </FormRow>
-        <FormRow label="Auto-print" hint="Open the print dialog automatically after each sale.">
-          <Toggle checked={prefs.autoPrint} onChange={v => setPrefs({ ...prefs, autoPrint: v })} />
-        </FormRow>
-      </Card>
-
-      <Card
-        title="Document designer"
-        description="Choose a design and click the highlighted text in the preview to edit it. Changes apply to printed documents after saving."
-        footer={<PrimaryBtn onClick={save}>{saved ? <span className="inline-flex items-center gap-1.5"><Check size={13} /> Saved</span> : 'Save design & text'}</PrimaryBtn>}
-      >
-        {/* doc tabs */}
-        <div className="inline-flex rounded-md border border-border overflow-hidden mb-4">
-          {[['receipt', 'Thermal receipt'], ['invoice', 'A4 tax invoice']].map(([v, l], i) => (
-            <button key={v} onClick={() => setDocTab(v)}
-              className={`px-4 py-2 text-[13px] font-medium transition-colors ${i > 0 ? 'border-l border-border' : ''} ${
-                docTab === v ? 'bg-gray-900 text-white' : 'bg-white text-ink-secondary hover:bg-muted'}`}>
-              {l}
-            </button>
+    <div className="pb-16">
+      <div className="grid items-start gap-6 lg:grid-cols-[212px_minmax(0,1fr)] lg:gap-8">
+        <nav aria-label="Settings sections" className="no-scrollbar -mx-4 flex gap-px overflow-x-auto px-4 lg:sticky lg:top-0 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0">
+          {NAV_GROUPS.map((g, gi) => (
+            <div key={g.caption} className="flex gap-px lg:block">
+              <div className={cn('hidden px-2.5 pb-1.5 font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-mute lg:block', gi === 0 ? 'pt-0.5' : 'pt-3.5')}>
+                {g.caption}
+              </div>
+              {g.items.map(({ id, label, Icon, href }) => {
+                const on = active === id;
+                const cls = cn('flex w-full items-center gap-2.5 whitespace-nowrap rounded-[10px] px-2.5 py-2 text-left font-tight text-[13.5px] transition-colors duration-(--dur-press)',
+                  on ? 'bg-well font-semibold text-ink' : 'font-medium text-ink-2 hover:bg-tile');
+                const icon = <Icon size={16} strokeWidth={1.8} aria-hidden="true" className={cn('shrink-0', on ? 'text-amber' : 'text-mute')} />;
+                return href
+                  ? <Link key={id} to={href} className={cls}>{icon}{label}</Link>
+                  : (
+                    <button key={id} type="button" aria-current={on ? 'page' : undefined} onClick={() => setActive(id)} className={cls}>
+                      {icon}{label}
+                    </button>
+                  );
+              })}
+            </div>
           ))}
-        </div>
-
-        {docTab === 'receipt' ? (
-          <>
-            <div className="grid grid-cols-3 gap-3 mb-4">
-              {RECEIPT_META.map(t => (
-                <button key={t.id} onClick={() => setPrefs({ ...prefs, receiptTemplate: t.id })}
-                  className={`text-left rounded-pill border p-3 transition-colors ${prefs.receiptTemplate === t.id ? 'border-gray-900 ring-2 ring-gray-900/10' : 'border-border hover:border-border'}`}>
-                  <div className="text-[13px] font-semibold text-foreground">{t.name}</div>
-                  <div className="text-[11.5px] text-muted-foreground">{t.blurb}</div>
-                </button>
-              ))}
-            </div>
-            <div className="grid lg:grid-cols-[1fr_230px] gap-4">
-            <div className="bg-muted rounded-md p-4 overflow-auto flex justify-center">
-              {/* Live preview = the real receipt component (POSReceipt) so what
-                  you toggle/label/size here is exactly what prints (web + mobile). */}
-              <POSReceipt
-                key={JSON.stringify(billSet)}
-                bare
-                invoice={{
-                  invoice_number: '001042',
-                  invoice_date: new Date().toISOString(),
-                  payment_status: 'PAID',
-                  grand_total: 405, paid_amount: 405, discount_total: 0, round_off: 0,
-                  items: [
-                    { name: 'Basmati Rice 5kg', quantity: 2, rate: 80, taxRate: 0 },
-                    { name: 'Sunflower Oil 1L', quantity: 1, rate: 245, taxRate: 0 },
-                  ],
-                }}
-                businessProfile={{ ...(businessProfile || {}), bill_settings: billSet }}
-                client={{ name: 'Walk-in' }}
-              />
-            </div>
-            <div>
-              {/* Paper width — strict thermal sizing, no distortion. */}
-              <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">Paper width</div>
-              <div className="flex gap-2 mb-4">
-                {[['80', '80mm'], ['58', '58mm']].map(([v, label]) => (
-                  <button key={v} onClick={() => setBillSet({ ...billSet, paper_width: v })}
-                    className={`flex-1 py-2 rounded-pill text-xs font-bold border transition-colors ${
-                      (billSet.paper_width || '80') === v
-                        ? 'bg-gray-900 text-white border-gray-900'
-                        : 'bg-white text-ink-secondary border-border hover:border-gray-400'
-                    }`}>{label}</button>
-                ))}
-              </div>
-
-              <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">Receipt content — show / hide</div>
-              <div className="space-y-1.5">
-                {[
-                  ['show_business_name', 'Business name'],
-                  ['show_address', 'Business address'],
-                  ['show_phone', 'Business phone'],
-                  ['show_gstin', 'Business GSTIN'],
-                  ['show_bill_no', 'Bill number'],
-                  ['show_date', 'Date'],
-                  ['show_customer_name', 'Customer name'],
-                  ['show_customer_phone', 'Customer phone'],
-                  ['show_customer_gstin', 'Customer GSTIN'],
-                  ['show_tax_breakdown', 'Tax breakdown'],
-                  ['show_discount', 'Discount line'],
-                  ['show_party_balance', 'Previous balance'],
-                  ['show_payment_status', 'Payment status'],
-                  ['show_upi', 'UPI QR / ID'],
-                  ['show_footer', 'Footer message'],
-                  ['show_terms', 'Terms & conditions'],
-                ].map(([k, label]) => (
-                  <label key={k} className="flex items-center justify-between text-[12.5px] text-ink-secondary cursor-pointer">
-                    {label}
-                    <Toggle checked={!!billSet[k]} onChange={v => setBillSet({ ...billSet, [k]: v })} />
-                  </label>
-                ))}
-              </div>
-
-              {/* Editable prefix labels */}
-              <div className="text-[11px] font-semibold text-muted-foreground mt-4 mb-1.5">Field labels</div>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  ['bill_title', 'Title', billSet.bill_title || ''],
-                  ['footer_message', 'Footer', billSet.footer_message || ''],
-                  ['_lbl_billTo', 'Customer prefix', billSet.labels?.billTo || ''],
-                  ['_lbl_phone', 'Phone prefix', billSet.labels?.phone || ''],
-                  ['_lbl_gstin', 'GSTIN prefix', billSet.labels?.gstin || ''],
-                  ['_lbl_subtotal', 'Subtotal label', billSet.labels?.subtotal || ''],
-                  ['_lbl_total', 'Total label', billSet.labels?.total || ''],
-                  ['_lbl_upi', 'UPI prefix', billSet.labels?.upi || ''],
-                ].map(([k, ph, val]) => (
-                  <input key={k} value={val} placeholder={ph}
-                    onChange={e => {
-                      const v = e.target.value;
-                      if (k.startsWith('_lbl_')) {
-                        const lk = k.replace('_lbl_', '');
-                        setBillSet({ ...billSet, labels: { ...(billSet.labels || {}), [lk]: v } });
-                      } else {
-                        setBillSet({ ...billSet, [k]: v });
-                      }
-                    }}
-                    className="w-full bg-white border border-border rounded-lg px-2.5 py-1.5 text-[12px] outline-none focus:border-gray-400" />
-                ))}
-              </div>
-
-              <div className="text-[10.5px] text-muted-foreground mt-3">Applies to POS receipts (web + mobile print). Saved with this card.</div>
-            </div>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-              {INVOICE_LAYOUT_META.map(t => (
-                <button key={t.id} onClick={() => setPrefs({ ...prefs, invoiceTemplate: t.id })}
-                  className={`text-left rounded-pill border p-3 transition-colors ${prefs.invoiceTemplate === t.id ? 'border-gray-900 ring-2 ring-gray-900/10' : 'border-border hover:border-border'}`}>
-                  <div className="text-[13px] font-semibold text-foreground">{t.name}</div>
-                  <div className="text-[11.5px] text-muted-foreground">{t.blurb}</div>
-                </button>
-              ))}
-            </div>
-            <div className="grid lg:grid-cols-[1fr_230px] gap-4">
-              {/* live preview */}
-              <div className="bg-muted rounded-md p-4 overflow-auto">
-                <div style={{ width: 794 * 0.55 }} className="mx-auto">
-                  {/* zoom (not transform) so the wrapper's layout height shrinks with the content */}
-                  <div style={{ zoom: 0.55, width: 794 }}>
-                    <InvoiceTemplate
-                      key={`${prefs.invoiceTemplate}-${prefs.invAccent}-${JSON.stringify(prefs.docTexts)}-${JSON.stringify(prefs.invOpts)}-${JSON.stringify(prefs.customFields)}`}
-                      previewMode editable
-                      themeOverride={prefs.invoiceTemplate}
-                      textsOverride={texts}
-                      optsOverride={invOpts}
-                      accentOverride={prefs.invAccent}
-                      customFieldsOverride={prefs.customFields}
-                      onEditText={onEditText}
-                      invoice={SAMPLE_INVOICE}
-                      businessProfile={businessProfile || { name: 'Your Business' }}
-                      client={SAMPLE_CLIENT}
-                      onClose={() => {}} onPrint={() => {}} onShare={() => {}}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* control rail */}
-              <div className="space-y-4">
-                <div>
-                  <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">Accent colour</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {ACCENT_SWATCHES.map(c => (
-                      <button key={c} onClick={() => setPrefs({ ...prefs, invAccent: c })}
-                        className={`w-7 h-7 rounded ${prefs.invAccent === c ? 'ring-2 ring-offset-1 ring-gray-900' : ''}`}
-                        style={{ background: c }} aria-label={c} />
-                    ))}
-                  </div>
-                  <div className="text-[10.5px] text-muted-foreground mt-1">Applies to Modern & Letterhead designs.</div>
-                </div>
-                {OPT_GROUPS.map(([group, items]) => (
-                  <div key={group}>
-                    <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">{group}</div>
-                    <div className="space-y-1.5">
-                      {items.map(([k, label]) => (
-                        <label key={k} className="flex items-center justify-between text-[12.5px] text-ink-secondary cursor-pointer">
-                          {label}
-                          <Toggle checked={invOpts[k]} onChange={v => setOpt(k, v)} />
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-
-                {/* Signature image */}
-                <div>
-                  <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">Signature image</div>
-                  {businessProfile?.signature_url ? (
-                    <div className="space-y-1.5">
-                      <div className="bg-white border border-border rounded-md p-2 flex justify-center">
-                        <img src={businessProfile.signature_url} alt="signature" className="h-10 object-contain" />
-                      </div>
-                      <button onClick={removeSignature} disabled={sigBusy}
-                        className="w-full py-1.5 rounded-pill border border-border text-[12px] font-medium text-muted-foreground hover:text-red-500 hover:border-red-200 disabled:opacity-50">
-                        {sigBusy ? 'Removing…' : 'Remove signature'}
-                      </button>
-                    </div>
-                  ) : (
-                    <label className={`block w-full py-1.5 rounded-md border border-dashed border-border text-[12px] font-medium text-muted-foreground text-center cursor-pointer hover:border-gray-400 hover:text-ink-secondary ${sigBusy ? 'opacity-50 pointer-events-none' : ''}`}>
-                      {sigBusy ? 'Uploading…' : '+ Upload signature (PNG)'}
-                      <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
-                        onChange={e => uploadSignature(e.target.files?.[0])} />
-                    </label>
-                  )}
-                  <div className="text-[10.5px] text-muted-foreground mt-1">Transparent PNG works best. Shown above "Authorised Signatory".</div>
-                </div>
-
-                {/* Custom fields (label: value pairs printed on every invoice) */}
-                <div>
-                  <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">Custom fields</div>
-                  <div className="space-y-2">
-                    {(prefs.customFields || []).map((f, i) => (
-                      <div key={i} className="flex gap-1.5 items-center">
-                        <input value={f.label} placeholder="Label"
-                          onChange={e => {
-                            const cf = [...prefs.customFields]; cf[i] = { ...cf[i], label: e.target.value };
-                            setPrefs({ ...prefs, customFields: cf });
-                          }}
-                          className="w-[38%] border border-border rounded-md px-2 py-1.5 text-[12px] outline-none focus:border-gray-900" />
-                        <input value={f.value} placeholder="Value"
-                          onChange={e => {
-                            const cf = [...prefs.customFields]; cf[i] = { ...cf[i], value: e.target.value };
-                            setPrefs({ ...prefs, customFields: cf });
-                          }}
-                          className="flex-1 border border-border rounded-md px-2 py-1.5 text-[12px] outline-none focus:border-gray-900" />
-                        <button onClick={() => setPrefs({ ...prefs, customFields: prefs.customFields.filter((_, j) => j !== i) })}
-                          className="w-6 h-6 shrink-0 rounded border border-border text-muted-foreground hover:text-red-500 hover:border-red-200 text-[12px]">×</button>
-                      </div>
-                    ))}
-                    {(prefs.customFields || []).length < 4 && (
-                      <button onClick={() => setPrefs({ ...prefs, customFields: [...(prefs.customFields || []), { label: '', value: '' }] })}
-                        className="w-full py-1.5 rounded-pill border border-dashed border-border text-[12px] font-medium text-muted-foreground hover:border-gray-400 hover:text-ink-secondary">
-                        + Add field
-                      </button>
-                    )}
-                    <div className="text-[10.5px] text-muted-foreground">e.g. PAN, FSSAI No, Website — printed on every invoice.</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-      </Card>
-
-      <Card title="Barcode labels" description="Label templates, per-field typography and bulk barcode generation.">
-        <FormRow label="Labels tool" hint="Design and print price labels for products.">
-          <a href="labels"
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md border border-border text-ink-secondary text-[13px] font-semibold hover:bg-muted transition-colors">
-            Open Labels <ChevronRight size={14} />
-          </a>
-        </FormRow>
-      </Card>
-    </div>
-  );
-};
-
-// ── Payment reminders ────────────────────────────────────────────────────────
-const RemindersPanel = ({ tenantId }) => {
-  const { businessProfile } = useTenant();
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!tenantId) return;
-    (async () => {
-      const { data } = await supabase
-        .from('clients')
-        .select('id, name, phone, outstanding_balance')
-        .eq('tenant_id', tenantId)
-        .is('deleted_at', null)
-        .gt('outstanding_balance', 0)
-        .order('outstanding_balance', { ascending: false });
-      setRows(data || []);
-      setLoading(false);
-    })();
-  }, [tenantId]);
-
-  const waLink = (c) => {
-    const msg = encodeURIComponent(
-      `Dear ${c.name},\nThis is a friendly reminder from ${businessProfile?.name || 'us'} — ` +
-      `your outstanding balance is ₹${Number(c.outstanding_balance).toFixed(2)}. ` +
-      `Kindly arrange the payment at your convenience. Thank you!`
-    );
-    const phone = String(c.phone || '').replace(/\D/g, '');
-    const e164 = phone.length === 10 ? `91${phone}` : phone;
-    return `https://wa.me/${e164}?text=${msg}`;
-  };
-
-  return (
-    <div className="max-w-2xl">
-      <Card
-        title="Outstanding balances"
-        description="Send a WhatsApp payment reminder with the client's name and amount prefilled."
-      >
-        {loading ? (
-          <p className="py-4 text-center text-[13px] text-muted-foreground">Loading…</p>
-        ) : rows.length === 0 ? (
-          <p className="py-4 text-center text-[13px] text-muted-foreground">No outstanding balances.</p>
-        ) : (
-          <div className="-mx-5 -my-4 divide-y divide-gray-100 max-h-[480px] overflow-y-auto">
-            {rows.map(c => (
-              <div key={c.id} className="flex items-center gap-4 px-5 py-3">
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-medium text-foreground truncate">{c.name}</div>
-                  <div className="text-[12px] text-muted-foreground">{c.phone || 'No phone on file'}</div>
-                </div>
-                <div className="text-[13px] font-semibold text-foreground tabular-nums shrink-0">
-                  ₹{Number(c.outstanding_balance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                </div>
-                {c.phone ? (
-                  <a href={waLink(c)} target="_blank" rel="noreferrer"
-                    className="shrink-0 px-3 py-1.5 rounded-md border border-border text-ink-secondary text-[12px] font-semibold hover:bg-muted transition-colors">
-                    Send reminder
-                  </a>
-                ) : (
-                  <span className="text-[11px] text-muted-foreground shrink-0">—</span>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-    </div>
-  );
-};
-
-// ── Business type & modules ──────────────────────────────────────────────────
-//
-// The switchboard for the vertical axis. tenants.modules has been the
-// documented per-tenant override layer since Stage A and NOTHING in the app
-// has ever written it -- so "turn a capability on for this shop" has meant a
-// hand-edit in the database. business_type was likewise write-once at signup:
-// a shop that picked Retail and later wanted a different set had no path at
-// all.
-//
-// Two axes meet on this screen, and they are not the same thing:
-//   · the PLAN says what the shop has paid for. Server-enforced. Not editable
-//     here, and a toggle cannot buy it.
-//   · the VERTICAL says which parts of that a shop wants to see. This screen.
-const BusinessTypePanel = () => {
-  const { currentTenant, businessType, tenantModules, updateTenant, isModuleAllowed } = useTenant();
-  const { isOwner } = useAuth();
-
-  const [type, setType] = useState(businessType);
-  const [modules, setModules] = useState(tenantModules);
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState('');
-  const [err, setErr] = useState('');
-
-  // Re-seed when the tenant finishes loading, or after another device saves.
-  useEffect(() => { setType(businessType); setModules(tenantModules); },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [businessType, JSON.stringify(tenantModules)]);
-
-  const defaults = DEFAULT_MODULES[type] || DEFAULT_MODULES.RETAIL;
-  const pending = overridesFrom(type, modules);
-  const dirty = type !== businessType ||
-    JSON.stringify(pending) !== JSON.stringify(overridesFrom(businessType, tenantModules));
-
-  // Switching vertical re-bases every toggle on the new defaults. Carrying the
-  // old overrides across would silently hand a restaurant the retail module set
-  // under a restaurant label.
-  const chooseType = (next) => {
-    setType(next);
-    setModules(DEFAULT_MODULES[next]);
-    setMsg(''); setErr('');
-  };
-
-  const save = async () => {
-    setBusy(true); setErr(''); setMsg('');
-    const res = await updateTenant({ business_type: type, modules: overridesFrom(type, modules) });
-    setBusy(false);
-    // Surface the real reason. A silent failure here looks identical to a save.
-    if (res?.success) setMsg('Saved.');
-    else setErr(res?.error?.message || 'Could not save. Your changes are still on screen.');
-  };
-
-  const resetToDefaults = () => { setModules(defaults); setMsg(''); setErr(''); };
-
-  if (!isOwner) {
-    return (
-      <div className="max-w-3xl space-y-4">
-        <Card title="Business type & modules"
-              description="Only the account owner can change these.">
-          <FormRow label="Business type">
-            <div className="text-[13px] text-foreground py-1.5">
-              {VERTICAL_META[businessType]?.label || businessType}
-            </div>
-          </FormRow>
-        </Card>
-      </div>
-    );
-  }
-
-  return (
-    <div className="max-w-3xl space-y-4">
-      <Card
-        title="Business type"
-        description="Sets the starting module list and the words the app uses — a restaurant sees Dishes and Orders where a shop sees Products and Sales."
-      >
-        <div className="grid sm:grid-cols-3 gap-2">
-          {BUSINESS_TYPES.map((id) => {
-            const meta = VERTICAL_META[id] || {};
-            const on = type === id;
-            return (
-              <button key={id} type="button" onClick={() => chooseType(id)}
-                aria-pressed={on}
-                className={`text-left px-3.5 py-3 rounded-pill border transition-colors ${
-                  on ? 'border-gray-900 bg-gray-900/[0.03]' : 'border-border hover:border-gray-400'
-                }`}>
-                <div className="text-[13px] font-semibold text-foreground flex items-center gap-1.5">
-                  {meta.label || id}
-                  {on && <Check size={13} className="text-gray-900" />}
-                </div>
-                <div className="text-[12px] text-muted-foreground mt-0.5">{meta.tagline}</div>
-              </button>
-            );
-          })}
-        </div>
-        {type !== businessType && (
-          <p className="text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-3">
-            Changing this resets the modules below to that type's defaults. Your
-            data is not touched — no product, bill or customer changes.
-          </p>
-        )}
-      </Card>
-
-      <Card
-        title="Modules"
-        description="What this shop sees. Switching one off hides it from the menu and closes the page; nothing is deleted and you can switch it back."
-        footer={
-          <>
-            {err && <span className="text-[12px] text-red-600 mr-auto">{err}</span>}
-            {!err && msg && <span className="text-[12px] text-emerald-600 mr-auto">{msg}</span>}
-            <button type="button" onClick={resetToDefaults}
-              className="px-3.5 py-2 rounded-pill border border-border text-[13px] font-medium text-ink-secondary hover:bg-muted transition-colors">
-              Reset to defaults
-            </button>
-            <PrimaryBtn onClick={save} disabled={busy || !dirty}>
-              {busy ? 'Saving…' : 'Save changes'}
-            </PrimaryBtn>
-          </>
-        }
-      >
-        {MODULE_KEYS.map((key) => {
-          const meta = MODULE_META[key] || { label: key };
-          const on = !!modules[key];
-          const isDefault = !!defaults[key];
-          // The plan axis. A toggle that the plan does not cover would look
-          // like it worked and then change nothing, so it is shown locked with
-          // the plan that would unlock it, rather than hidden or silently on.
-          const planned = meta.plan ? isModuleAllowed(meta.plan) : true;
-          const needs = meta.plan ? getRequiredPlan(meta.plan) : null;
-
-          return (
-            <FormRow key={key} label={meta.label} hint={meta.help}>
-              <div className="flex items-center gap-3 py-1">
-                {planned ? (
-                  <Toggle checked={on} onChange={(v) => {
-                    setModules((m) => ({ ...m, [key]: v })); setMsg(''); setErr('');
-                  }} />
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground">
-                    <Lock size={12} />
-                    Needs {PLANS[needs]?.label || needs}
-                  </span>
-                )}
-                {planned && on !== isDefault && (
-                  <span className="text-[11px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
-                    changed from default
-                  </span>
-                )}
-              </div>
-            </FormRow>
-          );
-        })}
-      </Card>
-
-      <p className="text-[12px] text-muted-foreground">
-        These switches decide what is <em>shown</em>. What the business has paid
-        for is the plan, which the server enforces separately — see Plan &amp; billing.
-      </p>
-    </div>
-  );
-};
-
-// ── Plan & billing ───────────────────────────────────────────────────────────
-const PricingPanel = () => {
-  const { currentTenant } = useTenant();
-  const plan = currentTenant?.plan || 'STARTER';
-  const trialEnd = currentTenant?.trial_end_date ? new Date(currentTenant.trial_end_date) : null;
-  const daysLeft = trialEnd ? Math.max(0, Math.ceil((trialEnd - Date.now()) / 86400000)) : null;
-
-  return (
-    <div className="max-w-3xl space-y-4">
-      <Card title="Current plan">
-        <FormRow label="Plan">
-          <div className="flex items-center gap-2 py-1">
-            <span className="text-[13px] font-semibold text-foreground">{PLANS[plan]?.label || plan}</span>
-            {currentTenant?.status === 'TRIAL' && daysLeft != null && (
-              <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-accent-signature/10 text-accent-signature-hover border border-accent-signature/25">
-                Trial · {daysLeft} day{daysLeft === 1 ? '' : 's'} left
-              </span>
-            )}
-          </div>
-        </FormRow>
-        <FormRow label="Billing" hint="Online payments are coming soon.">
-          <div className="text-[13px] text-muted-foreground py-1.5">Contact us to upgrade or change plans.</div>
-        </FormRow>
-      </Card>
-
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {Object.entries(PLANS).filter(([id]) => id !== 'STARTER').map(([id, p]) => (
-          <section key={id}
-            className={`bg-white rounded-lg border p-5 ${id === plan ? 'border-gray-900' : 'border-border'}`}>
-            <div className="flex items-center justify-between">
-              <span className="text-[12px] font-semibold text-foreground uppercase tracking-wide">{p.label}</span>
-              {id === plan && (
-                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-900 text-white">CURRENT</span>
-              )}
-            </div>
-            <div className="text-[18px] font-semibold text-foreground mt-1.5">{p.price}</div>
-            <ul className="text-[12.5px] text-ink-secondary space-y-1.5 mt-3">
-              <li className="flex items-center gap-2"><Check size={13} className="text-muted-foreground shrink-0" />{(p.modules || []).length} modules</li>
-              <li className="flex items-center gap-2"><Check size={13} className="text-muted-foreground shrink-0" />{p.maxUsers === -1 ? 'Unlimited users' : `Up to ${p.maxUsers} users`}</li>
-              {(p.features || []).slice(0, 4).map(f => (
-                <li key={f} className="flex items-center gap-2">
-                  <Check size={13} className="text-muted-foreground shrink-0" />
-                  <span className="capitalize">{String(f).replaceAll('_', ' ')}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-// ── Support ──────────────────────────────────────────────────────────────────
-const SupportPanel = () => (
-  <div className="max-w-2xl">
-    <Card title="Help & support" description="We usually respond within a business day.">
-      {[
-        ['Email', 'support@ledgrpro.co', 'mailto:support@ledgrpro.co', 'Send email'],
-        ['WhatsApp', 'Chat with our support team', 'https://wa.me/919778707474', 'Open chat'],
-        ['Report a bug', 'Use the Report Issue button at the bottom-right of any page', null, null],
-      ].map(([t, sub, href, cta]) => (
-        <FormRow key={t} label={t} hint={sub}>
-          {href ? (
-            <a href={href} target="_blank" rel="noreferrer"
-              className="inline-flex px-3.5 py-2 rounded-md border border-border text-ink-secondary text-[13px] font-semibold hover:bg-muted transition-colors">
-              {cta}
-            </a>
-          ) : <span className="text-[13px] text-muted-foreground py-1.5 inline-block">—</span>}
-        </FormRow>
-      ))}
-    </Card>
-  </div>
-);
-
-// ── Hub ──────────────────────────────────────────────────────────────────────
-const SettingsHub = () => {
-  const { currentTenantId, currentTenant } = useTenant();
-  const { isOwner } = useAuth();
-  const [active, setActive] = useState('account');
-
-  return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto">
-      <header className="mb-6 pb-5 border-b border-border">
-        <h1 className="text-[20px] font-semibold text-foreground">Settings</h1>
-        <p className="text-[13px] text-muted-foreground mt-0.5">Manage your account, workspace and billing preferences.</p>
-      </header>
-
-      <div className="flex flex-col lg:flex-row gap-8">
-        {/* Left rail */}
-        <nav className="lg:w-52 shrink-0">
-          <div className="flex lg:flex-col gap-0.5 overflow-x-auto no-scrollbar lg:sticky lg:top-6">
-            {NAV_GROUPS.map(g => (
-              <div key={g.caption} className="lg:mb-4 flex lg:block gap-0.5">
-                <div className="hidden lg:block px-2.5 mb-1.5 text-[10.5px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  {g.caption}
-                </div>
-                {g.items.map(n => (
-                  <button key={n.id} onClick={() => setActive(n.id)}
-                    className={`flex items-center gap-2.5 px-2.5 py-[7px] rounded-pill text-[13px] whitespace-nowrap w-full text-left transition-colors ${
-                      active === n.id
-                        ? 'bg-border/70 text-foreground font-semibold'
-                        : 'text-ink-secondary hover:bg-muted font-medium'
-                    }`}>
-                    <span className={active === n.id ? 'text-foreground' : 'text-muted-foreground'}>{n.icon}</span>
-                    {n.label}
-                  </button>
-                ))}
-              </div>
-            ))}
-          </div>
         </nav>
 
-        {/* Panel */}
-        <main className="flex-1 min-w-0">
-          {active === 'account'  && <AccountPanel />}
-          {active === 'account' && isOwner && currentTenant?.settings?.ai_chat_available === true && <div className="mt-6 max-w-2xl"><AskSettingsCard /></div>}
-          {CLASSIC_SECTIONS[active] && (
-            <Settings embedded section={CLASSIC_SECTIONS[active]} key={active} />
-          )}
-          {active === 'print'    && <PrintPanel tenantId={currentTenantId} />}
-          {active === 'users'    && <EmbedSkin><Users embedded /></EmbedSkin>}
-          {active === 'reminders' && <RemindersPanel tenantId={currentTenantId} />}
-          {active === 'modules'  && <BusinessTypePanel />}
-          {active === 'pricing'  && <PricingPanel />}
-          {active === 'support'  && <SupportPanel />}
-        </main>
+        <div className="min-w-0 max-w-[820px]" data-testid="settings-panel">
+          {!allowed ? <NoSettingsAccess />
+            : active === 'users' ? <Users />
+            : active === 'backup' ? <BackupRestore inRail />
+            : Panel ? <Panel key={active} /> : null}
+        </div>
       </div>
     </div>
   );
-};
-
-export default SettingsHub;
+}

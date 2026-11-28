@@ -9,6 +9,7 @@ import {
   TrendingUp, TrendingDown, Activity, Hash,
 } from 'lucide-react';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import ReportHeader from './ReportHeader';
 import ReportFilterRow from './ReportFilterRow';
 import { KPI, SectionHead } from './ReportBits';
@@ -18,10 +19,10 @@ import { formatCurrency } from '../../lib/utils';
 const TYPE_FILTERS = ['ALL', 'Sale', 'Payment', 'Purchase', 'Expense'];
 
 const TYPE_STYLE = {
-  Sale:     { bg: 'bg-emerald-50', text: 'text-emerald-700' },
-  Payment:  { bg: 'bg-accent-signature/10',  text: 'text-accent-signature-hover' },
-  Purchase: { bg: 'bg-blue-50',    text: 'text-blue-700' },
-  Expense:  { bg: 'bg-red-50',     text: 'text-red-600' },
+  Sale:     { bg: 'bg-good-soft', text: 'text-good-text' },
+  Payment:  { bg: 'bg-accent-signature/10',  text: 'text-amber-text' },
+  Purchase: { bg: 'bg-info-soft',    text: 'text-info-text' },
+  Expense:  { bg: 'bg-bad-soft',     text: 'text-bad-text' },
 };
 
 const AllTransactionsReport = () => {
@@ -36,12 +37,12 @@ const AllTransactionsReport = () => {
 
   const filters = useMemo(() => ({ dateRange: range }), [range]);
 
-  const { data: salesRaw,    loading: sLoading } = useReportData({ table: 'sales',           select: 'id, date, totalAmount, paymentMethod, customerInfo, shopId, status, paymentStatus, voided_at', dateColumn: 'date', filters });
+  const { data: salesRaw,    loading: sLoading, error: rdErr1, refetch: rdRe1 } = useReportData({ table: 'sales',           select: 'id, date, totalAmount, paymentMethod, customerInfo, shopId, status, paymentStatus, voided_at', dateColumn: 'date', filters });
   const sales = useMemo(() => salesRaw.filter(isCountableSale), [salesRaw]);
-  const { data: payments, loading: pLoading } = useReportData({ table: 'client_payments', select: 'id, date, amount, client_id, payment_method',               dateColumn: 'date', filters });
-  const { data: purchases,loading: puLoading} = useReportData({ table: 'purchases',       select: 'id, date, total_amount, supplier_name',                      dateColumn: 'date', filters });
-  const { data: expenses, loading: eLoading } = useReportData({ table: 'expenses',        select: '*',                                                          dateColumn: 'date', filters });
-  const { data: clients }                     = useReportData({ table: 'clients',          select: 'id, name' });
+  const { data: payments, loading: pLoading, error: rdErr2, refetch: rdRe2 } = useReportData({ table: 'client_payments', select: 'id, date, amount, client_id, payment_method',               dateColumn: 'date', filters });
+  const { data: purchases,loading: puLoading, error: rdErr3, refetch: rdRe3 } = useReportData({ table: 'purchases',       select: 'id, date, total_amount, supplier_name',                      dateColumn: 'date', filters });
+  const { data: expenses, loading: eLoading, error: rdErr4, refetch: rdRe4 } = useReportData({ table: 'expenses',        select: '*',                                                          dateColumn: 'date', filters });
+  const { data: clients, error: rdErr5, refetch: rdRe5 } = useReportData({ table: 'clients',          select: 'id, name' });
 
   const loading = sLoading || pLoading || puLoading || eLoading;
 
@@ -159,7 +160,7 @@ const AllTransactionsReport = () => {
 
   return (
     <div className="space-y-4 pb-16">
-      <ReportHeader
+      <ReportHeader error={loadError(rdErr1, rdErr2, rdErr3, rdErr4, rdErr5)} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); rdRe4(); rdRe5(); }}
         title="All Transactions"
         subtitle={range.start === range.end ? range.start : `${range.start} → ${range.end}`}
         preset={preset}
@@ -175,10 +176,10 @@ const AllTransactionsReport = () => {
       />
 
       {/* KPI Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KPI label="Money In"    loading={loading} value={formatCurrency(kpis.totalIn)}  icon={ArrowDownLeft}  color="#10b981" />
         <KPI label="Money Out"   loading={loading} value={formatCurrency(kpis.totalOut)} icon={ArrowUpRight}   color="#ef4444" />
-        <KPI label="Net Flow"    loading={loading} value={formatCurrency(kpis.net)}      icon={kpis.net >= 0 ? TrendingUp : TrendingDown} color={kpis.net >= 0 ? 'var(--color-accent-signature)' : '#f59e0b'} />
+        <KPI label="Net Flow"    loading={loading} value={formatCurrency(kpis.net)} tone={kpis.net >= 0 ? 'pos' : 'neg'}      icon={kpis.net >= 0 ? TrendingUp : TrendingDown} color={kpis.net >= 0 ? 'var(--color-accent-signature)' : '#f59e0b'} />
         <KPI label="Transactions" loading={loading} value={kpis.count}                  icon={Hash}           color="#8b5cf6" />
       </div>
 
@@ -199,42 +200,42 @@ const AllTransactionsReport = () => {
       />
 
       {/* Ledger Table */}
-      <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-        <div className="px-6 pt-6 pb-4 border-b border-border/60">
+      <div className="bg-surface rounded-[14px] border border-line overflow-hidden">
+        <div className="px-4 pt-3.5 pb-3 border-b border-line">
           <SectionHead title="Transaction Ledger" sub="newest first" />
         </div>
 
         {loading ? (
-          <div className="p-6 space-y-3">
-            {[...Array(8)].map((_, i) => <div key={i} className="h-10 bg-canvas animate-pulse rounded-xl" />)}
+          <div className="p-4 space-y-3">
+            {[...Array(8)].map((_, i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}
           </div>
         ) : filteredRows.length === 0 ? (
-          <div className="py-16 text-center text-sm text-muted-foreground">No transactions for selected period</div>
+          <div className="py-16 text-center text-sm text-body">No transactions for selected period</div>
         ) : (
           <div>
-            <div className="grid grid-cols-[90px_90px_1fr_90px_130px] gap-4 px-6 py-2 bg-canvas/50 border-b border-border/60">
+            <div className="grid grid-cols-[90px_90px_1fr_90px_130px] gap-4 px-4 py-2 bg-tile border-b border-line">
               {['Date', 'Type', 'Party / Description', 'Flow', 'Amount'].map(h => (
-                <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
+                <span key={h} className="font-tight text-[12px] font-semibold text-mute">{h}</span>
               ))}
             </div>
             {filteredRows.map((row, i) => {
-              const ts = TYPE_STYLE[row.type] || { bg: 'bg-muted', text: 'text-ink-secondary' };
+              const ts = TYPE_STYLE[row.type] || { bg: 'bg-muted', text: 'text-ink-2' };
               return (
                 <div key={`${row.ref}-${i}`}
-                  className="grid grid-cols-[90px_90px_1fr_90px_130px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
-                  <span className="text-xs font-semibold text-ink-secondary tabular-nums">{row.date}</span>
-                  <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-semibold w-fit ${ts.bg} ${ts.text}`}>
+                  className="grid grid-cols-[90px_90px_1fr_90px_130px] gap-4 px-4 py-3.5 items-center border-b border-line last:border-0 hover:bg-tile/40 transition-colors">
+                  <span className="text-xs font-semibold text-ink-2 tabular-nums">{row.date}</span>
+                  <span className={`inline-flex px-2 py-0.5 rounded-full text-[12px] font-semibold w-fit ${ts.bg} ${ts.text}`}>
                     {row.type}
                   </span>
-                  <span className="text-xs font-semibold text-foreground truncate">{row.party}</span>
-                  <div className={`flex items-center gap-1 text-[10px] font-semibold ${row.dir === 'in' ? 'text-emerald-600' : 'text-red-500'}`}>
+                  <span className="text-xs font-semibold text-ink truncate">{row.party}</span>
+                  <div className={`flex items-center gap-1 text-[11.5px] font-semibold ${row.dir === 'in' ? 'text-good-text' : 'text-bad-text'}`}>
                     {row.dir === 'in'
                       ? <ArrowDownLeft size={12} />
                       : <ArrowUpRight size={12} />
                     }
                     {row.dir === 'in' ? 'In' : 'Out'}
                   </div>
-                  <span className={`text-sm font-semibold tabular-nums ${row.dir === 'in' ? 'text-emerald-600' : 'text-red-500'}`}>
+                  <span className={`text-sm font-semibold tabular-nums ${row.dir === 'in' ? 'text-good-text' : 'text-bad-text'}`}>
                     {row.dir === 'in' ? '+' : '-'}{formatCurrency(row.amount)}
                   </span>
                 </div>

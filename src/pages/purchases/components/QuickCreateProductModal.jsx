@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { useDialogClose } from '../../../hooks/useDialogClose';
-import { PackagePlus, CheckCircle2, X } from 'lucide-react';
 import { UNITS } from '../../../lib/constants';
+import Dialog from '../../../components/ui/Dialog';
+import { Button } from '../../../components/ui/button';
+import { lbl, field, footRow } from '../lib/ui';
 
 /**
  * Lightweight product-creation sheet — triggered when a scanned barcode
  * doesn't match any existing product.
  */
 const QuickCreateProductModal = ({ barcode, initialName, onSave, onCancel, loading }) => {
-  useDialogClose(onCancel);
   const [form, setForm] = useState({
     name:         initialName || '',
     sku:          '',
@@ -36,92 +36,60 @@ const QuickCreateProductModal = ({ barcode, initialName, onSave, onCancel, loadi
     });
   };
 
-  const inp = 'w-full bg-card border border-border shadow-sm rounded-xl p-2.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20';
-
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-canvas animate-fade-in">
-      <div className="w-full max-w-2xl mx-auto flex flex-col flex-1 overflow-hidden">
-
-        {/* Header */}
-        <div className="flex items-center gap-4 px-6 py-4 border-b border-border/60 bg-card shrink-0">
-          <button onClick={onCancel} className="w-9 h-9 flex items-center justify-center rounded-xl border border-border/60 hover:bg-canvas transition-all text-foreground shrink-0">
-            <X size={16} />
-          </button>
-          <div className="flex items-center gap-2 min-w-0">
-            <PackagePlus size={16} className="text-accent-signature shrink-0" />
-            <div>
-              <p className="text-lg font-semibold text-foreground">New Product</p>
-              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">
-                Barcode: <span className="tabular-nums text-foreground">{barcode}</span>
-              </p>
-            </div>
-          </div>
+    <Dialog open onClose={onCancel} title="New Product" width={500}
+      subtitle={barcode ? `Barcode ${barcode} was not found` : 'Added to the catalogue and picked on this line'}>
+      <form onSubmit={handleSubmit}>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="col-span-2 block">
+            <span className={lbl}>Product name *</span>
+            <input required className={field} placeholder="e.g. Butter 500 g" autoFocus
+              value={form.name} onChange={e => set('name', e.target.value)} />
+          </label>
+          <label className="block">
+            <span className={lbl}>SKU</span>
+            <input className={field} placeholder="Auto if blank"
+              value={form.sku} onChange={e => set('sku', e.target.value)} />
+          </label>
+          <label className="block">
+            <span className={lbl}>Unit</span>
+            <select className={field} value={form.unit} onChange={e => set('unit', e.target.value)}>
+              {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className={lbl}>Cost price *</span>
+            <input type="number" min="0" step="0.01" className={field} placeholder="0.00"
+              value={form.costPrice} onChange={e => set('costPrice', e.target.value)} />
+          </label>
+          <label className="block">
+            <span className={lbl}>Selling price *</span>
+            <input type="number" min="0" step="0.01" className={field} placeholder="0.00"
+              value={form.sellingPrice} onChange={e => set('sellingPrice', e.target.value)} />
+          </label>
+          <label className="block">
+            <span className={lbl}>Category</span>
+            <input className={field} placeholder="e.g. Dairy, Beverages…"
+              value={form.category} onChange={e => set('category', e.target.value)} />
+          </label>
+          {/* Barcode (pre-filled, editable) */}
+          <label className="block">
+            <span className={lbl}>Barcode</span>
+            <input className={field} placeholder="EAN-13 / UPC / custom"
+              value={form.barcode} onChange={e => set('barcode', e.target.value)} />
+          </label>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4 max-w-lg mx-auto w-full">
-          <div>
-            <label className="block text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Product Name <span className="text-red-400">*</span></label>
-            <input required className={inp} placeholder="e.g. Amul Butter 500g"
-              value={form.name} onChange={e => set('name', e.target.value)} />
-          </div>
+        {err && <p role="alert" className="mt-3 rounded-[10px] bg-bad-soft px-3 py-2 text-[12.5px] font-semibold text-bad-text">{err}</p>}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">SKU</label>
-              <input className={inp} placeholder="Auto if blank"
-                value={form.sku} onChange={e => set('sku', e.target.value)} />
-            </div>
-            <div>
-              <label className="block text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Unit</label>
-              <select className={inp} value={form.unit} onChange={e => set('unit', e.target.value)}>
-                {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Cost Price</label>
-              <input type="number" min="0" step="0.01" className={inp} placeholder="0.00"
-                value={form.costPrice} onChange={e => set('costPrice', e.target.value)} />
-            </div>
-            <div>
-              <label className="block text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Selling Price</label>
-              <input type="number" min="0" step="0.01" className={inp} placeholder="0.00"
-                value={form.sellingPrice} onChange={e => set('sellingPrice', e.target.value)} />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Category</label>
-            <input className={inp} placeholder="e.g. Dairy, Beverages…"
-              value={form.category} onChange={e => set('category', e.target.value)} />
-          </div>
-
-          {/* Barcode (pre-filled, editable) */}
-          <div>
-            <label className="block text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Barcode</label>
-            <input className={`${inp} tabular-nums`} placeholder="EAN-13 / UPC / custom"
-              value={form.barcode} onChange={e => set('barcode', e.target.value)} />
-          </div>
-
-          {err && <p className="text-[10px] font-semibold text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{err}</p>}
-
-          <div className="flex gap-2 pt-1">
-            <button type="button" onClick={onCancel}
-              className="flex-1 h-10 rounded-pill border border-border/60 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground hover:bg-canvas transition-colors">
-              Cancel
-            </button>
-            <button type="submit" disabled={loading}
-              className="flex-1 h-10 flex items-center justify-center gap-2 bg-primary text-primary-foreground rounded-pill text-[10px] font-semibold uppercase tracking-widest hover:bg-black transition-colors disabled:opacity-40">
-              <CheckCircle2 size={12} />
-              {loading ? 'Creating…' : 'Create & Select'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className={footRow}>
+          <Button variant="secondary" className="px-[22px]" onClick={onCancel}>Cancel</Button>
+          <Button type="submit" disabled={loading} className="flex-1 h-11">
+            {loading ? 'Creating…' : 'Create and pick'}
+          </Button>
+        </div>
+      </form>
+    </Dialog>
   );
 };
 

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Download, FileJson, FileSpreadsheet,
-  ArrowLeft, Database,
-} from 'lucide-react';
+import { Download, ChevronLeft, Database } from 'lucide-react';
+import { Tabs, FilterPills } from '../components/ui/Tabs';
+import { Button } from '../components/ui/button';
+import { IconTile, Eyebrow } from '../components/tools/parts';
+import { Seg } from '../components/documents/DocParts';
 import { useInventory } from '../hooks/useInventory';
 import { usePeople } from '../hooks/usePeople';
 import { useSales } from '../hooks/useSales';
@@ -52,9 +53,11 @@ export default function DataToolsPage() {
   // creditor ledgers and its purchase vouchers are built from one source.
   const { purchases = [], suppliers = [] } = usePurchases(currentTenantId) || {};
 
+  const box = 'm-rise rounded-[14px] border border-line bg-surface px-[22px] py-5';
+
   const TABS = [
-    { key: 'export', label: 'Export Data' },
-    ...(isOwner ? [{ key: 'excel', label: 'Bulk Import · Upload Excel' }] : []),
+    { key: 'export', label: 'Export data' },
+    ...(isOwner ? [{ key: 'excel', label: 'Bulk import (Excel)' }] : []),
     ...(isOwner ? [{ key: 'tally', label: 'Export to Tally' }] : []),
   ];
 
@@ -105,57 +108,39 @@ export default function DataToolsPage() {
   };
 
   const currentModuleData = getModuleData(selectedModule);
+  const currentMod = MODULES.find(m => m.key === selectedModule);
 
+  // Web redesign (approved mockups import-01..09): one box per tab, the same
+  // exports, the same importer and the same Tally file.
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => navigate(-1)}
-          className="p-2 rounded-pill hover:bg-muted transition-colors text-muted-foreground"
-        >
-          <ArrowLeft size={20} />
+    <div className="flex max-w-[1000px] flex-col pb-16">
+      <div className="m-rise mb-4" style={{ '--i': 0 }}>
+        <button type="button" onClick={() => navigate('/settings?tab=data')}
+          className="m-press inline-flex items-center gap-1 font-tight text-[13px] font-semibold text-body hover:text-ink">
+          <ChevronLeft size={16} aria-hidden="true" />Settings
         </button>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gray-900 flex items-center justify-center">
-            <Database size={18} className="text-emerald-400" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-black text-foreground tracking-tight">Data Tools</h1>
-            <p className="text-xs text-muted-foreground">Import &amp; export your business data</p>
-          </div>
+      </div>
+      <div className="m-rise mb-4 flex items-center gap-3" style={{ '--i': 0 }}>
+        <IconTile icon={Database} />
+        <div>
+          <h3 className="font-tight text-[20px] font-semibold leading-[1.2] tracking-[-0.02em] text-ink">Data tools</h3>
+          <p className="mt-0.5 text-[13px] text-body">Bring your data in, or take it out</p>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 p-1 bg-muted rounded-xl w-fit">
-        {TABS.map(t => (
-          <button
-            key={t.key}
-            onClick={() => setActiveTab(t.key)}
-            className={`px-4 py-2 rounded-pill text-sm font-semibold transition-all ${
-              activeTab === t.key
-                ? 'bg-white text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-ink-secondary'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs ariaLabel="Data tools" className="m-rise mb-5" value={activeTab} onChange={setActiveTab}
+        items={TABS.map(t => ({ key: t.key, label: t.label }))} />
 
-      {/* Content */}
-      <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+      {/* Excel Bulk Import tab: the same importer as Inventory's bulk import. */}
+      {activeTab === 'excel' && (
+        <div className={box}>
+          <ImportData modal />
+        </div>
+      )}
 
-        {/* Excel Bulk Import tab */}
-        {activeTab === 'excel' && (
-          <div className="p-6">
-            <ImportData modal />
-          </div>
-        )}
-
-        {/* Tally XML export */}
-        {activeTab === 'tally' && (
+      {/* Tally XML export */}
+      {activeTab === 'tally' && (
+        <div className={box}>
           <TallyExportPanel
             sales={orders}
             purchases={purchases}
@@ -163,70 +148,39 @@ export default function DataToolsPage() {
             suppliers={suppliers}
             shopName={currentTenant?.name}
           />
-        )}
+        </div>
+      )}
 
-        {/* Export / CSV-Import tabs */}
-        {activeTab !== 'excel' && (
-          <div className="p-6 space-y-6">
-            {/* Module selector */}
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Data Module</p>
-              <div className="flex flex-wrap gap-2">
-                {MODULES.map(mod => (
-                  <button
-                    key={mod.key}
-                    onClick={() => setSelectedModule(mod.key)}
-                    className={`px-4 py-2 rounded-pill text-xs font-semibold border transition-all ${
-                      selectedModule === mod.key
-                        ? 'bg-gray-900 text-emerald-400 border-gray-900'
-                        : 'bg-muted text-ink-secondary border-border hover:border-gray-400'
-                    }`}
-                  >
-                    {mod.label}
-                  </button>
-                ))}
+      {activeTab === 'export' && (
+        <>
+          <div className={box}>
+            <Eyebrow>What to export</Eyebrow>
+            <FilterPills ariaLabel="List to export" value={selectedModule} onChange={setSelectedModule}
+              items={MODULES.map(mod => ({ key: mod.key, label: mod.label, count: getModuleData(mod.key).length.toLocaleString('en-IN') }))} />
+            <div className="mt-4 flex flex-wrap items-center gap-4 rounded-[14px] bg-tile px-[18px] py-4">
+              <div>
+                <small className="text-[12.5px] text-body">Records ready</small>
+                <b className="block font-tight text-[30px] font-semibold tabular-nums text-ink">{currentModuleData.length.toLocaleString('en-IN')}</b>
               </div>
+              <span className="flex-1 text-[12.5px] text-mute">Exports what this device has loaded for that list.</span>
+              <Seg ariaLabel="Format" value={exportFormat} onChange={setExportFormat} options={[['csv', 'CSV'], ['json', 'JSON']]} />
             </div>
-
-            {/* EXPORT */}
-            {activeTab === 'export' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-muted rounded-xl border border-border">
-                  <div>
-                    <p className="text-xs text-muted-foreground font-semibold">Records available</p>
-                    <p className="text-3xl font-black text-foreground">{currentModuleData.length}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    {['csv', 'json'].map(fmt => (
-                      <button
-                        key={fmt}
-                        onClick={() => setExportFormat(fmt)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-pill text-xs font-bold border transition-all ${
-                          exportFormat === fmt
-                            ? 'bg-gray-900 text-emerald-400 border-gray-900'
-                            : 'bg-white text-ink-secondary border-border hover:border-gray-400'
-                        }`}
-                      >
-                        {fmt === 'csv' ? <FileSpreadsheet size={13} /> : <FileJson size={13} />}
-                        {fmt.toUpperCase()}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <button
-                  onClick={handleExport}
-                  disabled={!currentModuleData.length}
-                  className="w-full flex items-center justify-center gap-3 py-4 bg-gray-900 text-white rounded-pill font-bold text-sm hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  <Download size={17} />
-                  Export {currentModuleData.length} {MODULES.find(m => m.key === selectedModule)?.label} Records
-                </button>
-              </div>
-            )}
-
+            <div className="mt-4 flex flex-wrap items-center gap-2.5">
+              {exportFormat === 'csv' && (
+                <span className="min-w-0 flex-1 text-[12px] text-mute">Columns: {currentMod?.fields.join(', ')}</span>
+              )}
+              <span className="flex-1" />
+              <Button onClick={handleExport} disabled={!currentModuleData.length}>
+                <Download aria-hidden="true" />
+                Export {currentModuleData.length.toLocaleString('en-IN')} {currentMod?.label.toLowerCase()}
+              </Button>
+            </div>
           </div>
-        )}
-      </div>
+          {!isOwner && (
+            <p className="mt-2.5 text-[12px] text-mute">Bulk import and Export to Tally show for the shop owner only.</p>
+          )}
+        </>
+      )}
     </div>
   );
 }

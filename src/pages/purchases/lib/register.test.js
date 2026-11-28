@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { groupPurchasesIntoBills } from '../../../lib/bills';
 import {
   datePresets, lineDeltas, creditDays, decorateBills, filterRegister, tabStats,
-  bandRegister, allocatePayment, registerCsv, totals, fmtDate,
+  bandRegister, allocatePayment, registerCsv, totals, fmtDate, viewFigures,
 } from './register';
 
 const TODAY = '2026-10-22';
@@ -132,5 +132,22 @@ describe('dates and export', () => {
     expect(csv[1]).toContain('"Plate x 100; Cover, 10*13 x 10"');
     expect(csv[1]).toContain('Part paid');
     expect(csv[1]).toMatch(/,12000\.00,2000\.00,10000\.00$/);
+  });
+});
+
+describe('the strip figures over the bills in view', () => {
+  it('names what is due, from how many suppliers, and how late the oldest overdue bill is', () => {
+    const f = viewFigures(bills);
+    // A 10,000 overdue; B 10,000 due (12,000 less 2,000 paid); D 5,000; C paid.
+    expect(f.due).toBe(25000);
+    expect(f.dueCount).toBe(3);
+    expect(f.dueSuppliers).toBe(2);
+    expect(f.overdue).toBe(10000);
+    expect(f.overdueCount).toBe(1);
+    expect(f.oldestLate).toBe(21);
+  });
+
+  it('is zero with nothing in view', () => {
+    expect(viewFigures([])).toEqual({ due: 0, dueCount: 0, dueSuppliers: 0, overdue: 0, overdueCount: 0, oldestLate: 0 });
   });
 });

@@ -1,405 +1,121 @@
-import React, { useState, useMemo} from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
+import { useNotifications } from '../context/NotificationContext';
 import { usePeople } from '../hooks/usePeople';
 import { usePurchases } from '../hooks/usePurchases';
+import { todayISOInAppTZ } from '../lib/utils';
+import { classifyWriteFailure } from '../lib/writeOutcome';
+import { decoratedSupplierBills, supplierRows, supplierKpis } from '../lib/supplierView';
 import SupplierWorkspace from '../components/suppliers/SupplierWorkspace';
-import { useInventory } from '../hooks/useInventory';
-import { 
-  Plus, Search, Phone, Mail, MapPin, Building2, 
-  Trash2, Edit3, X, Save, ArrowLeft, ArrowUpRight,
-  Package, CreditCard, History, User2, Check, Box, Wallet
-} from 'lucide-react';
-import { parseLocalDate } from '../lib/utils';
+import SupplierPanel from '../components/suppliers/SupplierPanel';
+import SupplierForm from '../components/suppliers/SupplierForm';
+import PaySupplierDialog from '../components/suppliers/PaySupplierDialog';
+import { HoldConfirmDialog, WarnBox, money, rupees } from '../components/suppliers/parts';
 
-// Common payment history across suppliers — grouped by date. Renders
-// incrementally (PAGE rows at a time) so a large ledger never blocks the UI.
-const PAGE = 60;
-const PaymentsView = ({ payments, suppliers, purchases, cur }) => {
-  const [visible, setVisible] = useState(PAGE);
-  const [q, setQ] = useState('');
-
-  // O(1) lookups instead of .find() per row.
-  const supMap   = useMemo(() => new Map((suppliers || []).map(s => [s.id, s.name])), [suppliers]);
-  const orderMap = useMemo(() => new Map((purchases || []).map(p => [p.id, p.invoice_no || p.reference_no || `#${String(p.id).slice(-6).toUpperCase()}`])), [purchases]);
-
-  // Payments to a supplier = credit settlements (supplier_payments) PLUS cash
-  // purchases (paid at purchase time, so they never create a settlement row).
-  const isCredit = (pt) => ['CREDIT', 'UDHAAR', 'POST-CAPITAL'].includes(String(pt || '').toUpperCase());
-  const merged = useMemo(() => {
-    const pays = (payments || []).map(p => ({
-      id: p.id, date: p.date, supplier_id: p.supplier_id, supplier_name: p.supplier_name,
-      amount: Number(p.amount || 0), payment_method: p.payment_method, purchase_id: p.purchase_id, source: 'payment',
-    }));
-    const cashPur = (purchases || [])
-      .filter(p => !p.deleted_at && !isCredit(p.payment_type) && Number(p.total_amount ?? p.total_cost ?? 0) > 0)
-      .map(p => ({
-        id: `CP-${p.id}`, date: p.date, supplier_id: p.supplier_id, supplier_name: p.supplier_name,
-        amount: Number(p.total_amount ?? p.total_cost ?? 0), payment_method: p.payment_type || 'CASH',
-        purchase_id: p.id, source: 'purchase',
-      }));
-    return [...pays, ...cashPur];
-  }, [payments, purchases]);
-
-  const sorted = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    return merged
-      .filter(p => !term || (supMap.get(p.supplier_id) || '').toLowerCase().includes(term))
-      .sort((a, b) => String(b.date).localeCompare(String(a.date)));
-  }, [merged, q, supMap]);
-
-  const total = useMemo(() => sorted.reduce((s, p) => s + Number(p.amount || 0), 0), [sorted]);
-
-  // Group the visible slice by date (slice first → cheap grouping).
-  const groups = useMemo(() => {
-    const out = [];
-    let cur = null;
-    for (const p of sorted.slice(0, visible)) {
-      if (!cur || cur.date !== p.date) { cur = { date: p.date, rows: [], sum: 0 }; out.push(cur); }
-      cur.rows.push(p);
-      cur.sum += Number(p.amount || 0);
-    }
-    return out;
-  }, [sorted, visible]);
-
-  const fmtDay = (d) => d ? new Date(d).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : '—';
-
-  return (
-    <div className="bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-black/5 flex-wrap">
-        <div className="flex items-center gap-2">
-          <Wallet size={15} className="text-accent-signature" />
-          <span className="text-[12px] font-bold text-ink-primary">Payment history</span>
-          <span className="text-[11px] font-semibold text-muted-foreground">{sorted.length}</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input value={q} onChange={e => { setQ(e.target.value); setVisible(PAGE); }}
-              placeholder="Filter supplier…"
-              className="h-8 pl-8 pr-3 bg-white border border-black/10 rounded-lg text-[12px] font-semibold outline-none focus:border-accent-signature/70 w-44" />
-          </div>
-          <div className="tabular-nums text-[13px] font-bold text-ink-primary">
-            <span className="text-accent-signature/70 mr-0.5">{cur}</span>{Math.round(total).toLocaleString('en-IN')}
-          </div>
-        </div>
-      </div>
-
-      {sorted.length === 0 && (
-        <div className="px-5 py-16 text-center text-sm font-semibold text-muted-foreground">No payments yet.</div>
-      )}
-
-      {groups.map(g => (
-        <div key={g.date}>
-          <div className="flex items-center justify-between px-5 py-1.5 bg-black/[0.025] border-b border-black/5">
-            <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">{fmtDay(g.date)}</span>
-            <span className="tabular-nums text-[11px] font-bold text-muted-foreground">{cur}{Math.round(g.sum).toLocaleString('en-IN')}</span>
-          </div>
-          <div className="divide-y divide-black/5">
-            {g.rows.map(p => (
-              <div key={p.id} className="grid grid-cols-[1fr_8rem_6rem_7rem] gap-4 px-5 py-2.5 items-center hover:bg-accent-signature/5 transition-colors">
-                <div className="font-bold text-[13px] text-ink-primary truncate">{supMap.get(p.supplier_id) || p.supplier_name || '—'}</div>
-                <div>
-                  {p.purchase_id
-                    ? <span className="tabular-nums text-[11px] font-bold text-accent-signature-hover bg-accent-signature/10 border border-accent-signature/25 px-1.5 py-0.5 rounded">{orderMap.get(p.purchase_id) || `#${String(p.purchase_id).slice(-6).toUpperCase()}`}</span>
-                    : <span className="text-[11px] text-muted-foreground">On account</span>}
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground bg-black/[0.05] px-1.5 py-0.5 rounded">{p.payment_method || 'CASH'}</span>
-                </div>
-                <div className="text-right tabular-nums text-[13px] font-bold text-emerald-600">
-                  {cur}{Number(p.amount || 0).toLocaleString('en-IN')}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-
-      {visible < sorted.length && (
-        <button onClick={() => setVisible(v => v + PAGE)}
-          className="w-full py-3 text-[12px] font-bold text-accent-signature-hover hover:bg-accent-signature/10 border-t border-black/5 transition-colors">
-          Load more ({sorted.length - visible} left)
-        </button>
-      )}
-    </div>
-  );
-};
-
-const Suppliers = () => {
+/**
+ * Suppliers (web redesign, approved mockups suppliers-01 … 04, 06, 11 … 13).
+ *
+ * The list, the supplier panel, Add / Edit / Delete supplier and Pay. Money
+ * writes are the existing server functions only: Pay calls usePurchases'
+ * paySupplier (settle_supplier_payment), the same call the ledger page makes.
+ */
+export default function Suppliers() {
+  const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
-  const { 
-    suppliers, addSupplier, updateSupplier, deleteSupplier 
-  } = usePeople(currentTenantId);
-  const { purchases, supplierPayments = [] } = usePurchases(currentTenantId, { withReturns: false });
+  const { addNotification } = useNotifications();
+  const { suppliers, addSupplier, updateSupplier, deleteSupplier, loading: peopleLoading } = usePeople(currentTenantId);
+  const { purchases, purchaseReturns = [], supplierPayments = [], paySupplier, refetch, loading: purLoading } = usePurchases(currentTenantId);
+  const cur = businessProfile?.currencySymbol || '₹';
+  const today = todayISOInAppTZ();
 
-  const isViewOnly = () => false;
-  const addNotification = (msg, type) => console.log(msg, type);
+  // The ledger checks purchases/edit before it offers a payment; the list and
+  // panel now do the same. Edit and delete keep their suppliers permissions.
+  const canPay = hasPermission?.('purchases', 'edit') !== false;
+  const canEdit = !!hasPermission?.('suppliers', 'edit');
+  const canDelete = !!hasPermission?.('suppliers', 'delete');
 
-  const navigate = useNavigate();
-  const { tenantSlug } = useParams();
-  const [isAdding, setIsAdding] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [editingSupplier, setEditingSupplier] = useState(null);
- const [formData, setFormData] = useState({
- name: '',
- contact_person: '',
- phone: '',
- email: '',
- address: '',
- notes: ''
-});
+  const decorated = useMemo(() => decoratedSupplierBills({ suppliers, purchases, payments: supplierPayments, today }),
+    [suppliers, purchases, supplierPayments, today]);
+  const rows = useMemo(() => supplierRows({ suppliers, purchases, supplierPayments, purchaseReturns, decorated }),
+    [suppliers, purchases, supplierPayments, purchaseReturns, decorated]);
+  const kpis = useMemo(() => supplierKpis({ rows, suppliers, purchases, supplierPayments }),
+    [rows, suppliers, purchases, supplierPayments]);
 
- // First two word-initials for the avatar tile (e.g. "GPS Paper Cup" → "GP").
- const initialsOf = (name) => {
-   const w = (name || '').trim().split(/\s+/).filter(Boolean);
-   if (!w.length) return '–';
-   return (w[0][0] + (w[1]?.[0] || '')).toUpperCase();
- };
+  const [panelId, setPanelId] = useState(null);
+  const [form, setForm] = useState(null);          // { supplier|null }
+  const [deleting, setDeleting] = useState(null);  // row
+  const [paying, setPaying] = useState(null);      // row
+  const panelRow = rows.find((r) => r.id === panelId) || null;
 
+  const ledger = (r) => navigate(`/suppliers/ledger/${r.id}`);
+  // "New bill" opens the Purchases page, as it did before.
+  const newBill = () => navigate('/purchases');
 
- const getSupplierStats = (supplierId) => {
- const supplier = suppliers.find(s => s.id === supplierId);
- const supplierPurchases = purchases.filter(p =>
- p.supplier_id === supplierId || p.supplier_name === supplier?.name
- );
- const amt = (p) => Number(p.total_amount ?? p.total_cost ?? 0);
- const isCredit = (pt) => ['CREDIT','UDHAAR','POST-CAPITAL'].includes(String(pt || '').toUpperCase());
+  return (
+    <>
+      <SupplierWorkspace rows={rows} kpis={kpis} decorated={decorated} cur={cur}
+        loading={peopleLoading || purLoading}
+        canPay={canPay} canEdit={canEdit} canDelete={canDelete}
+        onOpen={(r) => setPanelId(r.id)}
+        onPay={(r) => setPaying(r)}
+        onLedger={ledger}
+        onNewBill={newBill}
+        onEdit={(r) => setForm({ supplier: r })}
+        onDelete={(r) => setDeleting(r)}
+        onAdd={() => setForm({ supplier: null })}
+        onBulkImport={() => navigate('/bulk-add?type=suppliers')} />
 
- return {
- totalProcured: supplierPurchases.reduce((sum, p) => sum + amt(p), 0),
- // Derive from orders (Σ credit total − paid) — stored balance can drift on edits.
- creditDue: supplierPurchases.filter(p => isCredit(p.payment_type)).reduce((s,p) => s + Math.max(0, amt(p) - Number(p.paid_amount || 0)), 0),
- purchaseCount: supplierPurchases.length,
- lastPurchase: supplierPurchases.sort((a,b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0))[0]?.date
-};
-};
+      <SupplierPanel row={panelRow} cur={cur} onClose={() => setPanelId(null)}
+        canPay={canPay} canEdit={canEdit} canDelete={canDelete}
+        onPay={() => setPaying(panelRow)}
+        onLedger={() => ledger(panelRow)}
+        onNewBill={newBill}
+        onEdit={() => { setPanelId(null); setForm({ supplier: panelRow }); }}
+        onDelete={() => { setPanelId(null); setDeleting(panelRow); }} />
 
- const handleSubmit = async (e) => {
- e.preventDefault();
- setLoading(true);
- try {
- const success = await addSupplier(formData);
- if (success) {
- setIsAdding(false);
- setFormData({ name: '', contact_person: '', phone: '', email: '', address: '', notes: ''});
-}
-} finally {
- setLoading(false);
-}
-};
+      <SupplierForm open={!!form} supplier={form?.supplier || null} billCount={form?.supplier?._f?.billCount}
+        onClose={() => setForm(null)} addSupplier={addSupplier} updateSupplier={updateSupplier}
+        onSaved={(how, fields, res) => addNotification(
+          res?.queued ? `${fields.name} saved on this computer; it will sync when you are online.`
+            : how === 'added' ? `${fields.name} added.` : 'Changes saved.', 'success')} />
 
-  const handleEditSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const success = await updateSupplier(formData);
-      if (success) {
-        setEditingSupplier(null);
-        setFormData({ name: '', contact_person: '', phone: '', email: '', address: '', notes: ''});
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+      <PaySupplierDialog open={!!paying} onClose={() => setPaying(null)}
+        supplierId={paying?.id} supplierName={paying?.name}
+        owed={paying ? { label: 'You owe', amount: paying._payable } : null}
+        cur={cur} paySupplier={paySupplier} onRecheck={refetch}
+        onPaid={({ amount, queued }) => addNotification(queued
+          ? `Payment of ${rupees(amount, cur)} to ${paying?.name} saved on this computer; it will sync when you are online.`
+          : `Paid ${rupees(amount, cur)} to ${paying?.name}.`, 'success')} />
 
-  const openEditModal = (supplier) => {
-    setFormData({ ...supplier });
-    setEditingSupplier(supplier);
-  };
-
-  // Lock body scroll when modal is open
-  React.useEffect(() => {
-    if (isAdding || editingSupplier) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => { document.body.style.overflow = 'unset'; };
-  }, [isAdding, editingSupplier]);
-
-  const handleDelete = async (id) => {
-    // Explicitly check for ID
-    if (!id) {
-      console.error("[Suppliers] Cannot delete: ID is missing");
-      return;
-    }
-
-    // Restoration of window.confirm for standard UX
-    if (!window.confirm("Delete this supplier? Purchase history will be kept but the supplier record will be removed.")) {
-      return;
-    }
-
-    console.log(`[Suppliers] Triggering delete flow for ID: ${id}`);
-    
-    try {
-      const { success, error } = await deleteSupplier(id);
-      
-      if (!success) {
-        console.error(`[Suppliers] Delete failed: ${error}`);
-        addNotification(`Deletion Failed: ${error}`, "error");
-      } else {
-        addNotification("Supplier removed successfully", "success");
-      }
-    } catch (err) {
-      console.error("[Suppliers] CRITICAL UI EXCEPTION:", err);
-      addNotification("A critical error occurred while deleting", "error");
-    }
-  };
-
- return (
- <>
- <div className="animate-fade-in flex flex-col gap-4 pb-12">
- {/* Header */}
- <div className="flex justify-between items-center gap-3 pb-3 border-b border-black/5 flex-wrap">
-   <div className="flex items-center gap-3 min-w-0">
-     <h1 className="text-xl font-extrabold text-ink-primary leading-none">Suppliers<span className="text-accent-signature">.</span></h1>
-     <span className="text-[11px] font-semibold text-muted-foreground hidden sm:block">Suppliers & purchase payments</span>
-   </div>
-   <div className="flex items-center gap-2">
-     {!isViewOnly() && (
-       <button
-         className="h-10 px-4 rounded-pill bg-white border border-black/10 text-ink-primary text-[13px] font-bold flex items-center gap-2 hover:bg-black/[0.03] transition-all"
-         onClick={() => { window.location.href = '/bulk-add?type=suppliers'; }}>
-         Bulk Import
-       </button>
-     )}
-     {!isViewOnly() && (
-       <button data-testid="onboard-partner-btn"
-         className="h-10 px-4 rounded-pill bg-accent-signature text-white text-[13px] font-bold flex items-center gap-2 hover:bg-accent-signature-hover transition-all"
-         onClick={() => setIsAdding(true)}>
-         <Plus size={15} strokeWidth={2.6} /> Add supplier
-       </button>
-     )}
-   </div>
- </div>
-
-  <SupplierWorkspace
-    suppliers={suppliers}
-    purchases={purchases}
-    supplierPayments={supplierPayments}
-    businessProfile={businessProfile}
-    openAdd={() => setIsAdding(true)}
-    openEdit={(sup) => { setEditingSupplier(sup); setFormData({
-      name: sup.name || '', contact_person: sup.contact_person || '', phone: sup.phone || '',
-      email: sup.email || '', address: sup.address || '', notes: sup.notes || '',
-    }); setIsAdding(true); }}
-    handleDelete={(sup) => deleteSupplier(sup.id)}
-    hasPermission={hasPermission}
-  />
- </div>
-
-  {isAdding && (
- <div className="modal-overlay">
- <div className="glass-modal !max-w-xl">
- <div className="flex justify-between items-start mb-3 border-b border-black/5 pb-3">
- <div>
- <h1 className="text-lg font-semibold text-ink-primary leading-none mb-1">Add Supplier</h1>
- <p className="text-[10px] font-semibold text-ink-secondary opacity-60">Register a new supplier</p>
- </div>
- <button className="w-7 h-7 rounded-xl border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer" onClick={() => setIsAdding(false)}>
- <X size={14} />
- </button>
- </div>
-
- <form onSubmit={handleSubmit} className="space-y-2.5 mt-2">
- <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
- <div className="md:col-span-2">
- <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Supplier Name</label>
- <input required type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-muted-foreground placeholder:font-normal" placeholder="ACME..." value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value})} />
- </div>
-
- <div>
- <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Contact (Optional)</label>
- <input type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-muted-foreground placeholder:font-normal" placeholder="NAME..." value={formData.contact_person} onChange={e => setFormData({ ...formData, contact_person: e.target.value})} />
- </div>
-
- <div>
- <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Phone (Optional)</label>
- <input type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-muted-foreground placeholder:font-normal" placeholder="+91..." value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value})} />
- </div>
-
- <div className="md:col-span-2">
- <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Email (Optional)</label>
- <input type="email" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-muted-foreground placeholder:font-normal" placeholder="orders@partner.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value})} />
- </div>
-
- <div className="md:col-span-2">
- <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Address</label>
- <textarea rows={2} className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all resize-none placeholder:text-muted-foreground placeholder:font-normal" placeholder="123 MAIN ST..." value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value})} />
- </div>
- </div>
-
- <button type="submit" disabled={loading} className="w-full btn-signature !h-11 !text-sm flex items-center justify-center !rounded-xl mt-3">
- {loading ? 'Saving...' : 'Add Supplier'}
- <Check size={16} className="ml-2" />
- </button>
- </form>
-  </div>
-  </div>
-  )}
-
-  {/* Edit Supplier Modal */}
-  {editingSupplier && (
-    <div className="modal-overlay">
-      <div className="glass-modal !max-w-xl">
-        <div className="flex justify-between items-start mb-3 border-b border-black/5 pb-3">
-          <div>
-            <h1 className="text-lg font-semibold text-ink-primary leading-none mb-1">Edit Supplier</h1>
-            <p className="text-[10px] font-semibold text-ink-secondary opacity-60">Update supplier details</p>
-          </div>
-          <button 
-            className="w-7 h-7 rounded-xl border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer" 
-            onClick={() => {
-              setEditingSupplier(null);
-              setFormData({ name: '', contact_person: '', phone: '', email: '', address: '', notes: ''});
-            }}
-          >
-            <X size={14} />
-          </button>
-        </div>
-
-        <form onSubmit={handleEditSubmit} className="space-y-2.5 mt-2">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-            <div className="md:col-span-2">
-              <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Supplier Name</label>
-              <input required type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-muted-foreground placeholder:font-normal" placeholder="ACME..." value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value})} />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Contact (Optional)</label>
-              <input type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-muted-foreground placeholder:font-normal" placeholder="NAME..." value={formData.contact_person} onChange={e => setFormData({ ...formData, contact_person: e.target.value})} />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Phone (Optional)</label>
-              <input type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-muted-foreground placeholder:font-normal" placeholder="+91..." value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value})} />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Email (Optional)</label>
-              <input type="email" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-muted-foreground placeholder:font-normal" placeholder="orders@partner.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value})} />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Address</label>
-              <textarea rows={2} className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all resize-none placeholder:text-muted-foreground placeholder:font-normal" placeholder="123 MAIN ST..." value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value})} />
-            </div>
-          </div>
-
-          <button type="submit" disabled={loading} className="w-full btn-signature !h-11 !text-sm flex items-center justify-center !rounded-xl mt-3">
-            {loading ? 'SAVING...' : 'SAVE CHANGES'}
-            <Save size={16} className="ml-2" />
-          </button>
-        </form>
-      </div>
-    </div>
-  )}
-
-  </>
+      <HoldConfirmDialog open={!!deleting} onClose={() => setDeleting(null)} outline
+        title={deleting ? `Delete ${deleting.name}?` : ''}
+        text="Purchase history is kept; the supplier record is removed."
+        holdLabel="Hold to delete supplier"
+        onConfirm={async () => {
+          let res;
+          try { res = await deleteSupplier(deleting.id); } catch (e) { res = { success: false, error: e }; }
+          if (res?.success) {
+            if (panelId === deleting.id) setPanelId(null);
+            addNotification(res.queued ? `${deleting.name} removed on this computer; it will sync when you are online.` : `${deleting.name} was removed.`, 'success');
+            return null;
+          }
+          console.error('[suppliers] delete failed:', res?.error);
+          const f = classifyWriteFailure(res?.error || 'The server gave no reason.', { noun: 'delete' });
+          return f.maySaved
+            ? { tone: 'warn', message: `${f.title}. It may have gone through: reload the list to check. (${f.detail})` }
+            : { tone: 'bad', message: `Not deleted: ${f.detail}` };
+        }}>
+        {deleting && deleting._payable > 0.01 && (
+          <WarnBox>
+            You still owe them {money(deleting._payable, cur)}
+            {deleting._due?.unpaidCount ? ` on ${deleting._due.unpaidCount} ${deleting._due.unpaidCount === 1 ? 'bill' : 'bills'}` : ''}.
+            {' '}{deleting._due?.unpaidCount === 1 ? 'That bill stays' : 'Those bills stay'} in Purchases, but this list will no longer show {deleting._due?.unpaidCount === 1 ? 'it' : 'them'}.
+          </WarnBox>
+        )}
+      </HoldConfirmDialog>
+    </>
   );
-};
-
-export default Suppliers;
+}

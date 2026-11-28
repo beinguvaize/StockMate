@@ -16,20 +16,23 @@
  *    so future sales to the same customer can link directly.
  */
 import React, { useMemo, useState } from 'react';
+import { Button } from '../../../components/ui/button';
+import { Badge } from '../../../components/ui/badge';
 
-const Field = ({ label, required, children, hint }) => (
-  <label className="block">
-    <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+const Field = ({ label, required, children, hint, className = '' }) => (
+  <label className={`block ${className}`}>
+    <span className="block mb-1.5 font-tight text-[12.5px] font-semibold text-ink-2">
+      {label}{required && <span className="text-bad-text ml-0.5">*</span>}
     </span>
     {children}
-    {hint && <div className="text-[10px] text-muted-foreground mt-0.5">{hint}</div>}
+    {hint && <div className="mt-1 text-[12px] text-mute">{hint}</div>}
   </label>
 );
 
 const inputCls =
-  'mt-1 w-full px-3 py-2 rounded-lg bg-card border border-border ' +
-  'focus:outline-none focus:ring-2 focus:ring-accent-signature/30 text-sm';
+  'w-full h-9 rounded-[10px] bg-surface px-3 text-[13.5px] text-ink ' +
+  'shadow-[inset_0_0_0_1px_var(--color-line)] outline-none transition-shadow duration-(--dur-press) ' +
+  'placeholder:text-mute focus:shadow-[inset_0_0_0_2px_var(--color-ink)]';
 
 const ConvertToInvoiceSheet = ({ sale, clients = [], onCancel, onSubmit, submitting }) => {
   // Prefer linked client → fall back to walk-in customerInfo blob.
@@ -100,32 +103,38 @@ const ConvertToInvoiceSheet = ({ sale, clients = [], onCancel, onSubmit, submitt
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 p-1">
+    <form onSubmit={handleSubmit}>
       {error && (
-        <div className="text-[12px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+        <div role="alert" className="mb-3 rounded-xl bg-bad-soft px-3 py-2.5 text-[12.5px] font-medium text-bad-text">
           {error}
         </div>
       )}
 
-      <Field label="Customer Name" required>
-        <input
-          className={inputCls}
-          value={form.name}
-          onChange={e => set('name', e.target.value)}
-          placeholder="Akme Traders Pvt Ltd"
-          autoFocus
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <Field label="Customer name" required className="sm:col-span-2">
+        <div className="relative">
+          <input
+            className={inputCls + (form.client_id ? ' pr-28' : '')}
+            value={form.name}
+            onChange={e => set('name', e.target.value)}
+            placeholder="Akme Traders Pvt Ltd"
+            autoFocus
+          />
+          {form.client_id && (
+            <span className="absolute right-2 top-1/2 -translate-y-1/2"><Badge tone="good">Saved client</Badge></span>
+          )}
+        </div>
         {suggestions.length > 0 && !form.client_id && (
-          <div className="mt-1 border border-border rounded-lg overflow-hidden bg-card shadow-sm">
+          <div className="mt-1 rounded-xl bg-surface overflow-hidden shadow-[0_0_0_1px_var(--color-line),0_12px_32px_-16px_rgba(17,20,24,0.3)]">
             {suggestions.map(c => (
               <button
                 type="button"
                 key={c.id}
                 onClick={() => pickClient(c)}
-                className="block w-full text-left px-3 py-2 text-sm hover:bg-accent-signature/10 border-b border-border/60 last:border-0"
+                className="block w-full text-left px-3 py-2 hover:bg-tile border-b border-sep last:border-0"
               >
-                <div className="font-semibold text-foreground">{c.name}</div>
-                <div className="text-[10px] text-muted-foreground">
+                <div className="font-tight text-[13px] font-semibold text-ink">{c.name}</div>
+                <div className="text-[11.5px] text-mute">
                   {c.gstin || c.gst_no || 'No GSTIN'} · {c.phone || '—'}
                 </div>
               </button>
@@ -133,25 +142,25 @@ const ConvertToInvoiceSheet = ({ sale, clients = [], onCancel, onSubmit, submitt
           </div>
         )}
         {form.client_id && (
-          <div className="text-[10px] text-emerald-600 mt-0.5">
-            ✓ Linked to existing client
+          <div className="mt-1 text-[12px] text-good-text">
+            Linked to an existing client
             <button
               type="button"
               onClick={() => set('client_id', null)}
-              className="ml-2 text-muted-foreground underline"
-            >clear</button>
+              className="ml-2 text-mute underline hover:text-ink"
+            >Clear</button>
           </div>
         )}
         {!form.client_id && form.name.trim() && suggestions.length === 0 && (
-          <div className="text-[10px] text-accent-signature mt-0.5">
-            New customer — will be added to Clients on save
+          <div className="mt-1 text-[12px] text-amber-text">
+            New customer, added to Clients on save
           </div>
         )}
       </Field>
 
-      <Field label="GSTIN" required hint="15-char alphanumeric GST identification number">
+      <Field label="GSTIN" required hint="15 letters and numbers">
         <input
-          className={inputCls + ' uppercase tracking-widest'}
+          className={inputCls + ' uppercase tracking-[0.06em]'}
           value={form.gstin}
           onChange={e => set('gstin', e.target.value.toUpperCase())}
           maxLength={15}
@@ -159,7 +168,6 @@ const ConvertToInvoiceSheet = ({ sale, clients = [], onCancel, onSubmit, submitt
         />
       </Field>
 
-      <div className="grid grid-cols-2 gap-3">
         <Field label="Phone">
           <input
             className={inputCls}
@@ -168,30 +176,19 @@ const ConvertToInvoiceSheet = ({ sale, clients = [], onCancel, onSubmit, submitt
             placeholder="+91 98765 43210"
           />
         </Field>
-        <Field label="Place of Supply" hint="State name, e.g. Kerala">
+        <Field label="Place of supply" hint="State name, e.g. Kerala">
           <input
             className={inputCls}
             value={form.place_of_supply}
             onChange={e => set('place_of_supply', e.target.value)}
           />
         </Field>
-      </div>
 
-      <Field label="Billing Address">
-        <textarea
-          className={inputCls + ' resize-none'}
-          rows={2}
-          value={form.address}
-          onChange={e => set('address', e.target.value)}
-        />
-      </Field>
-
-      <div className="grid grid-cols-2 gap-3">
         <Field
-          label="Due in (days)"
+          label="Due in, days"
           hint={form.client_id
-            ? "Pre-filled from this client's credit terms — override if needed"
-            : 'Default 30 — override if needed'}
+            ? "From this client's credit terms, change it if needed"
+            : 'Default 30, change it if needed'}
         >
           <input
             type="number"
@@ -201,32 +198,33 @@ const ConvertToInvoiceSheet = ({ sale, clients = [], onCancel, onSubmit, submitt
             onChange={e => set('due_days', Number(e.target.value) || 0)}
           />
         </Field>
-        <Field label="Notes (optional)">
+
+      <Field label="Billing address" className="sm:col-span-2">
+        <textarea
+          className={inputCls + ' h-auto py-2 resize-none'}
+          rows={2}
+          value={form.address}
+          onChange={e => set('address', e.target.value)}
+        />
+      </Field>
+
+        <Field label="Notes, optional" className="sm:col-span-2">
           <input
             className={inputCls}
             value={form.notes}
             onChange={e => set('notes', e.target.value)}
-            placeholder="PO #, ref, etc."
+            placeholder="PO number, reference"
           />
         </Field>
       </div>
 
-      <div className="flex gap-2 pt-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={submitting}
-          className="flex-1 px-4 py-2.5 rounded-pill bg-black/5 hover:bg-black/10 text-sm font-semibold text-foreground disabled:opacity-50"
-        >
+      <div className="flex gap-2 mt-5 [&>*]:flex-1">
+        <Button variant="secondary" onClick={onCancel} disabled={submitting}>
           Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={submitting}
-          className="flex-1 px-4 py-2.5 rounded-pill bg-accent-signature text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50"
-        >
-          {submitting ? 'Converting…' : 'Issue GST Invoice'}
-        </button>
+        </Button>
+        <Button type="submit" disabled={submitting}>
+          {submitting ? 'Converting' : 'Issue GST invoice'}
+        </Button>
       </div>
     </form>
   );

@@ -1,74 +1,118 @@
 import React, { useMemo, useState } from 'react';
-import { Plus, Trash2, ScanLine, Search, X } from 'lucide-react';
+import { Plus, Trash2, ScanLine, Search, X, AlertCircle } from 'lucide-react';
+import Dialog from '../ui/Dialog';
+import { Button } from '../ui/button';
+import { cn } from '../../lib/utils';
+import { money } from '../../lib/clientView';
+import { lineAmount, panelTotal, panelBalance } from '../../lib/documentTotals';
 
 // Shared building blocks for the document builder (PartyPicker, DocItemGrid,
 // TotalsPanel). Extracted from CreateDocument so the same parts can power
 // other builders later. All presentational — state stays with the parent.
+//
+// Web redesign (approved invoices-08 to 11): same props, same behaviour, the
+// phone app's look.
 
 export const inr = (n) => `₹${(Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export const Field = ({ label, value, mono }) => (
+const Eyebrow = ({ children, className }) => (
+  <span className={cn('block font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-mute', className)}>{children}</span>
+);
+
+const fieldCls = 'h-9 w-full rounded-[10px] bg-surface px-3 text-[13.5px] text-ink shadow-[inset_0_0_0_1px_var(--color-line)] outline-none placeholder:text-mute focus:shadow-[inset_0_0_0_2px_var(--color-ink)]';
+
+export const Field = ({ label, value, mono, muted }) => (
   <div>
-    <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">{label}</div>
-    <div className={`text-[13px] font-bold text-ink-primary ${mono ? 'tabular-nums' : ''}`}>{value}</div>
+    <Eyebrow>{label}</Eyebrow>
+    <b className={cn('mt-[3px] block font-tight text-[13.5px] font-semibold', muted ? 'text-mute' : 'text-ink', mono && 'tabular-nums')}>{value}</b>
   </div>
 );
 
-export const Row = ({ label, value, muted }) => (
-  <div className="flex justify-between text-[13px] py-1.5">
-    <span className="text-muted-foreground">{label}</span>
-    <span className={`tabular-nums ${muted ? 'text-muted-foreground' : 'text-ink-primary'}`}>{value}</span>
+export const Row = ({ label, value, muted, tone }) => (
+  <div className="flex items-center justify-between py-1 text-[13px] text-body">
+    <span>{label}</span>
+    <span className={cn('font-tight font-medium tabular-nums', tone || (muted ? 'text-mute' : 'text-ink-2'))}>{value}</span>
   </div>
 );
 
-export const PartyPicker = ({ label, party, clients = [], onChange, manual = false }) => {
+const initials = (name = '') => String(name).trim().split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase() || '?';
+
+export const PartyPicker = ({ label, party, clients = [], onChange, manual = false, invalid = false }) => {
   const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const list = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    return s ? clients.filter(c => `${c.name || ''} ${c.gstin || ''} ${c.phone || ''}`.toLowerCase().includes(s)) : clients;
+  }, [clients, q]);
   return (
-    <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-4">
-      <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">{label}</div>
+    <div className="rounded-[14px] border border-line bg-surface px-5 py-[18px]">
+      <Eyebrow>{label}</Eyebrow>
       {manual && (
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <input value={party?.name || ''} placeholder="Customer name"
+        <div className="mt-2.5 grid grid-cols-2 gap-2">
+          <input value={party?.name || ''} placeholder="Customer name" aria-label="Customer name"
             onChange={(e) => onChange({ ...(party || {}), name: e.target.value, manual: true })}
-            className="col-span-2 text-[13px] font-bold border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40" />
-          <input value={party?.gstin || ''} placeholder="GSTIN (optional)"
+            className={cn(fieldCls, 'col-span-2 font-semibold')} />
+          <input value={party?.gstin || ''} placeholder="GSTIN (optional)" aria-label="GSTIN"
             onChange={(e) => onChange({ ...(party || {}), gstin: e.target.value.toUpperCase(), manual: true })}
-            className="tabular-nums text-[12px] border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40" />
-          <input value={party?.state || ''} placeholder="State / place of supply"
+            className={cn(fieldCls, 'tabular-nums')} />
+          <input value={party?.state || ''} placeholder="State or place of supply" aria-label="State or place of supply"
             onChange={(e) => onChange({ ...(party || {}), state: e.target.value, manual: true })}
-            className="text-[12px] border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40" />
-          <button onClick={() => setOpen((v) => !v)} className="col-span-2 text-[11px] font-bold text-accent-signature text-left">{open ? '− hide' : '+ pick an existing client instead'}</button>
+            className={fieldCls} />
+          <button type="button" onClick={() => setOpen((v) => !v)}
+            className="col-span-2 text-left font-tight text-[12.5px] font-semibold text-amber-text hover:underline underline-offset-4">
+            {open ? 'Hide clients' : 'Pick an existing client instead'}
+          </button>
         </div>
       )}
       {!manual && (party ? (
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-accent-signature/15 text-accent-signature-hover grid place-items-center font-black text-[12px]">{party.name?.slice(0, 2).toUpperCase()}</div>
-          <div className="leading-tight">
-            <div className="font-black text-sm text-ink-primary">{party.name}</div>
-            <div className="text-[11px] text-muted-foreground">{party.gstin ? `GSTIN ${party.gstin} · ` : ''}{party.state || '—'}</div>
+        <div className="mt-2.5 flex items-center gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-amber-soft font-tight text-[12.5px] font-semibold text-amber-text">{initials(party.name)}</span>
+          <div className="min-w-0">
+            <b className="block truncate font-tight text-[15px] font-semibold text-ink">{party.name}</b>
+            <small className="block truncate text-[12.5px] text-mute">{party.gstin ? `GSTIN ${party.gstin} · ` : ''}{party.state || '—'}</small>
           </div>
-          <button onClick={() => setOpen(true)} className="ml-auto text-[11px] font-bold px-2.5 py-1 rounded-pill border border-black/10 hover:bg-black/5">Change</button>
+          <Button variant="secondary" size="xs" className="ml-auto" onClick={() => setOpen(true)}>Change</Button>
         </div>
       ) : (
-        <button onClick={() => setOpen(true)} className="w-full py-8 rounded-pill border border-dashed border-accent-signature/40 text-[13px] font-bold text-accent-signature hover:bg-accent-signature/5">+ Add party</button>
+        <button type="button" data-card onClick={() => setOpen(true)} aria-invalid={invalid || undefined}
+          className={cn('m-press mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl py-[26px] font-tight text-[13.5px] font-semibold text-ink hover:bg-tile',
+            invalid ? 'bg-[#FFFBFB] shadow-[inset_0_0_0_1.5px_#F5C2C2]' : 'shadow-[inset_0_0_0_1px_var(--color-line)]')}>
+          <Plus size={15} />Add party
+        </button>
       ))}
       {open && (
-        <div className="mt-3 max-h-52 overflow-auto rounded-xl border border-black/10 divide-y divide-black/5">
-          {clients.length === 0 && <div className="p-3 text-[12px] text-muted-foreground">No clients yet.</div>}
-          {clients.map((c) => (
-            <button key={c.id} onClick={() => { onChange(c); setOpen(false); }} className="w-full text-left px-3 py-2 hover:bg-black/5 text-[13px]">
-              <span className="font-bold text-ink-primary">{c.name}</span>
-              <span className="text-[11px] text-muted-foreground ml-2">{c.state || ''}</span>
-            </button>
-          ))}
-        </div>
+        <Dialog open onClose={() => setOpen(false)} title="Choose a client" width={460}>
+          <div className="relative mb-2">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-mute" size={16} />
+            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search clients" aria-label="Search clients"
+              className="h-10 w-full rounded-pill bg-well pl-10 pr-4 text-[13.5px] text-ink outline-none placeholder:text-mute focus:shadow-[inset_0_0_0_2px_var(--color-ink)]" />
+          </div>
+          <div className="max-h-[52vh] overflow-auto">
+            {clients.length === 0 && <div className="py-6 text-center text-[13px] text-mute">No clients yet.</div>}
+            {clients.length > 0 && list.length === 0 && <div className="py-6 text-center text-[13px] text-mute">No clients match.</div>}
+            {list.map((c) => (
+              <button key={c.id} type="button" data-card onClick={() => { onChange(c); setOpen(false); setQ(''); }}
+                className="flex w-full items-center gap-3 rounded-lg border-t border-sep px-1 py-2.5 text-left first:border-t-0 hover:bg-tile">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-amber-soft font-tight text-[12px] font-semibold text-amber-text">{initials(c.name)}</span>
+                <span className="min-w-0 flex-1">
+                  <b className="block truncate font-tight text-[13.5px] font-semibold text-ink">{c.name}</b>
+                  <small className="block truncate text-[12px] text-mute">{[c.gstin && `GSTIN ${c.gstin}`, c.state].filter(Boolean).join(' · ') || '—'}</small>
+                </span>
+                {/* What they owe: clients.outstanding_balance, kept by the database. */}
+                {Number(c.outstanding_balance) > 0 && (
+                  <span className="shrink-0 font-tight text-[12.5px] font-medium tabular-nums text-mute">{money(c.outstanding_balance)} due</span>
+                )}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-[12px] text-mute">Searches name, GSTIN and phone. Due amounts are shown.</p>
+        </Dialog>
       )}
     </div>
   );
 };
 
-const COLS = 'grid grid-cols-[28px_1.6fr_0.8fr_0.5fr_0.8fr_0.7fr_0.8fr_0.9fr_28px] gap-2';
-const cell = 'border border-black/10 rounded px-1.5 py-1 outline-none focus:border-accent-signature/40';
+const cellCls = 'h-[30px] w-full rounded-lg bg-surface px-[9px] font-tight text-[13px] font-medium tabular-nums text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)] outline-none focus:shadow-[inset_0_0_0_2px_var(--color-ink)]';
 
 export const DocItemGrid = ({ lines = [], products = [], gstOn = true, onAdd, onPatch, onRemove, manual = false, onAddBlank }) => {
   const [picker, setPicker] = useState(false);
@@ -78,68 +122,125 @@ export const DocItemGrid = ({ lines = [], products = [], gstOn = true, onAdd, on
     if (!q) return products.slice(0, 50);
     return products.filter((p) => `${p.name} ${p.sku || ''}`.toLowerCase().includes(q)).slice(0, 50);
   }, [products, query]);
+  const closePicker = () => { setPicker(false); setQuery(''); };
 
   return (
-    <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
-      <div className={`${COLS} px-3 py-2.5 bg-canvas text-[10px] uppercase tracking-wider text-muted-foreground`}>
-        <div>#</div><div>Item / service</div><div>HSN/SAC</div><div className="text-right">Qty</div>
-        <div className="text-right">Rate</div><div className="text-right">Disc%</div><div className="text-right">Tax</div><div className="text-right">Amount</div><div></div>
+    <div className="overflow-hidden rounded-[14px] border border-line bg-surface">
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-[13px]">
+          <thead>
+            <tr className="bg-tile font-tight text-[11.5px] font-semibold text-mute">
+              <th className="w-7 px-2.5 py-[9px] text-left">#</th>
+              <th className="px-2.5 py-[9px] text-left">Item or service</th>
+              <th className="px-2.5 py-[9px] text-left">HSN or SAC</th>
+              <th className="px-2.5 py-[9px] text-right">Qty</th>
+              <th className="px-2.5 py-[9px] text-right">Rate</th>
+              <th className="px-2.5 py-[9px] text-right">Disc %</th>
+              <th className="px-2.5 py-[9px] text-right">Tax</th>
+              <th className="px-2.5 py-[9px] text-right">Amount</th>
+              <th className="w-9 px-2.5 py-[9px]"><span className="sr-only">Remove</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {lines.length === 0 && (
+              <tr className="border-t border-sep">
+                <td colSpan={9} className="px-2.5 py-7 text-center text-[13px] text-mute">
+                  {manual ? 'No items yet. Add an item or pick a product.' : 'No items yet. Add an item to start.'}
+                </td>
+              </tr>
+            )}
+            {lines.map((l, i) => {
+              const lineAmt = lineAmount(l);
+              return (
+                <tr key={l.uid} className="border-t border-sep">
+                  <td className="px-2.5 py-2 text-mute">{i + 1}</td>
+                  <td className="px-2.5 py-2 min-w-[160px]">
+                    {manual
+                      ? <input value={l.name} onChange={(e) => onPatch(l.uid, { name: e.target.value })} placeholder="Item name" aria-label={`Item ${i + 1} name`} className={cn(cellCls, 'font-semibold text-ink')} />
+                      : <b className="block truncate font-tight text-[13.5px] font-semibold text-ink">{l.name}</b>}
+                  </td>
+                  <td className="w-[96px] px-2.5 py-2"><input value={l.hsn} onChange={(e) => onPatch(l.uid, { hsn: e.target.value.replace(/[^0-9]/g, '') })} className={cellCls} placeholder="HSN" aria-label={`Item ${i + 1} HSN`} /></td>
+                  <td className="w-[70px] px-2.5 py-2"><input type="number" value={l.qty} onChange={(e) => onPatch(l.uid, { qty: e.target.value })} className={cn(cellCls, 'text-right')} aria-label={`Item ${i + 1} quantity`} /></td>
+                  <td className="w-[96px] px-2.5 py-2"><input type="number" value={l.rate} onChange={(e) => onPatch(l.uid, { rate: e.target.value })} className={cn(cellCls, 'text-right')} aria-label={`Item ${i + 1} rate`} /></td>
+                  <td className="w-[74px] px-2.5 py-2"><input type="number" value={l.disc} onChange={(e) => onPatch(l.uid, { disc: e.target.value })} className={cn(cellCls, 'text-right')} aria-label={`Item ${i + 1} discount percent`} /></td>
+                  <td className="w-[70px] px-2.5 py-2 text-right text-mute">
+                    {manual && gstOn
+                      ? <input type="number" value={l.taxRate} onChange={(e) => onPatch(l.uid, { taxRate: e.target.value })} className={cn(cellCls, 'text-right')} aria-label={`Item ${i + 1} tax rate`} />
+                      : (gstOn ? `${l.taxRate}%` : '—')}
+                  </td>
+                  <td className="px-2.5 py-2 text-right font-tight font-medium tabular-nums text-ink whitespace-nowrap">{inr(lineAmt)}</td>
+                  <td className="px-2.5 py-2 text-right">
+                    <button type="button" onClick={() => onRemove(l.uid)} aria-label={`Remove ${l.name || `item ${i + 1}`}`} title="Remove"
+                      className="m-press grid h-7 w-7 place-items-center rounded-xl text-mute hover:bg-bad-soft hover:text-bad-text">
+                      <Trash2 size={14} />
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
-      {lines.map((l, i) => {
-        const lineAmt = (Number(l.qty) || 0) * (Number(l.rate) || 0) * (1 - (Number(l.disc) || 0) / 100);
-        return (
-          <div key={l.uid} className={`${COLS} px-3 py-2 border-t border-black/5 items-center text-[13px]`}>
-            <div className="text-muted-foreground">{i + 1}</div>
-            {manual
-              ? <input value={l.name} onChange={(e) => onPatch(l.uid, { name: e.target.value })} placeholder="Item name" className={`font-bold ${cell}`} />
-              : <div className="font-bold text-ink-primary truncate">{l.name}</div>}
-            <input value={l.hsn} onChange={(e) => onPatch(l.uid, { hsn: e.target.value.replace(/[^0-9]/g, '') })} className={`tabular-nums text-[12px] ${cell}`} placeholder="HSN" />
-            <input type="number" value={l.qty} onChange={(e) => onPatch(l.uid, { qty: e.target.value })} className={`text-right ${cell}`} />
-            <input type="number" value={l.rate} onChange={(e) => onPatch(l.uid, { rate: e.target.value })} className={`text-right ${cell}`} />
-            <input type="number" value={l.disc} onChange={(e) => onPatch(l.uid, { disc: e.target.value })} className={`text-right ${cell}`} />
-            {manual && gstOn
-              ? <input type="number" value={l.taxRate} onChange={(e) => onPatch(l.uid, { taxRate: e.target.value })} className={`text-right ${cell}`} />
-              : <div className="text-right text-muted-foreground">{gstOn ? `${l.taxRate}%` : '—'}</div>}
-            <div className="text-right font-bold tabular-nums">{inr(lineAmt)}</div>
-            <button onClick={() => onRemove(l.uid)} className="text-muted-foreground hover:text-rose-500"><Trash2 size={14} /></button>
-          </div>
-        );
-      })}
-      <div className="flex gap-2 p-2.5 border-t border-black/5">
-        <button onClick={() => (manual ? onAddBlank?.() : setPicker(true))} className="flex-1 py-2.5 rounded-pill border border-dashed border-accent-signature/40 text-[13px] font-bold text-accent-signature hover:bg-accent-signature/5"><Plus size={14} className="inline -mt-0.5 mr-1" />Add item</button>
+      <div className="flex gap-2 border-t border-sep p-2.5">
+        <button type="button" onClick={() => (manual ? onAddBlank?.() : setPicker(true))}
+          className="m-press flex h-10 flex-1 items-center justify-center gap-1.5 rounded-pill font-tight text-[13.5px] font-semibold text-ink shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile">
+          <Plus size={15} /> Add item
+        </button>
         {manual
-          ? <button onClick={() => setPicker(true)} className="px-4 py-2.5 rounded-pill border border-black/10 text-[13px] font-bold hover:bg-black/5">Pick product</button>
-          : <button className="px-4 py-2.5 rounded-pill border border-black/10 text-[13px] font-bold hover:bg-black/5"><ScanLine size={14} className="inline -mt-0.5 mr-1.5" />Scan</button>}
+          ? <button type="button" onClick={() => setPicker(true)} className="m-press flex h-10 items-center gap-1.5 rounded-pill px-4 font-tight text-[13.5px] font-semibold text-ink shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile">Pick product</button>
+          : <button type="button" className="m-press flex h-10 items-center gap-1.5 rounded-pill px-4 font-tight text-[13.5px] font-semibold text-ink shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile"><ScanLine size={15} /> Scan</button>}
       </div>
 
       {picker && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center p-4 sm:p-10" onClick={() => setPicker(false)}>
-          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-2 p-3 border-b border-black/5">
-              <Search size={16} className="text-muted-foreground" />
-              <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search products…" className="flex-1 text-[14px] outline-none" />
-              <button onClick={() => setPicker(false)}><X size={18} className="text-muted-foreground" /></button>
-            </div>
-            <div className="overflow-auto divide-y divide-black/5">
-              {filtered.map((p) => (
-                <button key={p.id} onClick={() => { onAdd(p); setPicker(false); setQuery(''); }} className="w-full text-left px-4 py-2.5 hover:bg-black/5 flex items-center gap-3">
-                  <div className="flex-1">
-                    <div className="font-bold text-[13px] text-ink-primary">{p.name}</div>
-                    <div className="text-[11px] text-muted-foreground">{p.sku || ''} {p.hsn_code ? `· HSN ${p.hsn_code}` : ''} · {p.taxRate || 0}% GST</div>
-                  </div>
-                  <div className="tabular-nums text-[13px] font-bold">{inr(p.sellingPrice)}</div>
-                </button>
-              ))}
-              {filtered.length === 0 && <div className="p-4 text-[13px] text-muted-foreground">No products match.</div>}
-            </div>
+        <Dialog open onClose={closePicker} width={500} label="Add item" header={(
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-mute" size={16} />
+            <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search products" aria-label="Search products"
+              className="h-9 w-full rounded-pill bg-well pl-10 pr-4 text-[14px] text-ink outline-none placeholder:text-mute focus:shadow-[inset_0_0_0_2px_var(--color-ink)]" />
           </div>
-        </div>
+        )}>
+          <div className="max-h-[56vh] overflow-auto">
+            {filtered.map((p) => (
+              <button key={p.id} type="button" data-card onClick={() => { onAdd(p); closePicker(); }}
+                className="flex w-full items-center gap-3 rounded-lg border-t border-sep px-1 py-2.5 text-left first:border-t-0 hover:bg-tile">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-tile font-tight text-[12px] font-semibold text-body">{initials(p.name)}</span>
+                <span className="min-w-0 flex-1">
+                  <b className="block truncate font-tight text-[13.5px] font-semibold text-ink">{p.name}</b>
+                  <small className="block truncate text-[12px] text-mute">{[p.sku, p.hsn_code && `HSN ${p.hsn_code}`, `${p.taxRate || 0}% GST`].filter(Boolean).join(' · ')}</small>
+                </span>
+                <span className="font-tight text-[13.5px] font-semibold tabular-nums text-ink">{inr(p.sellingPrice)}</span>
+              </button>
+            ))}
+            {filtered.length === 0 && <div className="py-6 text-center text-[13px] text-mute">No products match.</div>}
+          </div>
+        </Dialog>
       )}
     </div>
   );
 };
 
-const miniInput = 'w-24 text-right text-[12px] tabular-nums border border-black/10 rounded px-2 py-1 outline-none focus:border-accent-signature/40';
+const miniInput = 'h-[30px] w-[110px] rounded-lg bg-surface px-2.5 text-right font-tight text-[13px] tabular-nums text-ink shadow-[inset_0_0_0_1px_var(--color-line)] outline-none placeholder:text-mute focus:shadow-[inset_0_0_0_2px_var(--color-ink)]';
+
+/** Two to four choices in a light pill track (Cash · Bank · UPI · Credit). */
+export const Seg = ({ value, onChange, options, ariaLabel, className }) => (
+  <div role="radiogroup" aria-label={ariaLabel} className={cn('inline-flex rounded-pill bg-well p-[3px]', className)}>
+    {options.map(([val, label]) => (
+      <button key={val} type="button" role="radio" aria-checked={value === val} onClick={() => onChange(val)}
+        className={cn('m-press rounded-pill px-3 py-1 font-tight text-[12.5px] font-semibold transition-colors duration-(--dur-press)',
+          value === val ? 'bg-surface text-ink shadow-[0_1px_2px_rgba(17,20,24,0.12)]' : 'text-body hover:text-ink')}>
+        {label}
+      </button>
+    ))}
+  </div>
+);
+
+/** On/off switch, the redesign's. */
+export const Switch = ({ checked, onChange, label, id }) => (
+  <button id={id} type="button" role="switch" aria-checked={!!checked} aria-label={label} onClick={() => onChange(!checked)}
+    className={cn('relative h-5 w-[34px] shrink-0 rounded-pill transition-colors duration-(--dur-press)', checked ? 'bg-ink' : 'bg-line')}>
+    <span className={cn('absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-[0_1px_2px_rgba(17,20,24,0.25)] transition-transform duration-(--dur-press)', checked && 'translate-x-[14px]')} />
+  </button>
+);
 
 /**
  * The tax-mode switch.
@@ -153,40 +254,22 @@ const miniInput = 'w-24 text-right text-[12px] tabular-nums border border-black/
  * CreateDocument -- because a control that looks settable and is then
  * overruled on save is worse than a label.
  */
-export const TaxModeToggle = ({ value = 'EXCLUSIVE', onChange, locked = false, hint }) => {
-  const opts = [
-    ['EXCLUSIVE', 'Tax extra'],
-    ['INCLUSIVE', 'Tax included'],
-  ];
-  return (
-    <div className="flex items-center justify-between gap-3 py-1.5">
-      <span className="text-[13px] text-muted-foreground">
-        Prices are
-        {hint && <span className="block text-[11px] text-muted-foreground/80">{hint}</span>}
-      </span>
-      {locked ? (
-        <span className="text-[12px] font-semibold text-ink-primary">
-          {value === 'INCLUSIVE' ? 'Tax included' : value === 'NONE' ? 'No GST' : 'Tax extra'}
-        </span>
-      ) : (
-        <div className="inline-flex rounded-pill bg-muted p-0.5">
-          {opts.map(([val, label]) => (
-            <button
-              key={val}
-              type="button"
-              onClick={() => onChange(val)}
-              aria-pressed={value === val}
-              className={`px-3 h-7 rounded-pill text-[12px] font-semibold transition-[background-color,color] duration-150
-                ${value === val ? 'bg-white text-ink-primary shadow-sm' : 'text-muted-foreground hover:text-ink-primary'}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
+export const TaxModeToggle = ({ value = 'EXCLUSIVE', onChange, locked = false, hint }) => (
+  <div className={cn('mb-1.5 flex justify-between gap-2.5 border-b border-sep pb-2.5 text-[13px] text-body', locked ? 'items-start' : 'items-center')}>
+    <span>
+      Prices are
+      {hint && <small className="block max-w-[190px] text-[11.5px] text-mute">{hint}</small>}
+    </span>
+    {locked ? (
+      <b className="font-tight text-[13px] font-semibold text-ink">
+        {value === 'INCLUSIVE' ? 'Tax included' : value === 'NONE' ? 'No GST' : 'Tax extra'}
+      </b>
+    ) : (
+      <Seg value={value} onChange={onChange} ariaLabel="Prices are"
+        options={[['EXCLUSIVE', 'Tax extra'], ['INCLUSIVE', 'Tax included']]} />
+    )}
+  </div>
+);
 
 export const TotalsPanel = ({
   gst, gstOn = true, interstate = false, showPayment = false,
@@ -194,12 +277,13 @@ export const TotalsPanel = ({
   charges = '', setCharges, billDiscount = '', setBillDiscount,
   received = '', setReceived,
   taxMode, setTaxMode, taxModeLocked = false, taxModeHint,
+  note,
 }) => {
-  const base = gstOn ? Number(gst.grandTotal) || 0 : Number(gst.subtotal) || 0;
-  const total = Math.max(0, base + (Number(charges) || 0) - (Number(billDiscount) || 0));
-  const balance = Math.max(0, total - (Number(received) || 0));
+  // (lib/documentTotals: the same expressions, moved there unchanged.)
+  const total = panelTotal(gst, gstOn, charges, billDiscount);
+  const balance = panelBalance(total, received);
   return (
-    <div className="bg-white rounded-2xl border border-black/10 shadow-sm p-4">
+    <div className="rounded-[14px] border border-line bg-surface px-[18px] py-4">
       {gstOn && taxMode && (
         <TaxModeToggle value={taxMode} onChange={setTaxMode} locked={taxModeLocked} hint={taxModeHint} />
       )}
@@ -214,39 +298,39 @@ export const TotalsPanel = ({
       ) : null}
       {!!gst.roundOff && <Row label="Round off" value={inr(gst.roundOff)} muted />}
       {setCharges && (
-        <div className="flex justify-between items-center text-[13px] py-1.5">
-          <span className="text-muted-foreground">Additional charges</span>
+        <label className="flex items-center justify-between py-1 text-[13px] text-body">
+          <span>Additional charges</span>
           <input type="number" value={charges} onChange={(e) => setCharges(e.target.value)} placeholder="0.00" className={miniInput} />
-        </div>
+        </label>
       )}
       {setBillDiscount && (
-        <div className="flex justify-between items-center text-[13px] py-1.5">
-          <span className="text-muted-foreground">Bill discount</span>
+        <label className="flex items-center justify-between py-1 text-[13px] text-body">
+          <span>Bill discount</span>
           <input type="number" value={billDiscount} onChange={(e) => setBillDiscount(e.target.value)} placeholder="0.00" className={miniInput} />
-        </div>
+        </label>
       )}
-      <div className="flex justify-between items-baseline pt-3 mt-2 border-t border-black/10">
-        <span className="font-black text-ink-primary">Total</span>
-        <span className="font-black text-xl tabular-nums text-accent-signature-hover">{inr(total)}</span>
+      <div className="mt-2 flex items-baseline justify-between border-t border-line pt-2.5 font-tight font-semibold text-ink">
+        <span className="text-[15px]">Total</span>
+        <span className="text-[24px] tracking-[-0.02em] tabular-nums">{inr(total)}</span>
       </div>
+      {note && <p className="mt-1.5 text-[12px] text-mute">{note}</p>}
       {showPayment && (
         <>
-          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-black/5">
-            <input id="mp" type="checkbox" checked={markPaid} onChange={(e) => setMarkPaid(e.target.checked)} />
-            <label htmlFor="mp" className="text-[13px] font-bold">Mark paid</label>
-            <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className="ml-auto text-[12px] border border-black/10 rounded-lg px-2 py-1.5 outline-none">
-              <option>CASH</option><option>BANK</option><option>UPI</option><option>CREDIT</option>
-            </select>
+          <div className="mt-3 flex flex-wrap items-center gap-2.5 border-t border-sep pt-3 font-tight text-[13.5px] font-semibold text-ink">
+            <Switch id="mp" checked={markPaid} onChange={setMarkPaid} label="Mark paid" />
+            <label htmlFor="mp" className="cursor-pointer">Mark paid</label>
+            <Seg className="ml-auto" value={payMethod} onChange={setPayMethod} ariaLabel="Payment method"
+              options={[['CASH', 'Cash'], ['BANK', 'Bank'], ['UPI', 'UPI'], ['CREDIT', 'Credit']]} />
           </div>
           {setReceived && !markPaid && (
             <>
-              <div className="flex justify-between items-center text-[13px] py-1.5 mt-1">
-                <span className="text-muted-foreground">Amount received</span>
+              <label className="mt-2 flex items-center justify-between py-1 text-[13px] text-body">
+                <span>Amount received</span>
                 <input type="number" value={received} onChange={(e) => setReceived(e.target.value)} placeholder="0.00" className={miniInput} />
-              </div>
-              <div className="flex justify-between text-[13px] py-1">
-                <span className="text-muted-foreground">Balance</span>
-                <span className="tabular-nums font-bold text-rose-600">{inr(balance)}</span>
+              </label>
+              <div className="flex items-center justify-between py-1 text-[13px] text-body">
+                <span>Balance</span>
+                <span className="font-tight font-semibold tabular-nums text-bad-text">{inr(balance)}</span>
               </div>
             </>
           )}
@@ -255,3 +339,27 @@ export const TotalsPanel = ({
     </div>
   );
 };
+
+/**
+ * A failed save (approved newdoc-09, 10): the dark toast at the foot of the
+ * page with the title, the reason, and at most one next step. Stays until
+ * closed or the next save; enters with the dialog motion, none when reduced.
+ */
+export const SaveToast = ({ title, detail, action, onClose }) => (
+  <div role="alert" className="m-dialog fixed bottom-7 left-1/2 z-[170] flex w-[min(560px,calc(100vw-32px))] -translate-x-1/2 items-start gap-2.5 rounded-[14px] bg-ink py-3 pl-4 pr-3.5 text-[13px] leading-[1.45] text-white shadow-[0_18px_40px_-16px_rgba(17,20,24,0.5)]">
+    <AlertCircle size={18} className="mt-px shrink-0 text-[#FCA5A5]" />
+    <div className="min-w-0 flex-1">
+      <b className="block font-tight text-[13.5px] font-semibold">{title}</b>
+      <span className="block break-words text-white/80">{detail}</span>
+    </div>
+    {action && (
+      <button type="button" onClick={action.onClick}
+        className="ml-2 self-center whitespace-nowrap font-tight text-[13px] font-semibold text-[#FFC46B] hover:underline underline-offset-4">
+        {action.label}
+      </button>
+    )}
+    <button type="button" onClick={onClose} aria-label="Dismiss" className="grid h-6 w-6 shrink-0 place-items-center self-center rounded-xl text-white/70 hover:bg-white/10 hover:text-white">
+      <X size={14} />
+    </button>
+  </div>
+);

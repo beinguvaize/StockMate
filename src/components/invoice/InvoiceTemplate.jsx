@@ -18,6 +18,8 @@ import { INVOICE_LAYOUTS, DEFAULT_DOC_TEXTS, DEFAULT_INV_OPTS, Editable, CustomF
 import { formatDate, formatTime } from '../../lib/utils';
 import { QRCodeSVG } from 'qrcode.react';
 import BillBarcode from './BillBarcode';
+import InvoiceModel from './invoiceModels';
+import { resolveInvoiceTemplate, isInvoiceModel } from '../../lib/printSettings';
 
 const Totals = ({ k, v, bold }) => (
   <div className={`flex justify-between items-center py-0.5 ${bold ? 'font-bold' : ''}`}>
@@ -26,7 +28,10 @@ const Totals = ({ k, v, bold }) => (
   </div>
 );
 
-const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, onClose, onToggleMode, previewMode = false, themeOverride = null, editable = false, onEditText = null, textsOverride = null, optsOverride = null, accentOverride = null, customFieldsOverride = null }) => {
+const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, onClose, onToggleMode, previewMode = false, themeOverride = null, editable = false, onEditText = null, textsOverride = null, optsOverride = null, accentOverride = null, customFieldsOverride = null,
+  // The action bar's words, for a caller that is not showing an invoice from
+  // the list (the document builder's manual bill). Default: as before.
+  title = null, subtitle = null, printLabel = 'Print invoice' }) => {
   useDialogClose(onClose, { enabled: !previewMode }); // previewMode renders inline
   const [zoom, setZoom] = useState(100);
 
@@ -96,7 +101,10 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
         || JSON.parse(localStorage.getItem('print_settings_default')) || {};
     } catch { return {}; }
   })();
-  const invTheme = themeOverride || printPrefs.invoiceTemplate || 'classic';
+  // The saved design (per document type, then the old flat key); a shop that
+  // never saved one gets DEFAULT_INVOICE_TEMPLATE (lib/printSettings).
+  const invTheme = themeOverride || resolveInvoiceTemplate(printPrefs, safeBusiness);
+  const isModel = isInvoiceModel(invTheme);
 
   // Customizable document texts (Settings -> Printing designer).
   const docTexts = textsOverride
@@ -195,7 +203,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
     <div id={previewMode ? undefined : 'invoice-template-portal'}
       className={previewMode
         ? 'relative w-full flex flex-col items-center bg-transparent overflow-hidden'
-        : 'fixed inset-0 z-[60] flex flex-col items-center bg-slate-900/90 backdrop-blur-2xl overflow-hidden animate-fade-in print:bg-white print:p-0'}>
+        : 'fixed inset-0 z-[60] flex flex-col items-center bg-[#E6E5E2] overflow-hidden animate-fade-in print:bg-white print:p-0'}>
       <style dangerouslySetInnerHTML={{ __html: `
         .inv-theme-modern  { --inv: #2563EB; }
         .inv-theme-emerald { --inv: #0F766E; }
@@ -210,71 +218,61 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
         .inv-theme-bold .inv-title [class*="text-slate-500"] { color: rgba(255,255,255,.75) !important; }
       ` }} />
       
-      {/* Action Bar - Hidden in Print */}
+      {/* Action bar (web redesign, approved invoices-06). Hidden in print. */}
       {!previewMode && (
-      <div className="print-hidden w-full h-16 flex items-center justify-between px-6 bg-white/5 border-b border-white/10 print:hidden">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={onClose}
-            className="p-2 rounded-pill bg-white/10 text-white hover:bg-white/20 transition-all active:scale-95"
-          >
-            <X size={20} />
-          </button>
-          <div className="flex flex-col">
-            <h2 className="text-white font-bold text-sm tracking-tight uppercase">
-              Draft Preview.
-            </h2>
-            <p className="text-white/40 text-[9px] uppercase tracking-widest font-black">
-              GST Compliant Node v2.0
-            </p>
-          </div>
+      <div className="print-hidden print:hidden w-full flex items-center gap-2.5 px-[18px] py-3 bg-surface border-b border-sep text-ink">
+        <button type="button" onClick={onClose} aria-label="Close" title="Close"
+          className="m-press grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-well text-ink-2 hover:bg-[#E8E8E7]">
+          <X size={14} />
+        </button>
+        <div className="min-w-0">
+          <h2 className="truncate font-tight text-[16px] font-semibold tracking-[-0.01em]">
+            {title ?? `Invoice ${invoice.invoice_number || ''}`}
+          </h2>
+          <p className="truncate text-[12px] text-mute tabular-nums">
+            {subtitle ?? <>{safeClient.name}{grandTotal > 0 ? ` · ₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}</>}
+          </p>
         </div>
-
-        <div className="flex items-center gap-3">
-          <div className="flex items-center bg-white/5 rounded-full p-1 border border-white/10 mr-4">
-            <button onClick={() => handleZoom('out')} className="p-1.5 text-white/60 hover:text-white transition-colors"><ZoomOut size={16} /></button>
-            <span className="text-white/80 text-[10px] font-black px-2 w-10 text-center">{zoom}%</span>
-            <button onClick={() => handleZoom('in')} className="p-1.5 text-white/60 hover:text-white transition-colors"><ZoomIn size={16} /></button>
-            <button onClick={() => handleZoom('reset')} className="p-1.5 text-white/60 hover:text-white border-l border-white/10 ml-1"><Maximize2 size={14} /></button>
-          </div>
-
-          {onToggleMode && (
-            <button
-              onClick={onToggleMode}
-              className="flex items-center gap-2 px-6 py-2.5 bg-white/10 text-white border border-white/20 rounded-pill font-black text-[10px] uppercase tracking-widest hover:bg-white/20 active:scale-95 transition-all"
-            >
-              POS Receipt
-            </button>
-          )}
-
-          <button
-            onClick={onPrint}
-            className="flex items-center gap-2 px-6 py-2.5 bg-white text-black rounded-pill font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl"
-          >
-            <Printer size={16} /> PRINT INVOICE
-          </button>
-
-          <button 
-            onClick={() => onShare('whatsapp')}
-            className="flex items-center gap-2 px-6 py-2.5 bg-[#25D366] text-white rounded-pill font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl"
-          >
-            <Share2 size={16} /> SHARE WHATSAPP
-          </button>
+        <span className="flex-1" />
+        <div className="hidden sm:inline-flex items-center rounded-pill bg-well p-[3px] mr-1.5" aria-label="Zoom">
+          <button type="button" onClick={() => handleZoom('out')} aria-label="Zoom out" className="grid h-7 w-7 place-items-center rounded-xl text-ink-2 hover:bg-surface"><ZoomOut size={14} /></button>
+          <span className="min-w-[46px] text-center font-tight text-[12.5px] font-semibold tabular-nums">{zoom}%</span>
+          <button type="button" onClick={() => handleZoom('in')} aria-label="Zoom in" className="grid h-7 w-7 place-items-center rounded-xl text-ink-2 hover:bg-surface"><ZoomIn size={14} /></button>
+          <button type="button" onClick={() => handleZoom('reset')} aria-label="Reset zoom" title="Reset zoom" className="grid h-7 w-7 place-items-center rounded-xl text-ink-2 hover:bg-surface"><Maximize2 size={13} /></button>
         </div>
+        {onToggleMode && (
+          <button type="button" onClick={onToggleMode}
+            className="m-press inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-pill bg-well px-4 font-tight text-[13px] font-semibold text-ink hover:bg-[#E8E8E7]">
+            POS receipt
+          </button>
+        )}
+        {onShare && (
+          <button type="button" onClick={() => onShare('whatsapp')}
+            className="m-press inline-flex h-9 items-center gap-[7px] whitespace-nowrap rounded-pill bg-[#1FA855] px-4 font-tight text-[13px] font-semibold text-white hover:bg-[#1a934a]">
+            <Share2 size={15} /> <span className="hidden md:inline">Share on WhatsApp</span>
+          </button>
+        )}
+        <button type="button" onClick={onPrint}
+          className="m-press inline-flex h-9 items-center gap-[7px] whitespace-nowrap rounded-pill bg-ink px-4 font-tight text-[13px] font-semibold text-white hover:bg-[#2A2F35]">
+          <Printer size={15} /> {printLabel}
+        </button>
       </div>
       )}
 
       {/* Invoice Container */}
       <div className={previewMode
         ? 'w-full flex justify-center overflow-hidden'
-        : 'flex-1 w-full overflow-y-auto p-12 flex justify-center print:p-0 print:overflow-visible no-scrollbar'}>
+        : 'flex-1 w-full overflow-y-auto px-4 pt-[26px] pb-12 flex justify-center print:p-0 print:overflow-visible no-scrollbar'}>
         <div 
           id="invoice-print-area"
           style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}
-          className={`inv-sheet inv-theme-${invTheme} w-[210mm] min-h-[297mm] bg-white shadow-2xl p-[12mm] flex flex-col text-slate-900 transition-all duration-300 print:shadow-none print:transform-none print:p-[10mm] print:w-full print:min-h-0`}
+          className={`inv-sheet inv-theme-${invTheme} w-[210mm] min-h-[297mm] bg-white shadow-2xl ${isModel ? 'p-0 print:p-0' : 'p-[12mm] print:p-[10mm]'} flex flex-col text-slate-900 transition-all duration-300 print:shadow-none print:transform-none print:w-full print:min-h-0`}
         >
           
-          {AltLayout ? (
+          {isModel ? (
+            <InvoiceModel model={invTheme} invoice={invoice} business={safeBusiness} client={client || null}
+              printPrefs={printPrefs} overrides={{ opts: optsOverride, texts: textsOverride, accent: accentOverride }} />
+          ) : AltLayout ? (
             <AltLayout d={layoutD} texts={docTexts} editable={previewMode && editable} onEdit={onEditText} opts={invOpts} accent={invAccent} />
           ) : (
           <>

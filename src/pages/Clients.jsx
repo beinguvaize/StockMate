@@ -1,580 +1,206 @@
-import React, { useState, useMemo, useEffect} from 'react';
-import { INDIAN_STATES } from '../lib/gstStates';
-import { useDialogClose } from '../hooks/useDialogClose';
-import { createPortal } from 'react-dom';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Search, Upload, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
+import { useNotifications } from '../context/NotificationContext';
 import { usePeople } from '../hooks/usePeople';
 import { useSales } from '../hooks/useSales';
-import { formatDate } from '../lib/utils';
 import { supabase } from '../lib/supabase';
-
+import { todayISOInAppTZ } from '../lib/utils';
+import { classifyWriteFailure } from '../lib/writeOutcome';
 import {
-  UserCircle, Plus, DollarSign, Building, Phone, MapPin,
-  Edit3, Trash2, X, Check, Save, UserCheck, CreditCard,
-  ChevronRight, ExternalLink, ShieldCheck, Mail, Search,
-  TrendingUp, AlertCircle, Users, BarChart3, Receipt, History,
-  ChevronLeft, Building2, Tag, Hash, Loader2
-} from 'lucide-react';
-import ClientWorkspace from '../components/clients/ClientWorkspace';
+  clientFacts, clientRows, filterClientRows, chipCounts, clientKpis, clientSummary, money,
+} from '../lib/clientView';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { FilterPills } from '../components/ui/Tabs';
+import { FigureStrip, Figure } from '../components/ui/FigureStrip';
+import { ErrorBar, EmptyState } from '../components/payroll/parts';
+import ClientList from '../components/clients/ClientList';
+import ClientPanel from '../components/clients/ClientPanel';
+import ClientForm from '../components/clients/ClientForm';
+import CollectPaymentDialog from '../components/clients/CollectPaymentDialog';
+import ReminderDialog from '../components/clients/ReminderDialog';
+import DeleteClientDialog from '../components/clients/DeleteClientDialog';
 
-const Clients = () => {
+/**
+ * Clients (web redesign, approved mockups clients-01 … 09, 14, 16, 17).
+ *
+ * The list, its figures and its filters are today's rules (lib/clientView):
+ * what a client owes is the database's outstanding balance, "Overdue 30+"
+ * counts only the part on bills over 30 days old, bill by bill as the phone
+ * (lib/overdue), and a balance of 0 or less reads Settled. Collecting a payment is
+ * today's settle_client_payment call, unchanged.
+ */
+const FILTERS = [['OWING', 'Owing'], ['OVERDUE', 'Overdue'], ['ALL', 'All']];
+
+export default function Clients() {
+  const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
-  const { 
-    clients, addClient, updateClient, deleteClient 
-  } = usePeople(currentTenantId);
+  const { addNotification } = useNotifications();
+  const { clients, loading, error: peopleError, refetch, addClient, updateClient, deleteClient, recordClientPayment } = usePeople(currentTenantId);
   const { sales } = useSales(currentTenantId, { lean: true });
-  const [clientPayments, setClientPayments] = useState([]);
-  const [clientDeliveries, setClientDeliveries] = useState([]);
+  const cur = businessProfile?.currencySymbol || '₹';
+  const today = todayISOInAppTZ();
 
-  useEffect(() => {
+  // Receipts, as today: the newest 500 for the shop.
+  const [clientPayments, setClientPayments] = useState([]);
+  const [paymentsError, setPaymentsError] = useState(null);
+  const loadPayments = useCallback(async () => {
     if (!currentTenantId) return;
-    supabase
+    const { data, error } = await supabase
       .from('client_payments')
       .select('*')
       .is('deleted_at', null)
       .eq('tenant_id', currentTenantId)
       .order('created_at', { ascending: false })
-      .limit(500)
-      .then(({ data, error }) => {
-        if (error) console.error('clientPayments fetch error:', error);
-        else if (data) setClientPayments(data);
-      });
-
-    supabase
-      .from('invoices')
-      .select('id, client_id, delivery_status, delivery_date, delivery_address, delivery_zone')
-      .is('deleted_at', null)   // a deleted invoice is not a pending delivery
-      .eq('tenant_id', currentTenantId)
-      .eq('delivery_required', true)
-      .in('delivery_status', ['PENDING', 'IN_TRANSIT'])
-      .then(({ data }) => { if (data) setClientDeliveries(data); });
+      .limit(500);
+    if (error) { console.error('clientPayments fetch error:', error); setPaymentsError(error); return; }
+    setPaymentsError(null);
+    if (data) setClientPayments(data);
   }, [currentTenantId]);
- const [searchTerm, setSearchTerm] = useState('');
- const [statusFilter, setStatusFilter] = useState('ALL');
- const [dueFilter, setDueFilter] = useState('ALL'); // ALL | DUE | CLEARED
- const [isAdding, setIsAdding] = useState(false);
- const [editingClient, setEditingClient] = useState(null);
- const EMPTY_FORM = { name: '', contact: '', phone: '', email: '', address: '', gstin: '', state: '', state_code: '', pin_code: '', status: 'ACTIVE', client_type: 'B2C', price_tier: 'RETAIL', credit_days: 0, credit_limit: 0 };
- const [formData, setFormData] = useState(EMPTY_FORM);
- const [deleteConfirm, setDeleteConfirm] = useState(null);
- const [deleteError, setDeleteError] = useState('');
- const [saving, setSaving] = useState(false);
- const [formError, setFormError] = useState('');
- 
+  useEffect(() => { loadPayments(); }, [loadPayments]);
 
- // Escape + scroll lock + focus restore for the full-page client form.
- // Replaces a hand-rolled lock that forced body overflow to 'unset' whenever
- // any dialog closed, and had no Escape handling at all.
- useDialogClose(
-   () => { setIsAdding(false); setEditingClient(null); setFormError(''); },
-   { enabled: isAdding },
- );
+  const can = {
+    collect: !!hasPermission?.('clients', 'edit'),
+    edit: !!hasPermission?.('clients', 'edit'),
+    delete: !!hasPermission?.('clients', 'delete'),
+    create: !!hasPermission?.('clients', 'create'),
+  };
 
- const clientStats = useMemo(() => {
- const stats = {};
- (clients || []).forEach(s => stats[s.id] = { totalSales: 0, orderCount: 0});
+  const [filter, setFilter] = useState('OWING');
+  const [query, setQuery] = useState('');
+  const [panelId, setPanelId] = useState(null);
+  const [collectId, setCollectId] = useState(null);
+  const [remindId, setRemindId] = useState(null);
+  const [deleteId, setDeleteId] = useState(null);
+  // { client: stored record | null } while the add / edit page is open.
+  const [form, setForm] = useState(null);
 
- (sales || []).forEach(sale => {
- if (stats[sale.clientId]) {
- stats[sale.clientId].totalSales += sale.totalAmount;
- stats[sale.clientId].orderCount += 1;
+  const facts = useMemo(() => clientFacts(clients, sales, clientPayments), [clients, sales, clientPayments]);
+  const rows = useMemo(() => clientRows(clients, facts), [clients, facts]);
+  const shown = useMemo(() => filterClientRows(rows, { filter, query }), [rows, filter, query]);
+  const counts = useMemo(() => chipCounts(rows), [rows]);
+  const kpis = useMemo(() => clientKpis(clients, facts, clientPayments, { monthStart: `${today.slice(0, 7)}-01` }), [clients, facts, clientPayments, today]);
+
+  const rowOf = (id) => rows.find((r) => r.id === id) || null;
+  // Edit takes the stored record, never a list row: a row carries the
+  // screen's own _out / _facts keys, which are not columns.
+  const recordOf = (id) => (clients || []).find((c) => c.id === id) || null;
+  const panelRow = rowOf(panelId);
+  const panelSummary = useMemo(() => (panelId ? clientSummary(sales, panelId, today) : null), [sales, panelId, today]);
+
+  const closeForm = () => setForm(null);
+
+  const doDelete = async (c) => {
+    const res = await deleteClient(c.id);
+    if (res && res.success === false) {
+      const f = classifyWriteFailure(res.error, { noun: 'delete' });
+      return f.maySaved ? `Couldn't confirm the delete — it may have gone through. Reload to check. (${f.detail})` : f.detail;
+    }
+    if (panelId === c.id) setPanelId(null);
+    addNotification(`${c.name} was taken off the Clients list.`, 'success');
+    return null;
+  };
+
+  const goAccount = (c) => navigate(`/clients/settle/${c.id}`);
+  const goSale = () => navigate('/sales');
+
+  if (form) {
+    return (
+      <ClientForm client={form.client} addClient={addClient} updateClient={updateClient} onCancel={closeForm}
+        onReread={refetch}
+        onSaved={(how, data) => {
+          addNotification(how === 'added' ? `${data.name} was added.` : 'Changes saved.', 'success');
+          closeForm();
+        }} />
+    );
+  }
+
+  const noClients = !loading && (clients || []).length === 0;
+  const settledCount = counts.ALL - counts.OWING;
+
+  return (
+    <div className="flex flex-col pb-16">
+      <FigureStrip cols={4} className="m-rise mb-5" style={{ '--i': 0 }}>
+        <Figure label="Owed to you" value={money(kpis.receivable, cur)} sub={`${kpis.owingCount} of ${(clients || []).length} clients`} />
+        <Figure label="Overdue 30+ days" value={<span className={kpis.overdue > 0 ? 'text-bad-text' : ''}>{money(kpis.overdue, cur)}</span>}
+          sub={kpis.overdue > 0 ? `on bills over 30 days · ${kpis.overdueCount} client${kpis.overdueCount === 1 ? '' : 's'}` : 'nothing overdue'} />
+        <Figure label="Collected this month" value={<span className={kpis.collected > 0 ? 'text-good-text' : ''}>{money(kpis.collected, cur)}</span>}
+          sub={`${kpis.receipts} receipt${kpis.receipts === 1 ? '' : 's'}`} />
+        <Figure label="Oldest unpaid" value={kpis.oldest != null ? <>{kpis.oldest} <span className="text-[14px] font-medium text-mute">days</span></> : '—'}
+          sub={kpis.oldestName || 'nothing outstanding'} />
+      </FigureStrip>
+
+      {peopleError && <ErrorBar action="Reload" onAction={refetch}>The client list could not be loaded: {peopleError}</ErrorBar>}
+      {paymentsError && <ErrorBar action="Reload" onAction={loadPayments}>Payments could not be loaded, so Collected this month and last activity may be short: {paymentsError.message}</ErrorBar>}
+
+      {noClients ? (
+        <EmptyState icon={Users} title="No clients yet" text="Add the people and shops you sell to on credit, or bring them in from a spreadsheet.">
+          <div className="flex justify-center gap-2">
+            <Button variant="secondary" onClick={() => navigate('/bulk-add?type=clients')}><Upload /> Import</Button>
+            {can.create && <Button onClick={() => setForm({ client: null })}><Plus /> Add client</Button>}
+          </div>
+        </EmptyState>
+      ) : (
+        <>
+          <div className="m-rise mb-3 flex flex-wrap items-center gap-2.5" style={{ '--i': 2 }}>
+            <FilterPills ariaLabel="Show" value={filter} onChange={setFilter}
+              items={FILTERS.map(([key, label]) => ({ key, label, count: counts[key] }))} />
+            <label className="relative w-[300px] max-w-full">
+              <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-mute" />
+              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, contact, phone, GSTIN" className="pl-9" aria-label="Search clients" />
+            </label>
+            <div className="flex-1" />
+            <Button variant="secondary" size="sm" onClick={() => navigate('/bulk-add?type=clients')}><Upload /> Import</Button>
+            {can.create && <Button size="sm" onClick={() => setForm({ client: null })}><Plus /> Add client</Button>}
+          </div>
+
+          <ClientList rows={shown} loading={loading} query={query} filter={filter} selectedId={panelId} cur={cur} can={can}
+            onClearSearch={() => setQuery('')}
+            onOpen={(c) => setPanelId(c.id)}
+            onCollect={(c) => setCollectId(c.id)}
+            onAccount={goAccount}
+            onRemind={(c) => setRemindId(c.id)}
+            onNewSale={goSale}
+            onEdit={(c) => setForm({ client: recordOf(c.id) })}
+            onDelete={(c) => setDeleteId(c.id)} />
+
+          <div className="m-rise mt-2.5 flex flex-wrap justify-between gap-2 px-1 text-[12.5px] text-mute" style={{ '--i': 4 }}>
+            {filter === 'OWING' && <><span>{counts.OWING} client{counts.OWING === 1 ? '' : 's'} owe you · biggest first, then oldest</span>{settledCount > 0 && <span>{settledCount} settled client{settledCount === 1 ? '' : 's'} under All</span>}</>}
+            {filter === 'OVERDUE' && <><span>{counts.OVERDUE} client{counts.OVERDUE === 1 ? '' : 's'} with bills over 30 days old · {money(kpis.overdue, cur)}</span><span>Only what is on those bills counts</span></>}
+            {filter === 'ALL' && <span>{counts.ALL} clients · settled clients show New sale instead of Collect</span>}
+          </div>
+        </>
+      )}
+
+      <ClientPanel row={panelRow} summary={panelSummary} cur={cur} can={can}
+        onClose={() => setPanelId(null)}
+        onCollect={(c) => setCollectId(c.id)}
+        onStatement={goAccount}
+        onRemind={(c) => setRemindId(c.id)}
+        onEdit={(c) => { setPanelId(null); setForm({ client: recordOf(c.id) }); }}
+        onDelete={doDelete} />
+
+      <CollectPaymentDialog client={collectId ? rowOf(collectId) : null} cur={cur} recordClientPayment={recordClientPayment}
+        onClose={() => setCollectId(null)}
+        onReread={async () => { await Promise.all([refetch(), loadPayments()]); }}
+        onDone={({ amount, queued }) => {
+          const c = rowOf(collectId);
+          setCollectId(null);
+          loadPayments();
+          addNotification(queued
+            ? `${money(amount, cur)} from ${c?.name || 'the client'} is saved on this computer and will reach the books when it syncs.`
+            : `Recorded ${money(amount, cur)} from ${c?.name || 'the client'}.`, 'success');
+        }} />
+
+      <ReminderDialog client={remindId ? rowOf(remindId) : null} cur={cur}
+        shopName={businessProfile?.businessName || businessProfile?.name || ''} upi={businessProfile?.upi_id || ''}
+        onClose={() => setRemindId(null)} />
+
+      <DeleteClientDialog client={deleteId ? rowOf(deleteId) : null} cur={cur} onDelete={doDelete} onClose={() => setDeleteId(null)} />
+    </div>
+  );
 }
-});
- return stats;
-}, [sales, clients]);
-
-  const topMetrics = useMemo(() => {
-    let topDebtor = { name: 'None', amount: 0};
-    let topPerformer = { name: 'None', amount: 0};
-    let totalReceivables = 0;
-    let pendingCollections = 0;
-
-    (clients || []).forEach(client => {
-      const stats = clientStats[client.id];
-      const balance = client.outstanding_balance || 0;
-      
-      totalReceivables += balance;
-      if (balance > 0) pendingCollections += 1;
-
-      if (balance > topDebtor.amount) {
-        topDebtor = { name: client.name, amount: balance};
-      }
-      if (stats && stats.totalSales > topPerformer.amount) {
-        topPerformer = { name: client.name, amount: stats.totalSales};
-      }
-    });
-
-    return { topDebtor, topPerformer, totalReceivables, pendingCollections};
-  }, [clients, clientStats]);
-
- const filteredClients = useMemo(() => {
- return (clients || []).filter(client => {
- const matchesSearch = (client.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
- (client.contact || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
- String(client.id || '').toLowerCase().includes(searchTerm.toLowerCase());
- 
- const matchesStatus = statusFilter === 'ALL' || client.status === statusFilter;
-
- const bal = Number(client.outstanding_balance || 0);
- const matchesDue = dueFilter === 'ALL'
-   || (dueFilter === 'DUE' && bal > 0)
-   || (dueFilter === 'CLEARED' && bal <= 0);
-
- return matchesSearch && matchesStatus && matchesDue;
-});
-}, [clients, searchTerm, statusFilter, dueFilter]);
-
-
- const openAdd = () => {
- setEditingClient(null);
- setFormData(EMPTY_FORM);
- setFormError('');
- setIsAdding(true);
-};
-
- const openEdit = (client) => {
- setEditingClient(client);
- setFormData({
-   name:        client.name        || '',
-   contact:     client.contact     || '',
-   phone:       client.phone       || '',
-   email:       client.email       || '',
-   address:     client.address     || '',
-   gstin:       client.gstin       || '',
-   state:       client.state       || '',
-   state_code:  client.state_code  || '',
-   pin_code:    client.pin_code    || '',
-   status:      client.status      || 'ACTIVE',
-   client_type: client.client_type || 'B2C',
-   price_tier:  client.price_tier  || 'RETAIL',
-   credit_days: client.credit_days ?? 0,
-   credit_limit: client.credit_limit ?? 0,
- });
- setIsAdding(true);
-};
-
- const handleSubmit = async (e) => {
-   e.preventDefault();
-   setFormError('');
-   if (!formData.name.trim() || formData.name.trim().length < 2) {
-     setFormError('Business name must be at least 2 characters.');
-     return;
-   }
-   setSaving(true);
-   try {
-     const data = { ...formData };
-     const timeoutPromise = new Promise((_, reject) =>
-       setTimeout(() => reject(new Error('Request timed out. Check your connection.')), 15000)
-     );
-     const savePromise = editingClient
-       ? updateClient({ ...editingClient, ...data })
-       : addClient(data);
-     const { error } = await Promise.race([savePromise, timeoutPromise]);
-     if (error) {
-       setFormError(error.message || 'Failed to save client. Please try again.');
-       return;
-     }
-     setIsAdding(false);
-     setEditingClient(null);
-     setFormData(EMPTY_FORM);
-   } catch (err) {
-     setFormError(err.message || 'An unexpected error occurred.');
-   } finally {
-     setSaving(false);
-   }
- };
-
- const toggleStatus = (client) => {
- const newStatus = client.status === 'INACTIVE' ? 'ACTIVE' : 'INACTIVE';
- updateClient({ ...client, status: newStatus});
-};
-
- // The result used to be discarded and the dialog closed regardless, so a
- // failed delete looked exactly like a successful one -- the client simply
- // reappeared. Await it, and say what went wrong when it does.
- const handleDelete = async (clientId) => {
- const res = await deleteClient(clientId);
- if (res && res.success === false) {
- alert(`The client could not be deleted.\n\n${res.error?.message || 'Unknown error.'}`);
- return;
- }
- setDeleteConfirm(null);
-};
-
- return (
- <>
- <div className="animate-fade-in flex flex-col gap-4 pb-12">
- {/* Header Section */}
- <div className="flex justify-between items-center py-2 border-b border-black/5">
- <div className="flex items-center gap-3">
- <h1 className="text-xl font-black font-sora text-ink-primary leading-none">Clients<span className="text-accent-signature">.</span></h1>
- <span className="text-[10px] font-semibold text-muted-foreground hidden sm:block">Customer network & accounts</span>
- <button onClick={() => { window.location.href = '/bulk-add?type=clients'; }}
-   className="inline-flex items-center gap-1.5 h-8 px-3 rounded-pill bg-white border border-black/[0.08] text-ink-primary text-[11px] font-bold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
-   Bulk Import
- </button>
- </div>
-
- {/* Bulk import moved into the workspace toolbar. */}
- </div>
-
- <ClientWorkspace
-   clients={filteredClients}
-   clientStats={clientStats}
-   sales={sales}
-   clientPayments={clientPayments}
-   businessProfile={businessProfile}
-   openAdd={openAdd}
-   openEdit={openEdit}
-   handleDelete={handleDelete}
-   hasPermission={hasPermission}
- />
- </div>
-
- {/* Client Form — Full-page portal */}
- {isAdding && createPortal(
-   <div className="fixed inset-0 z-50 flex flex-col bg-canvas animate-fade-in">
-
-     {/* ── Top bar ── */}
-     <div className="flex items-center gap-4 px-6 py-4 border-b border-black/5 bg-white shrink-0">
-       <button
-         type="button"
-         onClick={() => { setIsAdding(false); setEditingClient(null); setFormError(''); }}
-         className="w-9 h-9 flex items-center justify-center rounded-xl border border-black/8 hover:bg-canvas transition-all text-ink-primary shrink-0"
-       >
-         <ChevronLeft size={18} />
-       </button>
-       <div className="min-w-0 flex-1">
-         <h1 className="text-lg font-black text-ink-primary leading-tight">
-           {editingClient ? 'Edit Client' : 'New Client'}<span className="text-accent-signature">.</span>
-         </h1>
-         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">
-           {editingClient ? `Editing — ${editingClient.name}` : 'Register a new business account'}
-         </p>
-       </div>
-       <button
-         type="button"
-         onClick={() => { setIsAdding(false); setEditingClient(null); setFormError(''); }}
-         className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-black/5 transition-all text-muted-foreground shrink-0"
-       >
-         <X size={16} />
-       </button>
-     </div>
-
-     {/* ── Body ── */}
-     <div className="flex-1 overflow-y-auto">
-       <form onSubmit={handleSubmit} id="client-form">
-         <div className="max-w-5xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-           {/* ── LEFT: form sections ── */}
-           <div className="lg:col-span-2 space-y-5">
-
-             {/* Section 1 — Basic Info */}
-             <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
-               <div className="px-5 py-3.5 border-b border-black/5 flex items-center gap-2">
-                 <UserCircle size={14} className="text-accent-signature" />
-                 <span className="text-[10px] font-black text-ink-primary uppercase tracking-widest">Basic Information</span>
-               </div>
-               <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                 <div className="sm:col-span-2">
-                   <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Business / Client Name <span className="text-accent-signature">*</span></label>
-                   <input
-                     required
-                     autoFocus
-                     type="text"
-                     placeholder="e.g. Sunrise Traders Pvt Ltd"
-                     className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30"
-                     value={formData.name}
-                     onChange={e => setFormData({...formData, name: e.target.value})}
-                   />
-                 </div>
-                 <div>
-                   <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Contact Person</label>
-                   <input
-                     type="text"
-                     placeholder="e.g. Ramesh Kumar"
-                     className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30"
-                     value={formData.contact}
-                     onChange={e => setFormData({...formData, contact: e.target.value})}
-                   />
-                 </div>
-                 <div>
-                   <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Phone Number</label>
-                   <input
-                     type="tel"
-                     placeholder="9876543210"
-                     className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30 tabular-nums"
-                     value={formData.phone}
-                     onChange={e => setFormData({...formData, phone: e.target.value})}
-                   />
-                 </div>
-                 <div className="sm:col-span-2">
-                   <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Email Address</label>
-                   <input
-                     type="email"
-                     placeholder="billing@client.com"
-                     className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30"
-                     value={formData.email}
-                     onChange={e => setFormData({...formData, email: e.target.value})}
-                   />
-                 </div>
-                 <div className="sm:col-span-2">
-                   <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Address</label>
-                   <input
-                     type="text"
-                     placeholder="Shop / Street / Area / City"
-                     className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30"
-                     value={formData.address}
-                     onChange={e => setFormData({...formData, address: e.target.value})}
-                   />
-                 </div>
-               </div>
-             </div>
-
-             {/* Section 2 — Location */}
-             <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
-               <div className="px-5 py-3.5 border-b border-black/5 flex items-center gap-2">
-                 <MapPin size={14} className="text-accent-signature" />
-                 <span className="text-[10px] font-black text-ink-primary uppercase tracking-widest">Location</span>
-               </div>
-               <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                 <div>
-                   <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">State</label>
-                   <select
-                     className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30 appearance-none"
-                     value={formData.state}
-                     onChange={e => {
-                       const sel = INDIAN_STATES.find(s => s.name === e.target.value);
-                       setFormData({ ...formData, state: e.target.value, state_code: sel ? sel.code : formData.state_code });
-                     }}
-                   >
-                     <option value="">— Select State —</option>
-                     {INDIAN_STATES.map(s => (
-                       <option key={s.code} value={s.name}>{s.name}</option>
-                     ))}
-                   </select>
-                 </div>
-                 <div>
-                   <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Postal / PIN Code</label>
-                   <input
-                     type="text"
-                     maxLength={6}
-                     placeholder="600001"
-                     className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30 tabular-nums"
-                     value={formData.pin_code}
-                     onChange={e => setFormData({...formData, pin_code: e.target.value})}
-                   />
-                 </div>
-               </div>
-             </div>
-
-             {/* Section 3 — GST */}
-             <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
-               <div className="px-5 py-3.5 border-b border-black/5 flex items-center gap-2">
-                 <ShieldCheck size={14} className="text-accent-signature" />
-                 <span className="text-[10px] font-black text-ink-primary uppercase tracking-widest">GST Details</span>
-                 <span className="ml-auto text-[9px] font-semibold text-muted-foreground">Optional</span>
-               </div>
-               <div className="p-5">
-                 <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">GSTIN</label>
-                 <input
-                   type="text"
-                   maxLength={15}
-                   placeholder="22AAAAA0000A1Z5"
-                   className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-black text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30 uppercase tracking-widest"
-                   value={formData.gstin}
-                   onChange={e => setFormData({...formData, gstin: e.target.value.toUpperCase()})}
-                 />
-               </div>
-             </div>
-
-             {/* Section 4 — Account Classification */}
-             <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
-               <div className="px-5 py-3.5 border-b border-black/5 flex items-center gap-2">
-                 <Tag size={14} className="text-accent-signature" />
-                 <span className="text-[10px] font-black text-ink-primary uppercase tracking-widest">Account Classification</span>
-               </div>
-               <div className="p-5 space-y-4">
-                 {/* B2B / B2C */}
-                 <div>
-                   <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Account Type</label>
-                   <div className="grid grid-cols-2 gap-3">
-                     {[
-                       { val: 'B2C', label: 'B2C — Consumer', desc: 'Walk-in / retail customer', icon: '🛒' },
-                       { val: 'B2B', label: 'B2B — Business', desc: 'Company / distributor', icon: '🏢' },
-                     ].map(opt => (
-                       <button
-                         key={opt.val}
-                         type="button"
-                         onClick={() => setFormData({ ...formData, client_type: opt.val })}
-                         className={`flex items-start gap-3 p-4 rounded-pill border-2 text-left transition-all ${
-                           formData.client_type === opt.val
-                             ? 'border-ink-primary bg-ink-primary'
-                             : 'border-black/8 bg-canvas hover:border-black/20'
-                         }`}
-                       >
-                         <span className="text-lg leading-none mt-0.5">{opt.icon}</span>
-                         <div>
-                           <div className={`text-xs font-black ${formData.client_type === opt.val ? 'text-accent-signature' : 'text-ink-primary'}`}>{opt.label}</div>
-                           <div className={`text-[9px] mt-0.5 ${formData.client_type === opt.val ? 'text-white/50' : 'text-muted-foreground'}`}>{opt.desc}</div>
-                         </div>
-                       </button>
-                     ))}
-                   </div>
-                 </div>
-
-                 <div className="grid grid-cols-2 gap-4">
-                   <div>
-                     <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Price Tier</label>
-                     <select
-                       className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30 appearance-none"
-                       value={formData.price_tier}
-                       onChange={e => setFormData({ ...formData, price_tier: e.target.value })}
-                     >
-                       <option value="RETAIL">Retail — Standard</option>
-                       <option value="WHOLESALE">Wholesale — Volume</option>
-                       <option value="DISTRIBUTOR">Distributor — Trade</option>
-                     </select>
-                   </div>
-                   <div>
-                     <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Credit Terms</label>
-                     <select
-                       className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30 appearance-none"
-                       value={formData.credit_days}
-                       onChange={e => setFormData({ ...formData, credit_days: Number(e.target.value) })}
-                     >
-                       {[0, 7, 15, 30, 45, 60, 90].map(d => (
-                         <option key={d} value={d}>{d === 0 ? 'Cash on delivery' : `Net ${d} days`}</option>
-                       ))}
-                     </select>
-                   </div>
-                   {/* The column, the utilisation bar and the "Approved Credit
-                       Limit" report column have all existed for months with no
-                       way to SET the number they display. This is that input.
-                       0 is no limit, which is what every client in production
-                       is on, and is what the POS treats as unlimited. */}
-                   <div>
-                     <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Credit Limit</label>
-                     <input
-                       type="number" min="0" step="1" inputMode="decimal"
-                       className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30"
-                       placeholder="0 — no limit"
-                       value={formData.credit_limit}
-                       onChange={e => setFormData({ ...formData, credit_limit: e.target.value === '' ? 0 : Number(e.target.value) })}
-                     />
-                     <p className="text-[10px] text-muted-foreground mt-1">
-                       Leave 0 for no limit. Above this, a credit sale is refused at the till.
-                     </p>
-                   </div>
-                 </div>
-               </div>
-             </div>
-
-             {formError && (
-               <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-semibold">
-                 <AlertCircle size={15} className="shrink-0" />
-                 {formError}
-               </div>
-             )}
-           </div>
-
-           {/* ── RIGHT: live preview card + save ── */}
-           <div className="space-y-4 lg:sticky lg:top-8 lg:self-start">
-             {/* Preview card */}
-             <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
-               <div className="px-5 py-3.5 border-b border-black/5">
-                 <span className="text-[10px] font-black text-ink-primary uppercase tracking-widest">Preview</span>
-               </div>
-               <div className="p-5 space-y-4">
-                 {/* Avatar + name */}
-                 <div className="flex items-center gap-3">
-                   <div className="w-12 h-12 rounded-2xl bg-accent-signature/10 border border-accent-signature/20 flex items-center justify-center text-xl font-black text-ink-primary shrink-0">
-                     {formData.name ? formData.name.charAt(0).toUpperCase() : '?'}
-                   </div>
-                   <div className="min-w-0">
-                     <div className="text-sm font-black text-ink-primary truncate">{formData.name || <span className="text-muted-foreground font-medium">Client name</span>}</div>
-                     <div className="text-[10px] text-muted-foreground mt-0.5">{formData.contact || <span className="text-muted-foreground">Contact person</span>}</div>
-                   </div>
-                 </div>
-
-                 <div className="space-y-2">
-                   {formData.phone && (
-                     <div className="flex items-center gap-2 text-xs text-ink-secondary">
-                       <Phone size={11} className="text-muted-foreground shrink-0" />
-                       <span className="tabular-nums">{formData.phone}</span>
-                     </div>
-                   )}
-                   {formData.email && (
-                     <div className="flex items-center gap-2 text-xs text-ink-secondary">
-                       <Mail size={11} className="text-muted-foreground shrink-0" />
-                       <span className="truncate">{formData.email}</span>
-                     </div>
-                   )}
-                   {formData.address && (
-                     <div className="flex items-center gap-2 text-xs text-ink-secondary">
-                       <MapPin size={11} className="text-muted-foreground shrink-0" />
-                       <span className="truncate">{formData.address}</span>
-                     </div>
-                   )}
-                   {formData.state && (
-                     <div className="flex items-center gap-2 text-xs text-ink-secondary">
-                       <Building2 size={11} className="text-muted-foreground shrink-0" />
-                       <span>{formData.state}{formData.pin_code ? ` — ${formData.pin_code}` : ''}</span>
-                     </div>
-                   )}
-                 </div>
-
-                 <div className="border-t border-black/5 pt-3 flex flex-wrap gap-1.5">
-                   <span className={`px-2.5 py-1 rounded-full text-[9px] font-black border ${
-                     formData.client_type === 'B2B'
-                       ? 'bg-blue-50 text-blue-700 border-blue-200'
-                       : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                   }`}>{formData.client_type}</span>
-                   <span className="px-2.5 py-1 rounded-full text-[9px] font-black bg-white border border-border shadow-sm text-ink-secondary">{formData.price_tier}</span>
-                   {formData.credit_days > 0 && (
-                     <span className="px-2.5 py-1 rounded-full text-[9px] font-black bg-orange-50 border border-orange-200 text-orange-700">Net {formData.credit_days}</span>
-                   )}
-                   {formData.gstin && (
-                     <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black bg-purple-50 border border-purple-200 text-purple-700">
-                       <ShieldCheck size={8} /> GST
-                     </span>
-                   )}
-                 </div>
-               </div>
-             </div>
-
-             {/* Save / Cancel */}
-             <button
-               type="submit"
-               form="client-form"
-               disabled={saving}
-               className="w-full btn-signature !h-14 !text-sm flex items-center justify-center gap-3 disabled:opacity-60 disabled:cursor-not-allowed"
-             >
-               {saving
-                 ? <><Loader2 size={18} className="animate-spin" /> Saving…</>
-                 : <>{editingClient ? 'Save Changes' : 'Add Client'}<div className="icon-nest !w-9 !h-9 ml-2"><Save size={18} /></div></>
-               }
-             </button>
-             <button
-               type="button"
-               onClick={() => { setIsAdding(false); setEditingClient(null); setFormError(''); }}
-               className="w-full py-3 rounded-pill border border-black/10 text-xs font-semibold text-muted-foreground hover:bg-black/5 transition-all"
-             >
-               Cancel
-             </button>
-           </div>
-
-         </div>
-       </form>
-     </div>
-   </div>,
-   document.body
- )}
-
- </>
- );
-};
-
-export default Clients;

@@ -6,11 +6,12 @@ import { useSales } from '../../hooks/useSales';
 import { useInventory } from '../../hooks/useInventory';
 import { usePeople } from '../../hooks/usePeople';
 import { useNotifications } from '../../context/NotificationContext';
-import { ShoppingCart, History, Plus, ReceiptText, TrendingUp, Receipt, BarChart2, LayoutGrid } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { generateRef, formatCurrency, todayISOInAppTZ } from '../../lib/utils';
-import Button from '../../shared/Button';
-import SegmentedTabs from '../../components/motion/SegmentedTabs';
-import Modal from '../../shared/Modal';
+import { Button } from '../../components/ui/button';
+import { Tabs } from '../../components/ui/Tabs';
+import Dialog from '../../components/ui/Dialog';
+import TopBarSlot from '../../components/TopBarSlot';
 import InvoiceBuilder from './components/InvoiceBuilder';
 import InvoiceList from './components/InvoiceList';
 import SalePrintDispatcher from './components/SalePrintDispatcher';
@@ -24,6 +25,10 @@ import { printKOT } from '../../lib/kotPrint';
 import { deductRecipeIngredients } from '../../lib/recipeDeduct';
 import { calculateGST } from '../../lib/gstEngine';
 import { supabase } from '../../lib/supabase';
+import { readHandoff, saleIsConversion, markFailedWords } from '../../lib/convertHandoff';
+import { classifyWriteFailure } from '../../lib/writeOutcome';
+import { useEstimates } from '../../hooks/useEstimates';
+import { useOrders } from '../../hooks/useOrders';
 
 const SalesPage = () => {
   // Maximize window to full-screen in Electron (POS kiosk mode).
@@ -45,23 +50,23 @@ const SalesPage = () => {
   // Non-restaurant tenants have no floor tables — skip that fetch entirely.
   const tablesApi = useTables(currentTenantId, isResto);
 
-  // Estimate → POS handoff: read items stashed by the Estimates page, map them
-  // to InvoiceBuilder cart lines, consume the stash once.
-  const [estimateCart] = useState(() => {
+  // Estimate / order → POS handoff: read items stashed by the Estimates or
+  // Orders page, map them to InvoiceBuilder cart lines, consume the stash
+  // once (lib/convertHandoff). The estimate is marked Billed, or the order
+  // moved to Invoiced, only after the sale is saved (convertAddSale below).
+  const [handoff] = useState(() => {
     try {
       const raw = sessionStorage.getItem('estimate_cart');
       if (!raw) return null;
       sessionStorage.removeItem('estimate_cart');
-      const { items } = JSON.parse(raw);
-      if (!Array.isArray(items) || !items.length) return null;
-      return items.map(it => ({
-        uid: it.id, productId: it.id, name: it.name,
-        basePrice: Number(it.rate) || 0, price: Number(it.rate) || 0,
-        quantity: Number(it.qty) || 1, taxRate: Number(it.taxRate) || 0,
-        modifiers: [], modLabel: null,
-      }));
+      return readHandoff(raw);
     } catch { return null; }
   });
+  const estimateCart = handoff?.cart || null;
+  const [convertSource, setConvertSource] = useState(() => handoff?.source || null);
+  // Only load estimates / orders when there is one to mark.
+  const { setStatus: setEstimateStatus } = useEstimates(convertSource?.kind === 'estimate' ? currentTenantId : null);
+  const { advanceStatus: advanceOrderStatus } = useOrders(convertSource?.kind === 'order' ? currentTenantId : null);
   const { createTicket } = useKOT(currentTenantId);
   // The table whose tab is currently open in the builder (restaurant only).
   const [activeTable, setActiveTable] = useState(null); // { table, tab }
@@ -83,7 +88,7 @@ const SalesPage = () => {
   const handleReverseReturn = async (returnId) => {
     const { error } = await reverseSalesReturn(returnId);
     if (error) { addNotification('Undo failed: ' + error.message, 'error'); return; }
-    addNotification('Return undone — stock re-deducted, sale editable again.', 'success');
+    addNotification('Return undone. Stock re-deducted, the sale can be edited again.', 'success');
   };
 
   // Wrap placeSale: auto-create invoice for credit sales (settlement) and
@@ -182,13 +187,38 @@ const SalesPage = () => {
     refetchInventory();
     return result;
   };
+
+  // A sale rung from an estimate or order: save the sale first; only when it
+  // saved, mark the estimate Billed / move the order to Invoiced. A failed
+  // mark never fails the sale: it is said plainly, with the server's reason.
+  const convertAddSale = async (saleData) => {
+    const result = await addSale(saleData);
+    if (result?.error || !saleIsConversion(convertSource, saleData)) return result;
+    const src = convertSource;
+    setConvertSource(null); // one sale per handoff
+    const saleId = result?.id || saleData.id || null;
+    let res;
+    try {
+      res = src.kind === 'estimate'
+        ? await setEstimateStatus(src.id, 'CONVERTED', saleId ? { converted_sale_id: saleId } : {})
+        : await advanceOrderStatus(src.id, 'INVOICED', { saleId });
+    } catch (e) { res = { error: e }; }
+    if (res?.error) {
+      const f = classifyWriteFailure(res.error, { noun: 'status' });
+      const why = f.maySaved ? `${f.title}. It may have been saved; check before trying again. ${f.detail}` : f.detail;
+      console.error('[convert] marking billed failed', res.error);
+      addNotification(markFailedWords(src, why), 'error', 10000);
+    }
+    return result;
+  };
   const { products, inventoryBalances, inventoryLocations, loading: productsLoading, refetch: refetchInventory } = useInventory(currentTenantId);
   // Stores where POS sales are rung (warehouses/branches, not vehicles).
   const posStores = (inventoryLocations || []).filter(l => (l.type || 'WAREHOUSE') !== 'VEHICLE' && !l.deleted_at);
   const { users: staff = [], recordClientPayment } = usePeople(currentTenantId);
 
-  const [activeTab, setActiveTab] = useState('pos'); // 'tables' | 'pos' | 'history'
-  const [historyView, setHistoryView] = useState('sales'); // 'sales' | 'returns'
+  const [activeTab, setActiveTab] = useState('pos'); // 'tables' | 'pos' | 'history' | 'returns'
+  // The builder's full-page checkout is open (the tabs step aside for it).
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [printingSale, setPrintingSale] = useState(null);
   const [returnSale, setReturnSale] = useState(null);
   const [returnLoading, setReturnLoading] = useState(false);
@@ -276,7 +306,7 @@ const SalesPage = () => {
     setReturnLoading(false);
     if (error) { addNotification('Return failed: ' + error.message, 'error'); return; }
     setReturnSale(null);
-    addNotification('Return processed — stock restored.', 'success');
+    addNotification('Return processed, stock restored.', 'success');
   };
 
   // Fast-moving products — rank by total quantity sold over the recent
@@ -323,49 +353,44 @@ const SalesPage = () => {
 
   if (isLoading && !loadTimeout) return <PageSkeleton cards={3} rows={8} />;
 
+  // Today's figures sit in the shell's top bar (TopBarSlot); between the
+  // phone and desktop widths the top bar is hidden, so they show above the
+  // tabs there instead, as they did before.
+  const todayFigures = (
+    <div className="flex items-center gap-3.5 text-[12.5px] text-body whitespace-nowrap [&>span+span]:pl-3.5 [&>span+span]:border-l [&>span+span]:border-sep" title="Today so far">
+      <span>Today <b className="font-tight text-[13px] font-semibold text-ink tabular-nums">{formatCurrency(todayStats.revenue)}</b></span>
+      <span><b className="font-tight text-[13px] font-semibold text-ink tabular-nums">{todayStats.count}</b> {todayStats.count === 1 ? 'bill' : 'bills'}</span>
+      {todayStats.count > 0 && (
+        <span>avg <b className="font-tight text-[13px] font-semibold text-ink tabular-nums">{formatCurrency(todayStats.avg)}</b></span>
+      )}
+    </div>
+  );
+
+  const tabItems = [
+    ...(isResto ? [{ key: 'tables', label: 'Tables' }] : []),
+    { key: 'pos', label: isResto ? 'Order' : 'New sale' },
+    { key: 'history', label: 'History', count: (sales || []).length.toLocaleString('en-IN') },
+    { key: 'returns', label: 'Returns', count: (salesReturns || []).length.toLocaleString('en-IN') },
+  ];
+
   return (
-    <div className="animate-fade-in flex flex-col gap-2">
-      <div className="flex justify-between items-center py-2 border-b border-border/60">
-        <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-base font-semibold text-foreground tracking-tight">
-            {activeTab === 'tables' ? 'Tables' : activeTab === 'pos' ? (isResto ? 'Order' : 'Sales') : 'History'}
-          </h1>
-          {/* Today's live stats */}
-          <div className="hidden sm:flex items-center gap-1.5">
-            <div className="flex items-center gap-1.5 bg-card border border-border text-foreground px-2.5 py-1 rounded-lg h-7">
-              <TrendingUp size={10} className="text-emerald-500 shrink-0" />
-              <span className="text-[10px] font-semibold">{formatCurrency(todayStats.revenue)}</span>
-              <span className="text-[9px] font-medium text-muted-foreground">today</span>
-            </div>
-            <div className="flex items-center gap-1.5 bg-card border border-border text-foreground px-2.5 py-1 rounded-lg h-7">
-              <Receipt size={10} className="opacity-40 shrink-0" />
-              <span className="text-[10px] font-semibold">{todayStats.count}</span>
-              <span className="text-[9px] font-medium text-muted-foreground">txns</span>
-            </div>
-            {todayStats.count > 0 && (
-              <div className="flex items-center gap-1.5 bg-card border border-border text-foreground px-2.5 py-1 rounded-lg h-7">
-                <BarChart2 size={10} className="opacity-40 shrink-0" />
-                <span className="text-[10px] font-semibold">{formatCurrency(todayStats.avg)}</span>
-                <span className="text-[9px] font-medium text-muted-foreground">avg</span>
-              </div>
-            )}
-          </div>
-        </div>
-        <SegmentedTabs
+    <div className="flex flex-col">
+      <TopBarSlot>{todayFigures}</TopBarSlot>
+      <div className="hidden sm:flex md:hidden mb-3">{todayFigures}</div>
+
+      {/* Checkout takes the page over, as in the approved design: the tabs
+          step aside while it is open and come back with "Back to cart". */}
+      {!checkoutOpen && (
+        <Tabs
+          ariaLabel="Sales"
+          className="m-rise mb-[18px] -mt-1 overflow-x-auto no-scrollbar"
+          items={tabItems}
           value={activeTab}
           onChange={(k) => { if (k === 'tables') setActiveTable(null); setActiveTab(k); }}
-          trackClass="bg-canvas shadow-inner"
-          indicatorClass="bg-accent-signature shadow-lg"
-          activeClass="text-button-text"
-          items={[
-            ...(isResto ? [{ key: 'tables', label: 'Tables', icon: LayoutGrid }] : []),
-            { key: 'pos', label: isResto ? 'Order' : 'New Sale', icon: ShoppingCart },
-            { key: 'history', label: 'History', icon: History },
-          ]}
         />
-      </div>
+      )}
 
-<div>
+      <div>
         {isResto && activeTab === 'tables' ? (
           <TablesFloor
             tables={tablesApi.tables}
@@ -381,20 +406,25 @@ const SalesPage = () => {
           />
         ) : activeTab === 'pos' ? (
           <>
-            {isResto && activeTable && (
-              <div className="flex items-center justify-between mb-2 px-4 py-2 rounded-xl bg-accent-signature/10 border border-accent-signature/25">
-                <span className="text-sm font-semibold text-foreground">Table {activeTable.table.label}</span>
-                <button onClick={() => { setActiveTable(null); setActiveTab('tables'); }}
-                  className="text-[12px] font-semibold text-accent-signature-hover hover:underline">← Back to floor</button>
+            {isResto && activeTable && !checkoutOpen && (
+              <div className="m-rise flex items-center justify-between gap-3 mb-3 px-4 py-2.5 rounded-xl bg-amber-soft">
+                <span className="font-tight text-[13.5px] font-semibold text-ink">Table {activeTable.table.label}</span>
+                <Button variant="link" size="xs" className="px-0"
+                  onClick={() => { setActiveTable(null); setActiveTab('tables'); }}>
+                  <ChevronLeft /> Back to floor
+                </Button>
               </div>
             )}
-            {editingSale && (
-              <div className="flex items-center justify-between mb-2 px-4 py-2 rounded-xl bg-accent-signature/10 border border-accent-signature/25">
-                <span className="text-sm font-semibold text-foreground">
-                  Editing sale #{String(editingSale.id).split('-').pop()} — stock & balance re-sync on save
+            {editingSale && !checkoutOpen && (
+              <div className="m-rise flex items-center justify-between gap-3 mb-3 px-4 py-2.5 rounded-xl bg-amber-soft">
+                <span className="text-[13px] text-ink-2">
+                  <b className="font-tight font-semibold text-ink">Editing sale #{String(editingSale.id).split('-').pop()}</b>
+                  <span className="text-body">, stock and balance re-sync on save</span>
                 </span>
-                <button onClick={() => { setEditingSale(null); setActiveTab('history'); }}
-                  className="text-[12px] font-semibold text-accent-signature-hover hover:underline">Cancel edit</button>
+                <Button variant="secondary" size="xs" className="bg-surface"
+                  onClick={() => { setEditingSale(null); setActiveTab('history'); }}>
+                  Cancel edit
+                </Button>
               </div>
             )}
             <InvoiceBuilder
@@ -402,13 +432,14 @@ const SalesPage = () => {
               products={products}
               inventoryBalances={inventoryBalances}
               clients={clients}
-              onPlaceSale={editingSale ? handleEditSale : (isResto && activeTable ? placeTableSale : addSale)}
+              onPlaceSale={editingSale ? handleEditSale : (isResto && activeTable ? placeTableSale : (convertSource ? convertAddSale : addSale))}
               currentTenantId={currentTenantId}
               taxMode={businessProfile?.tax_mode || 'EXCLUSIVE'}
               businessProfile={businessProfile}
               topSellingIds={topSellingIds}
               stores={posStores}
               initialCart={editCart || activeTable?.tab?.cart || estimateCart || null}
+              initialClientId={!editingSale && !activeTable && handoff?.clientId && (clients || []).some(c => c.id === handoff.clientId) ? handoff.clientId : null}
               onCartChange={isResto && activeTable ? persistTabCart : null}
               tableLabel={activeTable?.table?.label || null}
               onSendKOT={isResto && activeTable ? sendTableKOT : null}
@@ -418,50 +449,39 @@ const SalesPage = () => {
               editMeta={editMeta}
               onEditDone={() => { setEditingSale(null); setActiveTab('history'); }}
               onRecordPayment={recordClientPayment}
+              onCheckoutChange={setCheckoutOpen}
             />
           </>
+        ) : activeTab === 'history' ? (
+          <InvoiceList
+            sales={sales}
+            clients={clients}
+            staff={staff}
+            products={products}
+            invoices={invoices}
+            returnedSaleIds={returnedSaleIds}
+            onDelete={removeSale}
+            onSettle={settleSale}
+            onPrint={printSale}
+            onReturn={setReturnSale}
+            onEdit={startEdit}
+            onDispatch={dispatchSale}
+            onConvertToInvoice={(sale) => setConvertSale(sale)}
+          />
         ) : (
-          <>
-            {/* Sales / Returns sub-tabs */}
-            <div className="mb-3">
-              <SegmentedTabs
-                value={historyView}
-                onChange={setHistoryView}
-                trackClass="bg-canvas"
-                indicatorClass="bg-foreground"
-                activeClass="text-background"
-                items={[{ key: 'sales', label: `Sales ${sales.length}` }, { key: 'returns', label: `Returns ${salesReturns.length}` }]}
-              />
-            </div>
-            {historyView === 'sales' ? (
-              <InvoiceList
-                sales={sales}
-                clients={clients}
-                staff={staff}
-                products={products}
-                invoices={invoices}
-                returnedSaleIds={returnedSaleIds}
-                onDelete={removeSale}
-                onSettle={settleSale}
-                onPrint={printSale}
-                onReturn={setReturnSale}
-                onEdit={startEdit}
-                onDispatch={dispatchSale}
-                onConvertToInvoice={(sale) => setConvertSale(sale)}
-              />
-            ) : (
-              <SalesReturnsList returns={salesReturns} onReverse={handleReverseReturn} />
-            )}
-          </>
+          <SalesReturnsList returns={salesReturns} onReverse={handleReverseReturn} />
         )}
       </div>
 
       {/* Convert to GST Invoice Modal — collects customer/GSTIN before RPC */}
-      <Modal
-        isOpen={!!convertSale}
+      <Dialog
+        open={!!convertSale}
         onClose={() => !convertSubmitting && setConvertSale(null)}
-        title="Issue GST Tax Invoice"
-        subtitle={convertSale ? `From sale ${convertSale.id?.slice(0, 12) || ''}` : ''}
+        width={540}
+        title="Issue GST tax invoice"
+        subtitle={convertSale
+          ? `From sale ${convertSale.id?.slice(0, 12) || ''} · ${formatCurrency(convertSale.totalAmount ?? convertSale.total_amount ?? 0)}`
+          : ''}
       >
         {convertSale && (
           <ConvertToInvoiceSheet
@@ -534,14 +554,14 @@ const SalesPage = () => {
             }}
           />
         )}
-      </Modal>
+      </Dialog>
 
       {/* Sales Return Modal */}
-      <Modal
-        isOpen={!!returnSale}
+      <Dialog
+        open={!!returnSale}
         onClose={() => setReturnSale(null)}
-        title="Process Sales Return"
-        subtitle="Credit note — stock will be restocked"
+        title="Return items"
+        subtitle="Credit note. Returned items go back into stock."
       >
         {returnSale && (
           <SalesReturnForm
@@ -550,9 +570,10 @@ const SalesPage = () => {
             products={products}
             onSave={handleSalesReturn}
             loading={returnLoading}
+            onCancel={() => setReturnSale(null)}
           />
         )}
-      </Modal>
+      </Dialog>
 
       {printingSale && (
         <SalePrintDispatcher

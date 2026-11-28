@@ -455,21 +455,25 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
   return createPortal(
     <div
       id="pos-receipt-portal"
-      className="fixed inset-0 z-[70] flex flex-col items-center bg-black/80 backdrop-blur-sm overflow-y-auto pb-8"
+      className="fixed inset-0 z-[70] flex flex-col items-center bg-[#E6E5E2] overflow-y-auto pb-8"
     >
-      {/* Toolbar — sticky so Print/Close stay reachable on long receipts */}
-      <div className="print-hidden sticky top-0 z-10 w-full flex items-center justify-center gap-3 py-4 mb-2 bg-black/60 backdrop-blur-md">
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-pill font-black text-[11px] uppercase tracking-widest hover:scale-105 transition-all shadow-xl"
-        >
-          <Printer size={16} /> PRINT RECEIPT
+      {/* Toolbar (web redesign, approved invoices-07). Sticky so Print and
+          Close stay reachable on long receipts. */}
+      <div className="print-hidden sticky top-0 z-10 w-full flex items-center gap-2.5 px-[18px] py-3 mb-[26px] bg-surface border-b border-sep text-ink">
+        <button type="button" onClick={onClose} aria-label="Close" title="Close"
+          className="m-press grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-well text-ink-2 hover:bg-[#E8E8E7]">
+          <X size={14} />
         </button>
-        <button
-          onClick={onClose}
-          className="w-10 h-10 rounded-xl bg-white/10 text-white hover:bg-white/20 flex items-center justify-center transition-all"
-        >
-          <X size={18} />
+        <div className="min-w-0">
+          <h2 className="font-tight text-[16px] font-semibold tracking-[-0.01em]">POS Receipt</h2>
+          <p className="truncate text-[12px] text-mute">
+            {[invoice?.invoice_number || invoice?.id?.split('-').pop(), cli?.name].filter(Boolean).join(' · ')}
+          </p>
+        </div>
+        <span className="flex-1" />
+        <button type="button" onClick={() => window.print()}
+          className="m-press inline-flex h-9 items-center gap-[7px] whitespace-nowrap rounded-pill bg-ink px-4 font-tight text-[13px] font-semibold text-white hover:bg-[#2A2F35]">
+          <Printer size={15} /> Print receipt
         </button>
       </div>
       {sheet}

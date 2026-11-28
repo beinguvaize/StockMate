@@ -40,30 +40,30 @@ const StepChart = ({ rows, sellingPrice }) => {
       aria-label={`Cost per unit from ${inr(pts[0].unitCost)} to ${inr(last.unitCost)}`}>
       {ticks.map((v) => (
         <g key={v}>
-          <line x1={L} x2={W - R} y1={y(v)} y2={y(v)} stroke="var(--color-border)" strokeWidth="1" />
-          <text x={L - 6} y={y(v) + 3} textAnchor="end" fontSize="10" fill="var(--color-muted-foreground)">{inr(v)}</text>
+          <line x1={L} x2={W - R} y1={y(v)} y2={y(v)} stroke="var(--color-sep)" strokeWidth="1" />
+          <text x={L - 6} y={y(v) + 3} textAnchor="end" fontSize="10" fill="var(--color-mute)">{inr(v)}</text>
         </g>
       ))}
       {sellingPrice > 0 && (
         <g>
-          <line x1={L} x2={W - R} y1={y(sellingPrice)} y2={y(sellingPrice)} stroke="var(--color-pos)" strokeWidth="1" strokeDasharray="4 3" />
-          <text x={W - R} y={y(sellingPrice) - 4} textAnchor="end" fontSize="10" fill="var(--color-pos)">Selling {inr(sellingPrice)}</text>
+          <line x1={L} x2={W - R} y1={y(sellingPrice)} y2={y(sellingPrice)} stroke="var(--color-good-text)" strokeWidth="1" strokeDasharray="4 3" />
+          <text x={W - R} y={y(sellingPrice) - 4} textAnchor="end" fontSize="10" fill="var(--color-good-text)">Selling {inr(sellingPrice)}</text>
         </g>
       )}
-      <path d={path} fill="none" stroke="var(--color-accent-signature)" strokeWidth="2" strokeLinejoin="round" />
+      <path d={path} fill="none" stroke="var(--color-amber)" strokeWidth="2" strokeLinejoin="round" />
       {pts.map((p) => (
-        <circle key={p.id} cx={x(p.date)} cy={y(p.unitCost)} r="2.5" fill="var(--color-accent-signature)" />
+        <circle key={p.id} cx={x(p.date)} cy={y(p.unitCost)} r="2.5" fill="var(--color-amber)" />
       ))}
-      <text x={L} y={H - 6} fontSize="10" fill="var(--color-muted-foreground)">{day(pts[0].date)}</text>
-      <text x={W - R} y={H - 6} textAnchor="end" fontSize="10" fill="var(--color-muted-foreground)">{day(last.date)}</text>
+      <text x={L} y={H - 6} fontSize="10" fill="var(--color-mute)">{day(pts[0].date)}</text>
+      <text x={W - R} y={H - 6} textAnchor="end" fontSize="10" fill="var(--color-mute)">{day(last.date)}</text>
     </svg>
   );
 };
 
 const Stat = ({ label, value, tone }) => (
-  <div className="flex flex-col gap-0.5">
-    <span className="text-[11px] text-muted-foreground">{label}</span>
-    <span className={`text-[15px] font-semibold tabular-nums ${tone || 'text-foreground'}`}>{value}</span>
+  <div className="rounded-[10px] bg-tile px-3 py-[9px]">
+    <span className="block text-[11.5px] text-body">{label}</span>
+    <b className={`mt-0.5 block font-tight text-[15px] font-semibold tabular-nums ${tone || 'text-ink'}`}>{value}</b>
   </div>
 );
 
@@ -73,40 +73,39 @@ const PriceHistory = ({ product, purchases }) => {
   const sell = Number(product?.sellingPrice) || 0;
 
   if (!h.stats) {
-    return <p className="text-[13px] text-muted-foreground py-6 text-center">This item has not been bought yet.</p>;
+    return <p className="py-6 text-center text-[13px] text-body">This item has not been bought yet.</p>;
   }
 
   const margin = sell > 0 ? ((sell - h.stats.last) / sell) * 100 : null;
 
   return (
-    <div className="flex flex-col gap-5" data-testid="price-history">
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+    <div className="flex flex-col gap-3" data-testid="price-history">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
         <Stat label="Last bought at" value={inr(h.stats.last)} />
         <Stat label="Lowest" value={inr(h.stats.lowest)} />
         <Stat label="Highest" value={inr(h.stats.highest)} />
         <Stat label="Average (by qty)" value={inr(h.stats.average)} />
         <Stat label={sell > 0 ? `Margin at ${inr(sell)}` : 'Margin'}
           value={margin === null ? '—' : `${margin.toFixed(1)}%`}
-          tone={margin !== null && margin <= 0 ? 'text-[color:var(--color-neg)]' : undefined} />
+          tone={margin !== null && margin <= 0 ? 'text-bad-text' : undefined} />
       </div>
 
       <StepChart rows={h.rows} sellingPrice={sell} />
 
       {h.suppliers.length > 1 && (
         <div>
-          <h4 className="text-[12px] font-semibold text-ink-secondary mb-2">By supplier, latest price</h4>
-          <ul className="flex flex-col divide-y divide-black/[0.04] rounded-xl border border-border/60" data-testid="price-history-suppliers">
+          <span className="mb-1.5 block font-tight text-[12.5px] font-semibold text-ink-2">By supplier, latest price</span>
+          <ul className="flex flex-col rounded-xl shadow-[inset_0_0_0_1px_var(--color-line)]" data-testid="price-history-suppliers">
             {h.suppliers.map((s) => (
-              <li key={s.supplierId} className="flex items-center justify-between px-3 py-2 text-[12px]">
-                <span className="font-semibold text-foreground">
+              <li key={s.supplierId} className="flex items-center justify-between gap-3 border-t border-sep px-3 py-2 text-[12.5px] first:border-t-0">
+                <span className="font-semibold text-ink">
                   {s.supplierName || 'Unknown supplier'}
                   {s.cheapest && (
-                    <span className="ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded text-[color:var(--color-pos)]"
-                      style={{ background: 'color-mix(in oklab, var(--color-pos) 12%, transparent)' }}>Cheapest</span>
+                    <span className="ml-1.5 rounded-pill bg-good-soft px-[7px] py-px font-tight text-[11px] font-semibold text-good-text">Cheapest</span>
                   )}
                 </span>
-                <span className="tabular-nums text-muted-foreground">
-                  <span className="font-semibold text-foreground">{inr(s.lastCost)}</span> · {day(s.lastDate)} · {s.count} purchase{s.count > 1 ? 's' : ''}
+                <span className="text-[12px] text-mute tabular-nums">
+                  <b className="font-tight font-semibold text-ink">{inr(s.lastCost)}</b> · {day(s.lastDate)} · {s.count} purchase{s.count > 1 ? 's' : ''}
                 </span>
               </li>
             ))}
@@ -114,29 +113,29 @@ const PriceHistory = ({ product, purchases }) => {
         </div>
       )}
 
-      <div className="rounded-xl border border-border/60 overflow-x-auto max-h-72 overflow-y-auto">
-        <table className="w-full text-[12px] tabular-nums">
-          <thead className="bg-canvas text-ink-secondary sticky top-0">
-            <tr className="text-left">
+      <div className="max-h-72 overflow-x-auto overflow-y-auto rounded-xl shadow-[inset_0_0_0_1px_var(--color-line)]">
+        <table className="w-full border-collapse text-[12.5px] tabular-nums">
+          <thead className="sticky top-0 bg-tile">
+            <tr className="text-left font-tight text-[11.5px] text-mute">
               <th className="px-3 py-2 font-semibold">Date</th>
               <th className="px-3 py-2 font-semibold">Supplier</th>
-              <th className="px-3 py-2 font-semibold text-right">Qty</th>
-              <th className="px-3 py-2 font-semibold text-right">Cost each</th>
-              <th className="px-3 py-2 font-semibold text-right">Change</th>
+              <th className="px-3 py-2 text-right font-semibold">Qty</th>
+              <th className="px-3 py-2 text-right font-semibold">Cost each</th>
+              <th className="px-3 py-2 text-right font-semibold">Change</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-black/[0.04]">
+          <tbody>
             {h.rows.map((r) => (
-              <tr key={r.id} data-testid="price-history-row">
-                <td className="px-3 py-2 whitespace-nowrap">{day(r.date)}</td>
+              <tr key={r.id} data-testid="price-history-row" className="border-t border-sep">
+                <td className="whitespace-nowrap px-3 py-2">{day(r.date)}</td>
                 <td className="px-3 py-2">{r.supplierName || '—'}</td>
-                <td className="px-3 py-2 text-right">{r.quantity.toLocaleString('en-IN')}{product?.unit ? ` ${product.unit}` : ''}</td>
-                <td className="px-3 py-2 text-right font-semibold">{inr(r.unitCost)}</td>
+                <td className="px-3 py-2 text-right font-tight">{r.quantity.toLocaleString('en-IN')}{product?.unit ? ` ${product.unit}` : ''}</td>
+                <td className="px-3 py-2 text-right font-tight font-medium">{inr(r.unitCost)}</td>
                 <td className="px-3 py-2 text-right">
                   {r.change === null || Math.abs(r.change) < 0.005
-                    ? <span className="text-muted-foreground">{r.change === null ? 'First' : 'Same'}</span>
+                    ? <span className="text-mute">{r.change === null ? 'First' : 'Same'}</span>
                     : (
-                      <span className={`inline-flex items-center gap-1 font-semibold ${r.change > 0 ? 'text-[color:var(--color-neg)]' : 'text-[color:var(--color-pos)]'}`}>
+                      <span className={`inline-flex items-center gap-1 font-tight font-semibold ${r.change > 0 ? 'text-bad-text' : 'text-good-text'}`}>
                         {r.change > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                         {r.pct > 0 ? '+' : ''}{r.pct.toFixed(1)}%
                       </span>
