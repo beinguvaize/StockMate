@@ -3,6 +3,9 @@ import { formatCurrency } from '../../../lib/utils';
 import { priceCheck } from '../lib/priceCheck';
 import PriceCheckDialog from './PriceCheckDialog';
 import { useFocusAfterDialog } from '../lib/useFocusAfterDialog';
+import { AlertTriangle, Plus, X } from 'lucide-react';
+import { Button } from '../../../components/ui/button';
+import { lbl, field, fieldSm, footRow } from '../lib/ui';
 
 /**
  * Edit a whole bill: the header once, every line beneath it.
@@ -26,6 +29,7 @@ import { useFocusAfterDialog } from '../lib/useFocusAfterDialog';
  * to keep true in two places.
  */
 const PAY_TYPES = ['CASH', 'CREDIT', 'BANK', 'UPI'];
+const PAY_LABEL = { CASH: 'Cash', CREDIT: 'Credit', BANK: 'Bank', UPI: 'UPI' };
 
 const BillEditForm = ({ bill, suppliers = [], products = [], productNameById = {}, payments = [],
                        purchases = [], onSave, onCancel, saving }) => {
@@ -144,165 +148,157 @@ const BillEditForm = ({ bill, suppliers = [], products = [], productNameById = {
     });
   };
 
-  const field = 'w-full bg-canvas border border-black/10 rounded-lg px-2.5 py-2 text-sm font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20';
-
   return (
-    <form ref={formRef} onSubmit={submit} className="flex flex-col gap-4">
+    <form ref={formRef} onSubmit={submit}>
 
       {/* Header — applies to every line, which is the whole point */}
-      <div className="grid grid-cols-2 gap-3">
-        <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Bill date</span>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="block">
+          <span className={lbl}>Bill date</span>
           <input type="date" className={field} value={date} onChange={e => setDate(e.target.value)} />
         </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Supplier</span>
+        <label className="block">
+          <span className={lbl}>Supplier</span>
           <select className={field} value={supplierId} onChange={e => setSupId(e.target.value)}>
             {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
         </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Payment type</span>
+        <label className="block">
+          <span className={lbl}>Payment type</span>
           <select className={field} value={payType} onChange={e => setPayType(e.target.value)}>
-            {PAY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            {!PAY_TYPES.includes(payType) && <option value={payType}>{payType}</option>}
+            {PAY_TYPES.map(t => <option key={t} value={t}>{PAY_LABEL[t]}</option>)}
           </select>
         </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Supplier bill no.</span>
+        <label className="block">
+          <span className={lbl}>Supplier bill no.</span>
           <input className={field} value={billNo} placeholder="optional"
             onChange={e => setBillNo(e.target.value)} />
         </label>
       </div>
 
-      <p className="text-[11px] text-muted-foreground -mt-1">
-        The four fields above apply to all {lines.length} lines — that is what makes this a bill.
+      <p className="mb-3 mt-2 text-[12px] text-mute">
+        These four apply to all {lines.length} line{lines.length === 1 ? '' : 's'}; that is what makes this one bill.
       </p>
 
       {/* Lines */}
-      <div className="rounded-xl border border-black/8 overflow-hidden">
-        <div className="grid grid-cols-[1fr_88px_110px_24px] gap-2 px-3 py-2 bg-canvas/60 border-b border-black/8">
-          {['Product', 'Qty', 'Amount'].map((h, i) => (
-            <span key={h} className={`text-[9px] font-bold uppercase tracking-wider text-muted-foreground ${i ? 'text-right' : ''}`}>{h}</span>
-          ))}
-          <span />
-        </div>
-        {lines.map(l => (
-          <div key={keyOf(l)} className={`grid grid-cols-[1fr_88px_110px_24px] gap-2 items-center px-3 py-2 border-b border-black/5 last:border-0 ${
-            l.id ? '' : 'bg-accent-signature/[0.04]'}`}>
-            <div className="min-w-0">
-              {/* Changing the product rewrites which batch the stock came from.
-                  edit_purchase already refuses that once units have been sold,
-                  naming the sales in the way -- so the guard is not repeated
-                  here, and its message reaches the user through the save. */}
-              <select
-                value={l.linked_product_id || ''}
-                onChange={e => setLine(keyOf(l), 'linked_product_id', e.target.value)}
-                className={`${field} !py-1.5 !text-[12.5px] truncate`}
-              >
-                {!products.some(p2 => p2.id === l.linked_product_id) && (
-                  <option value={l.linked_product_id}>
-                    {productNameById[l.linked_product_id] || 'Product'}
-                  </option>
-                )}
-                {products.map(p2 => <option key={p2.id} value={p2.id}>{p2.name}</option>)}
-              </select>
-              <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
-                {l.id ? l.id.split('-').pop() : 'new line'}
-              </div>
-            </div>
-            <input type="number" step="any" min="0" value={l.quantity}
-              onChange={e => setLine(keyOf(l), 'quantity', e.target.value)}
-              className={`${field} !py-1.5 text-right tabular-nums`} />
-            <input type="number" step="0.01" min="0" value={l.total_amount}
-              aria-label="Amount" data-line-total={keyOf(l)}
-              onChange={e => setLine(keyOf(l), 'total_amount', e.target.value)}
-              className={`${field} !py-1.5 text-right tabular-nums`} />
-            {l.id ? <span /> : (
-              <button type="button" onClick={() => dropNewLine(keyOf(l))}
-                aria-label="Remove this new line"
-                className="w-6 h-6 rounded-xl grid place-items-center text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-[color,background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.92]">
-                ×
-              </button>
-            )}
+      <div className="grid grid-cols-[minmax(0,1fr)_84px_110px_26px] items-center gap-2 pb-1.5 pt-1">
+        <span className="font-tight text-[12px] font-semibold text-mute">Product</span>
+        <span className="text-right font-tight text-[12px] font-semibold text-mute">Qty</span>
+        <span className="text-right font-tight text-[12px] font-semibold text-mute">Amount</span>
+        <span />
+      </div>
+      {lines.map(l => (
+        <div key={keyOf(l)} className={`grid grid-cols-[minmax(0,1fr)_84px_110px_26px] items-center gap-2 border-t border-sep py-2 ${
+          l.id ? '' : '-mx-2.5 rounded-[10px] border-t-transparent bg-[#FFF9F0] px-2.5'}`}>
+          <div className="min-w-0">
+            {/* Changing the product rewrites which batch the stock came from.
+                edit_purchase already refuses that once units have been sold,
+                naming the sales in the way -- so the guard is not repeated
+                here, and its message reaches the user through the save. */}
+            <select
+              value={l.linked_product_id || ''}
+              onChange={e => setLine(keyOf(l), 'linked_product_id', e.target.value)}
+              className={`${fieldSm} truncate`}
+              aria-label="Product"
+            >
+              {!products.some(p2 => p2.id === l.linked_product_id) && (
+                <option value={l.linked_product_id}>
+                  {productNameById[l.linked_product_id] || 'Product'}
+                </option>
+              )}
+              {products.map(p2 => <option key={p2.id} value={p2.id}>{p2.name}</option>)}
+            </select>
+            <small className="mt-[3px] block text-[11px] text-mute tabular-nums">
+              {l.id ? l.id.split('-').pop() : 'New line'}
+            </small>
           </div>
-        ))}
+          <input type="number" step="any" min="0" value={l.quantity} aria-label="Quantity"
+            onChange={e => setLine(keyOf(l), 'quantity', e.target.value)}
+            className={`${fieldSm} self-start text-right`} />
+          <input type="number" step="0.01" min="0" value={l.total_amount}
+            aria-label="Amount" data-line-total={keyOf(l)}
+            onChange={e => setLine(keyOf(l), 'total_amount', e.target.value)}
+            className={`${fieldSm} self-start text-right`} />
+          {l.id ? <span /> : (
+            <button type="button" onClick={() => dropNewLine(keyOf(l))}
+              aria-label="Remove this new line"
+              className="m-press grid h-[34px] w-[26px] self-start place-items-center rounded-[9px] text-mute hover:bg-well hover:text-bad-text">
+              <X size={14} />
+            </button>
+          )}
+        </div>
+      ))}
 
-        {/* A delivery is not always counted in one go: five things are booked
-            in and the sixth turns up in the van an hour later. Without this the
-            only way to record it was a second bill for the same delivery --
-            which is the same split this form exists to prevent, reached from
-            the other side. */}
+      {/* A delivery is not always counted in one go: five things are booked
+          in and the sixth turns up in the van an hour later. Without this the
+          only way to record it was a second bill for the same delivery --
+          which is the same split this form exists to prevent, reached from
+          the other side. */}
+      <div className="mt-1 flex items-center justify-between border-t border-sep pt-3">
         <button type="button" onClick={addLine}
-          className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 text-[12px] font-semibold text-accent-signature-hover border-b border-black/5 hover:bg-accent-signature/5 transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.995]">
-          + Add another product
+          className="inline-flex items-center gap-1.5 font-tight text-[13px] font-semibold text-amber-text hover:underline underline-offset-2">
+          <Plus size={14} /> Add another product
         </button>
-        <div className="flex items-center justify-between px-3 py-2.5 bg-canvas/60 border-t border-black/8">
-          <span className="text-[11px] font-semibold text-muted-foreground">Bill total</span>
-          <span className="text-sm font-bold tabular-nums">
-            {formatCurrency(total)}
-            {/* Part payment. Only for credit terms: a cash or bank bill is paid in
+        <span className="font-tight text-[13.5px] font-semibold tabular-nums">
+          Bill total {formatCurrency(total)}
+          {Math.abs(delta) > 0.005 && (
+            <span className={`ml-1 text-[12.5px] ${delta > 0 ? 'text-amber-text' : 'text-good-text'}`}>
+              {delta > 0 ? '+' : '−'}{formatCurrency(Math.abs(delta))}
+            </span>
+          )}
+        </span>
+      </div>
+
+      {Math.abs(delta) > 0.005 && (
+        <div className="mt-2.5 flex items-start gap-2.5 rounded-xl bg-amber-soft px-3 py-2.5 text-[12.5px] leading-snug text-amber-text">
+          <AlertTriangle size={16} className="mt-px shrink-0" />
+          <span>This changes what the bill is worth, so what is owed to the supplier moves with it.</span>
+        </div>
+      )}
+
+      {/* Part payment. Only for credit terms: a cash or bank bill is paid in
           full at entry, so "paid now" there would contradict the payment type. */}
       {isCredit && (
-        <div className="rounded-xl border border-black/8 p-3 flex flex-col gap-2">
-          <div className="flex items-center justify-between text-[11px] font-semibold">
-            <span className="text-muted-foreground">Already paid</span>
-            <span className="tabular-nums text-emerald-700">{formatCurrency(alreadyPaid)}</span>
+        <div className="mt-3 rounded-xl px-3.5 py-2.5 shadow-[inset_0_0_0_1px_var(--color-line)]">
+          <div className="flex justify-between py-1 text-[13px] text-body">
+            <span>Already paid</span>
+            <span className="font-tight text-[13.5px] font-semibold tabular-nums text-good-text">{formatCurrency(alreadyPaid)}</span>
           </div>
-          <div className="flex items-center justify-between text-[11px] font-semibold">
-            <span className="text-muted-foreground">Still due</span>
-            <span className={`tabular-nums ${stillDue > 0.005 ? 'text-red-600' : 'text-muted-foreground'}`}>
+          <div className="flex justify-between py-1 text-[13px] text-body">
+            <span>Still due</span>
+            <span className={`font-tight text-[13.5px] font-semibold tabular-nums ${stillDue > 0.005 ? 'text-bad-text' : 'text-mute'}`}>
               {formatCurrency(stillDue)}
             </span>
           </div>
-          <label className="flex flex-col gap-1 mt-1">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Pay now (optional)
-            </span>
+          <label className="mt-2 block">
+            <span className={lbl}>Pay now, optional</span>
             <input type="number" step="0.01" min="0" value={paidNow}
               onChange={e => setPaidNow(e.target.value)}
               placeholder={stillDue > 0.005 ? `Up to ${formatCurrency(stillDue)}` : 'Nothing left to pay'}
               disabled={stillDue <= 0.005}
-              className={`${field} text-right tabular-nums disabled:opacity-50`} />
+              className={`${field} text-right`} />
           </label>
           {payTooMuch ? (
-            <p className="text-[11px] font-semibold text-red-600">
+            <p className="mt-1.5 text-[12px] font-semibold text-bad-text">
               That is more than the {formatCurrency(stillDue)} still owed. Anything beyond the
               bill is an advance and belongs on the supplier, not here.
             </p>
           ) : payNum > 0 ? (
-            <p className="text-[11px] text-muted-foreground">
+            <p className="mt-1.5 text-[12px] text-mute">
               Recorded as a payment against this bill once it saves, leaving{' '}
-              <b>{formatCurrency(stillDue - payNum)}</b> owing — not written onto the bill,
+              <b className="text-ink">{formatCurrency(stillDue - payNum)}</b> owing. It is not written onto the bill,
               so the ledger and the balance move with it.
             </p>
           ) : null}
         </div>
       )}
 
-      {Math.abs(delta) > 0.005 && (
-              <span className={`ml-2 text-[11px] font-semibold ${delta > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
-                {delta > 0 ? '+' : '−'}{formatCurrency(Math.abs(delta))}
-              </span>
-            )}
-          </span>
-        </div>
-      </div>
-
-      {Math.abs(delta) > 0.005 && (
-        <p className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-          This changes what the bill is worth, so what is owed to the supplier moves with it.
-        </p>
-      )}
-
-      <div className="flex gap-2 justify-end">
-        <button type="button" onClick={onCancel} disabled={saving}
-          className="px-4 py-2.5 rounded-pill border border-black/10 text-sm font-semibold disabled:opacity-50">
-          Cancel
-        </button>
-        <button type="submit" disabled={invalid || saving}
-          className="btn-signature !px-5 !py-2.5 !text-sm disabled:opacity-50">
+      <div className={footRow}>
+        <Button variant="secondary" className="px-[22px]" onClick={onCancel} disabled={saving}>Cancel</Button>
+        <Button type="submit" disabled={invalid || saving} className="flex-1 h-11">
           {saving ? 'Saving…' : `Save bill · ${lines.length} line${lines.length === 1 ? '' : 's'}`}
-        </button>
+        </Button>
       </div>
 
       {priceFlags && (
