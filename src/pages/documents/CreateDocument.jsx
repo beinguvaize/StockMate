@@ -19,6 +19,7 @@ import { useEstimates } from '../../hooks/useEstimates';
 import { useAccounts, accountForMethod } from '../../hooks/useAccounts';
 import { calculateGST, shareToWhatsApp } from '../../lib/gstEngine';
 import { tierPrice } from '../../lib/priceResolver';
+import { browserPostsCollection, creditInvoiceTakesMoney, CREDIT_INVOICE_PAID_MSG } from '../../lib/documentLedger';
 import { PartyPicker, DocItemGrid, TotalsPanel, Field, inr } from '../../components/documents/DocParts';
 
 const genId = (p) => `${p}-${Date.now().toString(36).toUpperCase()}`;
@@ -73,12 +74,15 @@ const CreateDocument = () => {
   // Money lands in the payment method's account (no separate picker).
   const depAcc = accountForMethod(accounts, payMethod);
 
-  // Post a money-in ledger entry to the chosen account (best-effort; a missing
-  // account just skips the ledger, the sale/payment still succeeds).
-  const postIncome = async (amount, refType, refId) => {
+  // The database posts the money for a sale and for a payment in
+  // (post_sale_to_ledger, see lib/documentLedger.js). The ONE case it does
+  // not is a collection on a CREDIT sale, which settle_sale_payment's
+  // trigger skips; that receipt alone is still posted here, to the chosen
+  // account, exactly once. Nothing else in this page writes the ledger.
+  const postCreditSaleCollection = async (amount, saleId) => {
     if (!depAcc || !(Number(amount) > 0)) return;
     try {
-      await addTxn({ account_id: depAcc, direction: 'IN', amount, mode: payMethod, ref_type: refType, ref_id: refId, note: party?.name || refType });
+      await addTxn({ account_id: depAcc, direction: 'IN', amount, mode: payMethod, ref_type: 'PAYMENT', ref_id: saleId, note: party?.name || 'PAYMENT' });
     } catch { /* ledger is non-blocking */ }
   };
 
@@ -156,6 +160,9 @@ const CreateDocument = () => {
     try {
       let res;
       if (cfg.save === 'invoice') {
+        // A Credit invoice with money received: the ledger trigger posts
+        // nothing for CREDIT, so the money would land nowhere. Refuse it.
+        if (creditInvoiceTakesMoney({ payMethod, paidNow })) return fail(CREDIT_INVOICE_PAID_MSG);
         res = await placeSale({
           clientId: party.id, items: lineItems(), totalAmount: finalTotal,
           paymentMethod: payMethod,
@@ -163,7 +170,8 @@ const CreateDocument = () => {
           paidAmount: paidNow, date, discount: Number(billDiscount) || 0, note: notes || null,
         });
         if (res?.error) return fail(res.error.message);
-        if (paidNow > 0) await postIncome(paidNow, 'SALE', res?.id);
+        // No ledger write here: post_sale_to_ledger posted the paid amount
+        // when process_sale inserted the sale.
         addNotification('Sales invoice saved', 'success');
         return navigate('/invoices');
       }
@@ -239,7 +247,9 @@ const CreateDocument = () => {
         if (!open.length) return fail('No open invoice for this party to settle.');
         res = await settleSale(open[0].id, Number(payAmount));
         if (res?.error) return fail(res.error.message);
-        await postIncome(Number(payAmount), 'PAYMENT', open[0].id);
+        // Non-credit sale: the trigger posted this collection. Credit sale:
+        // it posted nothing, so this is the only entry (see above).
+        if (browserPostsCollection(open[0])) await postCreditSaleCollection(Number(payAmount), open[0].id);
         addNotification(`Payment of ${inr(payAmount)} recorded`, 'success');
         return navigate('/clients');
       }
