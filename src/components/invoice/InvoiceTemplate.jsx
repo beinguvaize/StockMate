@@ -28,7 +28,10 @@ const Totals = ({ k, v, bold }) => (
   </div>
 );
 
-const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, onClose, onToggleMode, previewMode = false, themeOverride = null, editable = false, onEditText = null, textsOverride = null, optsOverride = null, accentOverride = null, customFieldsOverride = null }) => {
+const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, onClose, onToggleMode, previewMode = false, themeOverride = null, editable = false, onEditText = null, textsOverride = null, optsOverride = null, accentOverride = null, customFieldsOverride = null,
+  // The action bar's words, for a caller that is not showing an invoice from
+  // the list (the document builder's manual bill). Default: as before.
+  title = null, subtitle = null, printLabel = 'Print invoice' }) => {
   useDialogClose(onClose, { enabled: !previewMode }); // previewMode renders inline
   const [zoom, setZoom] = useState(100);
 
@@ -224,10 +227,10 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
         </button>
         <div className="min-w-0">
           <h2 className="truncate font-tight text-[16px] font-semibold tracking-[-0.01em]">
-            Invoice {invoice.invoice_number || ''}
+            {title ?? `Invoice ${invoice.invoice_number || ''}`}
           </h2>
           <p className="truncate text-[12px] text-mute tabular-nums">
-            {safeClient.name}{grandTotal > 0 ? ` · ₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}
+            {subtitle ?? <>{safeClient.name}{grandTotal > 0 ? ` · ₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}</>}
           </p>
         </div>
         <span className="flex-1" />
@@ -251,7 +254,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
         )}
         <button type="button" onClick={onPrint}
           className="m-press inline-flex h-9 items-center gap-[7px] whitespace-nowrap rounded-pill bg-ink px-4 font-tight text-[13px] font-semibold text-white hover:bg-[#2A2F35]">
-          <Printer size={15} /> Print invoice
+          <Printer size={15} /> {printLabel}
         </button>
       </div>
       )}
