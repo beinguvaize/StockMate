@@ -30,6 +30,7 @@ import { FigureStrip, Figure, Eyebrow } from '../components/ui/FigureStrip';
 import usePLRanged from '../components/reports/usePLRanged';
 import { useTopSellingItems } from '../hooks/useTopSellingItems';
 import { supplierOwedSummary } from '../lib/supplierOwed';
+import { needsRestock, reorderLevel } from '../lib/stockLevels';
 import {
   periodRange, sumInRange, inRange, deltaPct, deltaTone, formatDelta,
   spanLabel, setupSteps, isNewShop,
@@ -252,7 +253,9 @@ const Dashboard = () => {
   const { currentTenantId, businessProfile } = useTenant();
   const { products, inventoryBalances, refetch: refetchInventory, loading: invLoading, error: invError } = useInventory(currentTenantId);
   const { sales, refetch: refetchSales, loading: salesLoading, error: salesError } = useSales(currentTenantId, { lean: true });
-  const { purchases, suppliers, refetch: refetchPurchases, loading: purLoading, error: purError } = usePurchases(currentTenantId, { withReturns: false, withPayments: false });
+  // Returns and supplier payments are read for "You owe": it is the supplier
+  // ledger's closing balance (lib/supplierOwed), which needs both.
+  const { purchases, purchaseReturns, supplierPayments, suppliers, refetch: refetchPurchases, loading: purLoading, error: purError } = usePurchases(currentTenantId);
   const { expenses, dayBook, refetch: refetchFinance, loading: finLoading, error: finError } = useFinance(currentTenantId);
   const { clients, employees, users, refetch: refetchPeople, loading: peopleLoading, error: peopleError } = usePeople(currentTenantId);
   // What staff are still owed this month, from attendance and pay runs.
@@ -358,8 +361,11 @@ const Dashboard = () => {
    [clients]
  );
 
- // "You owe": the Suppliers list's figure (lib/supplierOwed, SupplierWorkspace).
- const owed = useMemo(() => supplierOwedSummary(suppliers, purchases), [suppliers, purchases]);
+ // "You owe": the supplier ledger's closing balance (lib/supplierOwed), the
+ // same figure the Suppliers list and each supplier's ledger show.
+ const owed = useMemo(
+   () => supplierOwedSummary(suppliers, { purchases, purchaseReturns, supplierPayments }),
+   [suppliers, purchases, purchaseReturns, supplierPayments]);
 
  // null until attendance and pay runs have been read: the tile shows a dash
  // rather than a 0 nobody checked.
@@ -371,12 +377,13 @@ const Dashboard = () => {
      // matched every threshold and arrived here with a Restock button
      // pointing at /purchases — for a tuition hour.
      if (!isStocked(p)) return false;
-     const threshold = p.low_stock_threshold ?? p.lowStockThreshold ?? 10;
      const balances = (inventoryBalances || []).filter(b => b.product_id === p.id);
      const totalQty = balances.length > 0
        ? balances.reduce((s, b) => s + b.quantity, 0)
        : (p.stock ?? 0);
-     return totalQty < threshold;
+     // The one low-stock rule (lib/stockLevels): at or below the product's
+     // own reorder level, low or out.
+     return needsRestock(p, totalQty);
    }),
    [products, inventoryBalances]
  );
@@ -568,7 +575,10 @@ const Dashboard = () => {
  const now = new Date();
  const thisMonthName = now.toLocaleString('en-IN', { month: 'long' });
  const lastMonthName = new Date(now.getFullYear(), now.getMonth() - 1, 1).toLocaleString('en-IN', { month: 'long' });
- const lowStockCount = kpiData ? (kpiData.low_stock_items ?? lowStockProducts.length) : lowStockProducts.length;
+ // Counted from the loaded products by the one rule (lib/stockLevels).
+ // get_dashboard_kpis.low_stock_items counts stock < 50 for every product, a
+ // different rule, so it is only the fallback when products failed to load.
+ const lowStockCount = invError ? (kpiData?.low_stock_items ?? 0) : lowStockProducts.length;
  const debtorCount = (clients || []).filter(c => (c.outstanding_balance || 0) > 0).length;
  const qtyOf = (item) => {
    const bal = (inventoryBalances || []).filter(b => b.product_id === item.id);
@@ -883,7 +893,7 @@ const Dashboard = () => {
          <div className="mt-1.5 flex-1">
            {lowStockProducts.slice(0, LIST_ROWS).map(item => {
              const qty = qtyOf(item);
-             const min = item.low_stock_threshold ?? item.lowStockThreshold ?? 10;
+             const min = reorderLevel(item);
              return (
                <ListRow key={item.id} onClick={() => navigate('/inventory')}
                  left={<><span className="block truncate text-ink-2">{item.name}</span><small className="block text-[12px] text-mute tabular-nums">{qty} in stock · reorder at {min}</small></>}

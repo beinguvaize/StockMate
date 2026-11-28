@@ -5,15 +5,16 @@
  * owes: the balance is `clients.outstanding_balance`, kept by the database.
  *
  * clientFacts / clientRows / clientKpis are today's ClientWorkspace rules,
- * moved here unchanged so they can be tested. Two of them are known to differ
- * from the phone and are kept on purpose (see the notes on each):
- *   · "Overdue 30+" counts a client's WHOLE balance once their oldest unpaid
- *     bill is 30 days old; the phone ages bill by bill.
- *   · a client with a balance of 0 or less shows as Settled, an advance too.
+ * moved here so they can be tested, with one rule changed (owner approved):
+ *   · "Overdue" is counted bill by bill, as the phone's age bar does it
+ *     (lib/overdue): only the part of a balance on bills over 30 days old.
+ * Kept on purpose: a client with a balance of 0 or less shows as Settled,
+ * an advance too.
  *
  * clientSummary and reminderText are new and read-only.
  */
 import { isCountableSale } from '../components/reports/reportUtils';
+import { clientAgingByBill, overdueAmount } from './overdue';
 
 const DAY = 86400000;
 const num = (v) => Number(v) || 0;
@@ -57,10 +58,11 @@ export const initialsOf = (name) => {
  * Moved from ClientWorkspace unchanged: sales are matched on `shopId`,
  * receipts on `client_id`, and a bill is unpaid when total − paid > 0.01.
  */
-export function clientFacts(clients = [], sales = [], clientPayments = []) {
+export function clientFacts(clients = [], sales = [], clientPayments = [], now = Date.now()) {
   const byClient = {};
+  const aging = clientAgingByBill(sales, now);
   (clients || []).forEach((c) => {
-    byClient[c.id] = { unpaid: [], payments: [], oldestUnpaid: null, lastActivity: null, lastActivityAt: null, lastKind: '' };
+    byClient[c.id] = { unpaid: [], payments: [], oldestUnpaid: null, lastActivity: null, lastActivityAt: null, lastKind: '', aging: aging[c.id] || null };
   });
 
   (sales || []).forEach((s) => {
@@ -94,8 +96,8 @@ export function clientFacts(clients = [], sales = [], clientPayments = []) {
   return byClient;
 }
 
-/** Overdue, today's rule: owes something and the oldest unpaid bill is 30+ days. */
-export const isOverdue = (row) => row._out > 0 && (row._age ?? 0) >= 30;
+/** Overdue: some of the balance sits on bills over 30 days old (lib/overdue). */
+export const isOverdue = (row) => (row?._overdue || 0) > 0;
 
 /** Every client with its balance, age and facts attached, biggest then oldest first. */
 export function clientRows(clients = [], facts = {}, now = Date.now()) {
@@ -107,6 +109,7 @@ export function clientRows(clients = [], facts = {}, now = Date.now()) {
         ...c,
         _out: outstanding,
         _age: outstanding > 0 ? daysSince(f.oldestUnpaid, now) : null,
+        _overdue: overdueAmount(f.aging, outstanding),
         _last: f.lastActivity,
         _lastAt: f.lastActivityAt,
         _lastKind: f.lastKind,
@@ -137,9 +140,9 @@ export function chipCounts(rows = []) {
 }
 
 /**
- * The four figures over the list. Today's arithmetic, unchanged.
- * `overdue` is the whole balance of every client whose oldest unpaid bill is
- * 30+ days old (not the part of it that is 30+ days old).
+ * The four figures over the list.
+ * `overdue` is the part of each balance on bills over 30 days old, bill by
+ * bill and scaled to the balance (lib/overdue), as the phone's age bar.
  * `monthStart` is the shop's first of the month, YYYY-MM-DD.
  */
 export function clientKpis(clients = [], facts = {}, clientPayments = [], { now = Date.now(), monthStart } = {}) {
@@ -149,7 +152,8 @@ export function clientKpis(clients = [], facts = {}, clientPayments = [], { now 
     if (out <= 0) return;
     receivable += out; owingCount += 1;
     const age = daysSince(facts[c.id]?.oldestUnpaid, now);
-    if (age != null && age >= 30) { overdue += out; overdueCount += 1; }
+    const late = overdueAmount(facts[c.id]?.aging, out);
+    if (late > 0) { overdue += late; overdueCount += 1; }
     if (age != null && (oldest == null || age > oldest)) { oldest = age; oldestName = c.name; }
   });
   const inMonth = (clientPayments || []).filter((p) => String(p.date || '').slice(0, 10) >= monthStart);

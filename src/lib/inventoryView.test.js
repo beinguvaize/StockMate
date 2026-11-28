@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  reorderOf, statusOf, isLowFixed, filterProducts, inventoryKpis, stockBarParts, initials, avatarTone,
+  reorderOf, statusOf, filterProducts, inventoryKpis, stockBarParts, initials, avatarTone,
   productPill, classifyMovement, filterMovements, dayMonth, priceListCounts, bulkEditPatch, applyEach, formSteps,
 } from './inventoryView';
 
@@ -10,19 +10,16 @@ describe('row state', () => {
   it('reads the reorder level from any of its names', () => {
     expect(reorderOf({ lowStockThreshold: '8' })).toBe(8);
     expect(reorderOf({ low_stock_threshold: 4 })).toBe(4);
-    expect(reorderOf({})).toBe(0);
+    expect(reorderOf({})).toBe(10);           // none set: the default, 10
+    expect(reorderOf({ lowStockThreshold: 0 })).toBe(0);
   });
-  it('uses the reorder level, and 5 when there is none', () => {
+  it('low is at or below the reorder level, out at 0 or below', () => {
     expect(statusOf(0, 10)).toBe('crit');
     expect(statusOf(-2, 10)).toBe('crit');
+    expect(statusOf(10, 10)).toBe('low');
     expect(statusOf(8, 10)).toBe('low');
+    expect(statusOf(11, 10)).toBe('ok');
     expect(statusOf(8, 0)).toBe('ok');
-    expect(statusOf(5, 0)).toBe('low');
-  });
-  it('the tiles keep the fixed 1 to 5 rule', () => {
-    expect(isLowFixed(0)).toBe(false);
-    expect(isLowFixed(5)).toBe(true);
-    expect(isLowFixed('6')).toBe(false);
   });
   it('the panel pill follows the row rule', () => {
     expect(productPill({ lowStockThreshold: 8 }, 4)).toEqual({ tone: 'warn', label: 'Low · 4 left' });
@@ -44,8 +41,10 @@ describe('filterProducts', () => {
     expect(filterProducts(list, { query: '890123' }).map((p) => p.name)).toEqual(['Oil 1 L']);
     expect(filterProducts(list, { query: 'staples' })).toHaveLength(2);
   });
-  it('Low is 1 to 5 and Out is exactly 0, and a service is in neither', () => {
+  it('Low is above 0 and at or below the reorder level, Out is exactly 0, and a service is in neither', () => {
     expect(filterProducts(list, { stock: 'LOW' }).map((p) => p.name)).toEqual(['Salt 1 kg']);
+    const own = [P({ name: 'A', stock: 8, lowStockThreshold: 10 }), P({ name: 'B', stock: 4, lowStockThreshold: 3 })];
+    expect(filterProducts(own, { stock: 'LOW' }).map((p) => p.name)).toEqual(['A']);
     expect(filterProducts(list, { stock: 'OUT' }).map((p) => p.name)).toEqual(['Oil 1 L']);
   });
   it('filters by type and category', () => {
@@ -57,7 +56,7 @@ describe('filterProducts', () => {
 describe('inventoryKpis', () => {
   it('values retail over sellable stock only and counts in, low and out', () => {
     const k = inventoryKpis([
-      P({ stock: 10, costPrice: 10, sellingPrice: 15, category: 'A' }),
+      P({ stock: 10, costPrice: 10, sellingPrice: 15, category: 'A', lowStockThreshold: 5 }),
       P({ stock: 2, costPrice: 5, sellingPrice: 8, category: 'A' }),
       P({ stock: 0, costPrice: 5, sellingPrice: 8, category: 'B' }),
       P({ stock: 4, costPrice: 20, sellingPrice: 0, product_type: 'RAW' }),

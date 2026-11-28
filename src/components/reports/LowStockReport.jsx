@@ -1,9 +1,10 @@
 /**
- * LowStockReport — products where total stock (sum inventory_balances) <= lowStockThreshold.
+ * LowStockReport — products where total stock (sum inventory_balances) is at
+ * or below the product's own reorder level (lib/stockLevels, the one rule).
  * Current snapshot — not date-ranged.
  */
 import React, { useMemo } from 'react';
-import { isStocked } from '../../lib/productTypes';
+import { needsRestock, reorderLevel } from '../../lib/stockLevels';
 import {
   Package, AlertTriangle, DollarSign, ShoppingBag,
 } from 'lucide-react';
@@ -11,7 +12,6 @@ import useReportData from './useReportData';
 import { KPI, SectionHead } from './ReportBits';
 import { formatCurrency } from '../../lib/utils';
 
-const DEFAULT_THRESHOLD = 10;
 
 const LowStockReport = () => {
   const { data: products, loading: pLoading } = useReportData({
@@ -42,7 +42,7 @@ const LowStockReport = () => {
       const totalStock = stockByProduct[p.id] !== undefined
         ? stockByProduct[p.id]
         : Number(p.stock || 0);
-      const threshold  = Number(p.lowStockThreshold || DEFAULT_THRESHOLD);
+      const threshold  = reorderLevel(p);
       const shortfall  = Math.max(0, threshold - totalStock);
       const stockValue = totalStock * Number(p.costPrice || 0);
       return { ...p, totalStock, threshold, shortfall, stockValue };
@@ -51,7 +51,7 @@ const LowStockReport = () => {
     // Services have no stock, so they sit at 0 and matched every threshold —
     // this report listed them as needing reorder forever. See productTypes.js.
     const lowItems = enriched
-      .filter(p => isStocked(p) && p.totalStock <= p.threshold)
+      .filter(p => needsRestock(p, p.totalStock))
       .sort((a, b) => a.totalStock - b.totalStock);
 
     const itemsLow     = lowItems.length;

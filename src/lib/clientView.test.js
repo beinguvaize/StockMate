@@ -54,10 +54,13 @@ describe('clientFacts / clientRows (today\'s rules, moved)', () => {
     expect(chipCounts(rows)).toEqual({ OWING: 2, OVERDUE: 1, ALL: 4 });
   });
 
-  it('counts the WHOLE balance of an overdue client in Overdue 30+ (web rule, kept)', () => {
+  it('counts only the part of a balance on bills over 30 days old, scaled to the balance (phone rule)', () => {
     const k = clientKpis(clients, facts, pays, { now: NOW, monthStart: '2026-11-01' });
     expect(k.receivable).toBe(1500);
-    expect(k.overdue).toBe(1000);
+    // c1: bills 800 (56 days) + 200 (6 days) = 1000, balance 1000 → 800.
+    expect(k.overdue).toBe(800);
+    expect(rows[0]._overdue).toBe(800);
+    expect(rows[1]._overdue).toBe(0);
     expect(k.overdueCount).toBe(1);
     expect(k.oldest).toBe(56);
     expect(k.oldestName).toBe('Shop One');

@@ -16,7 +16,7 @@ import {
   Trash2, Pencil, Printer,
 } from 'lucide-react';
 import { formatDate, todayISOInAppTZ, cn } from '../lib/utils';
-import { groupPurchasesIntoBills, buildSupplierLedger } from '../lib/bills';
+import { supplierLedgerFor, owedFromClosing } from '../lib/supplierOwed';
 import { decorateBills } from './purchases/lib/register';
 import { supplierDue, shortDay } from '../lib/supplierView';
 import PaySupplierDialog from '../components/suppliers/PaySupplierDialog';
@@ -26,10 +26,10 @@ import { Pill, BillPill, Eyebrow, EmptyCard, money, rupees, num2 } from '../comp
 /**
  * A supplier's ledger (web redesign, approved mockups suppliers-05 … 10).
  *
- * Every figure keeps the source it had before the redesign; only the layout
- * changed. "Amount due" is this page's own figure (credit bills only, no
- * advances), "Closing balance" is the running ledger's, and they can differ:
- * the foot says why, as before. Money writes are the existing server
+ * "Amount due" and "Closing balance" are one figure: the running ledger's
+ * closing balance (lib/supplierOwed), the same "you owe" the Suppliers list
+ * and the Dashboard show; Amount due is that balance when above 0. When the
+ * unpaid credit bills alone add up to something else, the foot says why. Money writes are the existing server
  * functions, unchanged: settle_supplier_payment, settle_purchase_payment,
  * edit_supplier_payment, delete_supplier_payment, offset_supplier_credit_note.
  *
@@ -88,77 +88,19 @@ const SupplierLedger = () => {
   );
 
   // 2. Aggregate Data
-  const supplierPurchases = useMemo(() => {
-    if (!supplier) return [];
-    return (purchases || [])
-      .filter(p => p.supplier_id === supplier.id || p.supplier_name === supplier.name)
-      .sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
-  }, [supplier, purchases]);
-
-  const supplierReturns = useMemo(() => {
-    if (!supplier) return [];
-    return (purchaseReturns || [])
-      .filter(r => r.supplier_id === supplier.id || r.supplier_name === supplier.name)
-      .sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
-  }, [supplier, purchaseReturns]);
-
-  const payments = useMemo(() => {
-    if (!supplier) return [];
-    return (supplierPayments || [])
-      // Spent advances are soft-deleted and replaced by allocation rows. The
-      // fetch filters them, but it renders from the offline cache first, which
-      // can still hold a row from before it was spent — and counting both would
-      // credit the same money twice.
-      .filter(p => !p.deleted_at)
-      .filter(p => p.supplier_id === supplier.id || p.supplier_name === supplier.name)
-      .sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
-  }, [supplier, supplierPayments]);
-  // Payments not tied to a specific order — shown as ledger rows. Order-linked
-  // payments are reflected in each purchase's Paid/Due instead (no double-show).
-  const onAccountPayments = useMemo(() => payments.filter(p => !p.purchase_id), [payments]);
-  // The sidebar's Payment history panel used to live here — settlements plus
-  // cash purchases, listed newest first. The ledger now carries every one of
-  // those as a dated credit row with a running balance beside it, so the panel
-  // was the same money a second time, a few inches to the left.
-  //
-  // ── Bills ────────────────────────────────────────────────────────────────
-  // One physical bill is stored as one `purchases` row PER PRODUCT — the
-  // multi-product form writes them in a burst. RENO JOHN's 17 Jul bill is two
-  // rows created 1.7s apart. Showing them as separate lines inflated this
-  // tenant's ledger from 52 real bills to 135 rows.
-  //
-  // Key: supplier + date + payment_type, and rows only chain while consecutive
-  // created_at gaps stay inside BURST_MS. Both parts are load-bearing:
-  //   · payment_type — SAJJAD 24 Jul has two rows 59s apart, one CREDIT and one
-  //     CASH. Different bills; merging them would re-blur the pair behind the
-  //     duplicate ₹6,900 payment.
-  //   · the burst guard — MADEENA 9 May has 4 rows spanning 2.9 hours. Separate
-  //     trips, and a supplier+date key alone would fuse them into one bill.
-  //
-  // Presentation only. No row is merged in the database and no id changes.
-  // Bills come from src/lib/bills.js — the same rule the purchases list uses.
-  // It lived in both files until the second copy was written, which is one
-  // edit away from the two screens disagreeing about what a supplier billed.
-  const bills = useMemo(
-    () => groupPurchasesIntoBills(supplierPurchases),
-    [supplierPurchases]);
-
-  // ── The ledger ───────────────────────────────────────────────────────────
-  // One chronological debit/credit list with a running balance, mirroring
-  // ClientStatementReport.jsx. Previously this rendered as three stacked
-  // blocks — every bill, then every return, then every payment — so a June
-  // debit note sat below a July bill and nothing accumulated.
-  // Built by src/lib/bills.js so the rule that decides what appears on a
-  // statement — and the one that stops the same money being credited twice —
-  // is covered by tests rather than living only here.
-  const ledgerRows = useMemo(
-    () => buildSupplierLedger({
-      bills,
-      payments,
-      returns: supplierReturns,
-      onAccountPayments,
-    }),
-    [bills, payments, supplierReturns, onAccountPayments]);
+  // The supplier's purchases, returns, payments, bills and the running ledger
+  // all come from lib/supplierOwed (supplierLedgerFor), the one place that
+  // builds them, so the closing balance here is the same "you owe" figure the
+  // Suppliers list and the Dashboard show. The rules are the ones this page
+  // had: rows belong by supplier_id or, on older rows, supplier_name; spent
+  // (soft-deleted) advances are left out; a payment with no purchase_id is
+  // on account; one physical bill (one purchases row per product) is grouped
+  // into one bill by lib/bills; the ledger is one dated debit/credit list
+  // with a running balance (buildSupplierLedger).
+  const ledger = useMemo(
+    () => supplierLedgerFor(supplier, { purchases, purchaseReturns, supplierPayments }),
+    [supplier, purchases, purchaseReturns, supplierPayments]);
+  const { supplierPurchases, supplierReturns, payments, onAccountPayments, bills, rows: ledgerRows } = ledger;
 
   // ── Period ───────────────────────────────────────────────────────────────
   // Start of the visible window, or null for the whole history.
@@ -240,7 +182,8 @@ const SupplierLedger = () => {
       : { ok: false, text: error?.message || 'Could not offset this credit note.' });
   };
 
-  const closing = ledgerRows.length ? ledgerRows[ledgerRows.length - 1].balance : 0;
+  // The one "you owe" figure (lib/supplierOwed): the closing balance.
+  const closing = ledger.closing;
   // Debit/credit columns total the visible period — a statement's totals should
   // add up to the lines printed beneath them. The balance beside them stays
   // all-time, which is why the carried-forward row has to be on screen.
@@ -265,15 +208,16 @@ const SupplierLedger = () => {
     const totalReturns = supplierReturns.reduce((s, r) => s + Number(r.total_amount || 0), 0);
     const net = total - totalReturns;
     const totalPaid = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
-    // Outstanding derived from the orders themselves (Σ credit total − paid), so
-    // it always matches the per-row dues. The stored suppliers.balance can drift
-    // when a purchase is edited (payment_type/amount) without re-syncing it.
-    const payable = supplierPurchases
+    // Amount due is the ledger's closing balance when above 0 (owner rule: one
+    // "you owe" figure everywhere). What the unpaid credit bills add up to on
+    // their own is kept as `billsDue`, only to explain a difference.
+    const payable = owedFromClosing(ledger.closing).owed;
+    const billsDue = supplierPurchases
       .filter(p => isCredit(p.payment_type))
       .reduce((s, p) => s + Math.max(0, amt(p) - Number(p.paid_amount || 0)), 0);
 
-    return { total, count, avg, last, payable, cashPaid, creditTotal, totalReturns, net, totalPaid, lineCount };
-  }, [supplierPurchases, supplierReturns, payments, bills]);
+    return { total, count, avg, last, payable, billsDue, cashPaid, creditTotal, totalReturns, net, totalPaid, lineCount };
+  }, [supplierPurchases, supplierReturns, payments, bills, ledger.closing]);
 
 
   // Read-only, for the header pill and the line Pay dialog: each bill's due
@@ -369,7 +313,7 @@ const SupplierLedger = () => {
               ? `${unpaidCredit.length} unpaid credit ${unpaidCredit.length === 1 ? 'bill' : 'bills'}${unpaidCredit[0] ? ` · oldest ${shortDay(unpaidCredit[0].date)}` : ''}`
               : 'Settled'} />
           <Figure label="Closing balance" value={money(closing, cur)}
-            sub={Math.abs(closing - metrics.payable) > 0.01
+            sub={Math.abs(closing - metrics.billsDue) > 0.01
               ? [metrics.totalReturns > 0.01 ? `less ${money(metrics.totalReturns, cur)} in returns` : null,
                  onAccountPayments.length > 0 ? `less ${money(onAccountTotal, cur)} on account` : null].filter(Boolean).join(' · ') || 'the running ledger below'
               : 'the running ledger below'} />
@@ -610,13 +554,13 @@ const SupplierLedger = () => {
                     <td className={cn('border-t border-line px-2.5 py-3 text-right', closing > 0.01 ? 'text-bad-text' : 'text-good-text')}>{money(closing, cur)}</td>
                     <td className="no-print border-t border-line" />
                   </tr>
-                  {/* Amount due sums unpaid credit bills only. The ledger also
-                      credits debit notes and on-account money, so the two can
-                      legitimately differ: say why. */}
-                  {Math.abs(closing - metrics.payable) > 0.01 && (
+                  {/* Unpaid credit bills alone can add up to more than the
+                      closing balance: the ledger also credits debit notes and
+                      on-account money. Say why. */}
+                  {Math.abs(closing - metrics.billsDue) > 0.01 && (
                     <tr>
                       <td colSpan="7" className="px-3.5 pb-3 text-right text-[12px] text-body">
-                        Amount due on unpaid bills is {rupees(metrics.payable, cur)}
+                        Unpaid credit bills add up to {rupees(metrics.billsDue, cur)}
                         {metrics.totalReturns > 0.01 && <> · less {rupees(metrics.totalReturns, cur)} in credit notes</>}
                         {onAccountPayments.length > 0 && <> · less {rupees(onAccountTotal, cur)} paid on account</>}
                       </td>

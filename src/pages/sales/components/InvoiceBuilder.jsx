@@ -29,6 +29,7 @@ import CopyButton from '../../../components/motion/CopyButton';
 import SaveButton, { useSaveStatus } from '../../../components/motion/SaveButton';
 import RollingNumber from '../../../components/motion/RollingNumber';
 import FieldError, { useShake } from '../../../components/motion/FieldError';
+import { reorderLevel } from '../../../lib/stockLevels';
 
 // Restaurant modifier picker — choose options for a dish before it hits the cart.
 const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' }) => {
@@ -1120,7 +1121,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             const stock = warehouseStock[product.id] !== undefined ? warehouseStock[product.id] : product.stock;
             const isSvc = product.product_type === 'SERVICE';
             const outOfStock = !isSvc && stock <= 0;
-            const lowStock = !outOfStock && stock <= (product.lowStockThreshold || 10);
+            const lowStock = !outOfStock && stock <= reorderLevel(product);
             const inCart = cart.find(i => i.productId === product.id);
             const cartQty = inCart ? inCart.quantity : 0;
             return (
@@ -1175,7 +1176,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             const stock = warehouseStock[product.id] !== undefined ? warehouseStock[product.id] : product.stock;
             const isSvc = product.product_type === 'SERVICE';
             const outOfStock = !isSvc && stock <= 0;
-            const lowStock = !outOfStock && stock <= (product.lowStockThreshold || 10);
+            const lowStock = !outOfStock && stock <= reorderLevel(product);
             const inCart  = cart.find(i => i.productId === product.id);
             const cartQty = inCart ? inCart.quantity : 0;
             return (

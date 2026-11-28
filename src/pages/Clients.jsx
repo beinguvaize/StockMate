@@ -29,8 +29,8 @@ import DeleteClientDialog from '../components/clients/DeleteClientDialog';
  *
  * The list, its figures and its filters are today's rules (lib/clientView):
  * what a client owes is the database's outstanding balance, "Overdue 30+"
- * counts the whole balance of a client whose oldest unpaid bill is 30 days
- * old, and a balance of 0 or less reads Settled. Collecting a payment is
+ * counts only the part on bills over 30 days old, bill by bill as the phone
+ * (lib/overdue), and a balance of 0 or less reads Settled. Collecting a payment is
  * today's settle_client_payment call, unchanged.
  */
 const FILTERS = [['OWING', 'Owing'], ['OVERDUE', 'Overdue'], ['ALL', 'All']];
@@ -127,7 +127,7 @@ export default function Clients() {
       <FigureStrip cols={4} className="m-rise mb-5" style={{ '--i': 0 }}>
         <Figure label="Owed to you" value={money(kpis.receivable, cur)} sub={`${kpis.owingCount} of ${(clients || []).length} clients`} />
         <Figure label="Overdue 30+ days" value={<span className={kpis.overdue > 0 ? 'text-bad-text' : ''}>{money(kpis.overdue, cur)}</span>}
-          sub={kpis.overdue > 0 ? `whole balance · ${kpis.overdueCount} client${kpis.overdueCount === 1 ? '' : 's'}` : 'nothing overdue'} />
+          sub={kpis.overdue > 0 ? `on bills over 30 days · ${kpis.overdueCount} client${kpis.overdueCount === 1 ? '' : 's'}` : 'nothing overdue'} />
         <Figure label="Collected this month" value={<span className={kpis.collected > 0 ? 'text-good-text' : ''}>{money(kpis.collected, cur)}</span>}
           sub={`${kpis.receipts} receipt${kpis.receipts === 1 ? '' : 's'}`} />
         <Figure label="Oldest unpaid" value={kpis.oldest != null ? <>{kpis.oldest} <span className="text-[14px] font-medium text-mute">days</span></> : '—'}
@@ -170,7 +170,7 @@ export default function Clients() {
 
           <div className="m-rise mt-2.5 flex flex-wrap justify-between gap-2 px-1 text-[12.5px] text-mute" style={{ '--i': 4 }}>
             {filter === 'OWING' && <><span>{counts.OWING} client{counts.OWING === 1 ? '' : 's'} owe you · biggest first, then oldest</span>{settledCount > 0 && <span>{settledCount} settled client{settledCount === 1 ? '' : 's'} under All</span>}</>}
-            {filter === 'OVERDUE' && <><span>{counts.OVERDUE} client{counts.OVERDUE === 1 ? '' : 's'} whose oldest unpaid bill is 30 days or more · {money(kpis.overdue, cur)}</span><span>The whole balance of each counts, as before</span></>}
+            {filter === 'OVERDUE' && <><span>{counts.OVERDUE} client{counts.OVERDUE === 1 ? '' : 's'} with bills over 30 days old · {money(kpis.overdue, cur)}</span><span>Only what is on those bills counts</span></>}
             {filter === 'ALL' && <span>{counts.ALL} clients · settled clients show New sale instead of Collect</span>}
           </div>
         </>
