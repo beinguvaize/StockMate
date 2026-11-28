@@ -2,12 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, FileText, FileCheck, Wallet,
-  RotateCcw, ReceiptText, Truck, FileSpreadsheet, FilePen,
+  RotateCcw, ReceiptText, Truck, FileSpreadsheet, FilePen, Copy,
 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Seg } from '../../components/documents/DocParts';
 import { classifyWriteFailure } from '../../lib/writeOutcome';
+import { duplicateInvoiceDraft } from '../../lib/duplicateInvoice';
+import { formatShortDateTime, todayISOInAppTZ } from '../../lib/utils';
 import InvoiceTemplate from '../../components/invoice/InvoiceTemplate';
 import { useTenant } from '../../context/TenantContext';
 import { useNotifications } from '../../context/NotificationContext';
@@ -36,7 +38,9 @@ const DOC_TYPES = {
   MANUAL_INVOICE:  { label: 'Manual bill',      prefix: 'MB',  icon: FilePen,         gst: true,  stock: 'NONE', party: 'Bill to',   save: 'manual', manual: true },
 };
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+// The shop's today, not UTC's: between midnight and 5:30 am IST the UTC date
+// is still yesterday, and a new document defaulted to it.
+const todayISO = () => todayISOInAppTZ();
 
 const CreateDocument = () => {
   const navigate = useNavigate();
@@ -44,7 +48,7 @@ const CreateDocument = () => {
   const [params] = useSearchParams();
   const { currentTenantId, currentTenant, businessProfile = {} } = useTenant();
   const { addNotification } = useNotifications();
-  const { clients = [], sales = [], placeSale, processSalesReturn, settleSale } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
+  const { clients = [], sales = [], invoices = [], placeSale, processSalesReturn, settleSale } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
   const { products = [] } = useInventory(currentTenantId);
   const { create: createEstimate } = useEstimates(currentTenantId);
   const { accounts = [], addTxn } = useAccounts(currentTenantId);
@@ -254,6 +258,26 @@ const CreateDocument = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientParam, clients]);
 
+  // ?duplicate=<invoice id>: a NEW sales invoice filled from an old one
+  // (lib/duplicateInvoice): client, items, prices and notes. Never payments,
+  // e-Way bill, IRN, number or date. Applied once, when the invoice is loaded.
+  const duplicateId = params.get('duplicate');
+  const [dupSource, setDupSource] = useState(null);
+  useEffect(() => {
+    if (!duplicateId || dupSource) return;
+    const src = invoices.find((i) => String(i.id) === String(duplicateId));
+    if (!src) return;
+    const draft = duplicateInvoiceDraft(src, clients);
+    setDocType('SALES_INVOICE');
+    if (draft.party) setParty(draft.party);
+    setLines(draft.lines);
+    setNotes(draft.notes);
+    setMarkPaid(false);
+    setReceived('');
+    setDupSource(draft.source);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [duplicateId, invoices, clients]);
+
   // Where "back" goes, as its words: the page that opened this one says what
   // it is (the Invoices list passes "Invoices"); otherwise just "Back".
   const backLabel = location.state?.from || 'Back';
@@ -277,6 +301,23 @@ const CreateDocument = () => {
           {saving ? 'Saving…' : `Save ${cfg.label.toLowerCase()}`}
         </Button>
       </div>
+
+      {dupSource && (
+        <div className="m-rise mb-3.5 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-tile px-3.5 py-2.5 text-[13px] text-body">
+          <Copy size={16} className="shrink-0 text-ink-2" />
+          <span className="min-w-0 flex-1">
+            Copied from <b className="font-semibold text-ink">{dupSource.number || 'an invoice'}</b>
+            {dupSource.date ? ` · ${formatShortDateTime(dupSource.date)}` : ''}{dupSource.clientName ? ` · ${dupSource.clientName}` : ''}.
+            {' '}Items, prices and client are filled in. Date is today; the new number is given on save. Payments are not copied.
+          </span>
+          {dupSource.id && (
+            <button type="button" onClick={() => navigate(`/invoices/${encodeURIComponent(dupSource.id)}`)}
+              className="font-tight text-[13px] font-semibold text-amber-text hover:underline underline-offset-4">
+              Open {dupSource.number || 'invoice'}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Doc-type switch */}
       <div role="group" aria-label="Document type" className="m-rise mb-4 flex flex-wrap gap-1.5" style={{ '--i': 1 }}>

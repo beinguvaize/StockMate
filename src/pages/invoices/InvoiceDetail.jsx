@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  ArrowLeft, BellRing, Share2, Printer, ChevronDown, CheckCircle2, ReceiptText, FileText, Wallet,
+  ArrowLeft, BellRing, Share2, Printer, ChevronDown, CheckCircle2, ReceiptText, FileText, Wallet, Copy,
 } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext';
 import { useNotifications } from '../../context/NotificationContext';
@@ -131,6 +131,7 @@ const InvoiceDetail = () => {
   };
 
   const openPrint = (mode) => setPrinting(mode);
+  const duplicate = () => navigate(`/documents/new?type=SALES_INVOICE&duplicate=${encodeURIComponent(inv.id)}`, { state: { from: inv.invoice_number || 'Invoice' } });
   const goClient = () => inv.client_id && navigate(`/clients/settle/${inv.client_id}`);
 
   return (
@@ -168,6 +169,7 @@ const InvoiceDetail = () => {
               )}
             </RowMenu>
           </div>
+          <Button variant="secondary" onClick={duplicate}><Copy /> Duplicate</Button>
           {unpaid && <Button onClick={() => setPayOpen(true)}>Record payment</Button>}
         </div>
       </div>
@@ -287,6 +289,7 @@ const InvoiceDetail = () => {
               Issue credit note
             </ActionLink>
             <ActionLink icon={FileText} hint={inv.eway_no ? 'Saved' : null} onClick={() => setEwayOpen(true)}>e-Way bill</ActionLink>
+            <ActionLink icon={Copy} hint="New invoice, same items" onClick={duplicate}>Duplicate</ActionLink>
           </Card>
 
           <Card className="m-rise !px-[18px] !py-4" style={{ '--i': 6 }}>

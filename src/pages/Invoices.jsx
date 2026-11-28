@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FileText, CheckCircle2, Printer, Share2, BellRing, Truck, Repeat, Download, Plus, Search,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Copy,
 } from 'lucide-react';
 import { useTenant } from '../context/TenantContext';
 import RecurringInvoicesModal from '../components/sales/RecurringInvoicesModal';
@@ -88,6 +88,9 @@ const Invoices = () => {
 
   const handleExport = () => downloadCSV(invoiceCsvRows(filtered, clientName), `invoices_${todayISOInAppTZ()}.csv`);
 
+  // A new, unsaved sales invoice from this one (lib/duplicateInvoice).
+  const duplicate = (inv) => navigate(`/documents/new?type=SALES_INVOICE&duplicate=${encodeURIComponent(inv.id)}`, { state: { from: 'Invoices' } });
+
   const openPrint = (inv) => { setViewingInvoice(inv); setInvoiceMode('gst'); };
 
   // ── row ───────────────────────────────────────────────────────────
@@ -132,6 +135,7 @@ const Invoices = () => {
                     Send payment reminder
                   </MenuItem>
                 )}
+                <MenuItem icon={Copy} hint="New invoice, same items" onClick={() => { close(); duplicate(inv); }}>Duplicate</MenuItem>
                 <MenuRule />
                 <MenuItem icon={FileText} hint={inv.eway_no ? 'Saved' : null}
                   title={inv.eway_no ? `e-Way ${inv.eway_no}` : 'Generate e-Way bill'}
