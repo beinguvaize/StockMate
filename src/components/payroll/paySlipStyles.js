@@ -71,6 +71,12 @@ const SHEET = `
   .ps-a{font-weight:450;white-space:nowrap;}
   .ps-sum{border-top:1px solid var(--ps-hair);font-weight:600;padding-top:.9mm;}
   .ps-none{color:var(--ps-ink3);font-style:italic;}
+  /* This period beside year to date: the amount columns sit on a grid. */
+  .ps-ln3{display:grid;grid-template-columns:minmax(0,1fr) 15mm 17mm;gap:4px;}
+  .ps-ln3 .ps-a{text-align:right;}
+  .ps-ln3-h{font-size:5.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ps-ink3);padding:0 0 .4mm;}
+  .ps-ln3-h span{text-align:right;}
+  .ps-net3{border-top:1.4px solid var(--ps-ink);font-weight:600;margin-top:1mm;padding-top:.9mm;}
 
   /* totals rail */
   .ps-rail{display:flex;flex-direction:column;}

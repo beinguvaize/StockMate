@@ -17,7 +17,7 @@
  *    the paper.
  */
 
-import { describePeriod, monthToDate, yearToDate } from './payrollPeriods';
+import { describePeriod, monthToDate, yearToDate, parsePeriod, financialYear } from './payrollPeriods';
 
 /** Rupees, Indian grouping, always two decimals -- it is a money document. */
 export const money = (v) => `₹${(Number(v) || 0).toLocaleString('en-IN', {
@@ -225,6 +225,10 @@ export function buildPayslip({ run, item, employee, business, records, payment,
     // is measured against.
     yearToDate: records ? yearToDate({ run, records, employeeId: item.employeeId }) : null,
 
+    // The same, line by line: every earnings and deduction line of this slip
+    // beside its financial-year total ("This period" / "Year to date").
+    ytdLines: records ? slipYearToDate({ run, records, employeeId: item.employeeId }) : null,
+
     // Attendance is the salaried equivalent of that block: what was paid of
     // what the period held.
     attendance: !isDaily && periodLen > 0
@@ -282,5 +286,61 @@ export function maskAccount(value) {
   if (!digits) return null;
   return digits.length <= 4 ? digits : `•••• ${digits.slice(-4)}`;
 }
+
+/**
+ * Year to date, line by line, read from saved pay-run lines.
+ *
+ * No pay is worked out here: each saved line in the window is turned into its
+ * own slip lines by buildPayslip (the same lines its slip prints), and those
+ * are added up by label. So "Salary · year to date" is exactly the Salary lines
+ * of the slips that make up the year, and net is the sum of the nets paid.
+ *
+ *   fyFrom / fyTo   the financial year (April to March) the runs END in
+ *   include(r)      which of those runs count (to date: this run and earlier)
+ */
+export function yearToDateLines({ records = [], employeeId, fyFrom, fyTo, include = () => true } = {}) {
+  const earn = new Map();
+  const ded = new Map();
+  let runs = 0;
+  let net = 0;
+  for (const r of records || []) {
+    if (!r || r.deleted_at) continue;
+    const w = parsePeriod(r.period);
+    if (!w || w.to < fyFrom || w.to > fyTo || !include(r)) continue;
+    const item = (r.items || []).find((i) => String(i.employeeId) === String(employeeId));
+    if (!item) continue;
+    const slip = buildPayslip({ run: r, item });   // no records: no nested year-to-date
+    if (!slip) continue;
+    runs += 1;
+    for (const l of slip.earnings) earn.set(l.label, (earn.get(l.label) || 0) + l.amount);
+    for (const l of slip.deductionLines) ded.set(l.label, (ded.get(l.label) || 0) + l.amount);
+    net += slip.netPay;
+  }
+  const list = (m) => [...m].map(([label, amount]) => ({ label, amount }));
+  const earnings = list(earn);
+  const deductions = list(ded);
+  const gross = earnings.reduce((t, l) => t + l.amount, 0);
+  const deductionsTotal = deductions.reduce((t, l) => t + l.amount, 0);
+  return { runs, earnings, deductions, gross, deductionsTotal, net, from: fyFrom, to: fyTo };
+}
+
+/** Year to date for one slip: its financial year, this run and the ones before it. */
+export function slipYearToDate({ run, records = [], employeeId } = {}) {
+  const w = parsePeriod(run?.period);
+  const fy = w && financialYear(w.to);
+  if (!fy || !employeeId) return null;
+  const before = (r) => {
+    if (String(r.id) === String(run.id)) return true;
+    const a = String(r.processed_at || '');
+    const b = String(run.processed_at || '');
+    return a !== b ? a < b : String(r.id || '') < String(run.id || '');
+  };
+  const all = (records || []).some((r) => String(r.id) === String(run.id)) ? records : [...(records || []), run];
+  return { year: fy.label, ...yearToDateLines({ records: all, employeeId, fyFrom: fy.from, fyTo: fy.to, include: before }) };
+}
+
+/** A slip line's year-to-date figure, by label (0 when the year has none). */
+export const ytdFor = (ytd, kind, label) =>
+  (ytd?.[kind] || []).find((l) => l.label === label)?.amount || 0;
 
 export default buildPayslip;

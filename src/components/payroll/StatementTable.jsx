@@ -48,3 +48,33 @@ export default function StatementTable({ st, rows = st.rows, print = false }) {
   );
 }
 
+
+/**
+ * Year to date under the statement (22, 23): the financial year so far, read
+ * from saved pay-run lines (lib/payslip.yearToDateLines). Days not yet paid
+ * are not in it; they are this month's Still to pay, shown beside it.
+ */
+export function YtdBlock({ ytd, fyLabel, upTo, stillToPay, print = false }) {
+  if (!ytd) return null;
+  const cell = print ? 'px-3 py-2' : 'px-4 py-3';
+  const k = cn('flex items-center gap-1 font-tight font-semibold uppercase tracking-[0.06em]', print ? 'text-[9.5px] text-[#80868d]' : 'text-[11px] text-mute');
+  const v = cn('block font-tight font-semibold tabular-nums', print ? 'mt-0.5 text-[13px]' : 'mt-1 text-[19px]');
+  const s = print ? 'text-[10px] text-[#80868d]' : 'text-[12px] text-body';
+  const ded = ytd.deductions.map((d) => d.label).join(', ');
+  return (
+    <>
+      <div className={cn('flex flex-wrap items-center gap-1.5 font-tight font-semibold', print ? 'mt-2.5 text-[11px]' : 'mt-4 text-[13px]')}>
+        Year to date · FY {fyLabel}
+        <span className={cn('ml-1.5 font-sans font-medium', print ? 'text-[#80868d]' : 'text-mute')}>
+          1 Apr to {dayWords(upTo, { year: false })} · {ytd.runs} pay run{ytd.runs === 1 ? '' : 's'}
+        </span>
+      </div>
+      <div className={cn('mt-2.5 grid grid-cols-2 overflow-hidden border border-line bg-white md:grid-cols-4', print ? 'rounded-[6px]' : 'rounded-[14px]')}>
+        <div className={cell}><span className={k}>Gross</span><b className={v}>{inr(ytd.gross)}</b><small className={s}>earnings on the payslips</small></div>
+        <div className={cn(cell, 'border-l border-sep')}><span className={k}>Deductions</span><b className={v}>{inr(ytd.deductionsTotal)}</b><small className={s}>{ded || 'none'}</small></div>
+        <div className={cn(cell, 'border-l border-sep')}><span className={k}>Paid</span><b className={v}>{inr(ytd.net)}</b><small className={s}>{inr(ytd.gross)} − {inr(ytd.deductionsTotal)}</small></div>
+        <div className={cn(cell, 'border-l border-sep')}><span className={k}>Still to pay now</span><b className={v}>{inr(stillToPay)}</b><small className={s}>this month, not yet in a pay run</small></div>
+      </div>
+    </>
+  );
+}

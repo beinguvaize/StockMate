@@ -12,7 +12,7 @@ import { formatDate, todayISOInAppTZ, cn } from '../../lib/utils';
 import { classifyWriteFailure } from '../../lib/writeOutcome';
 import {
   monthBounds, monthWords, salaryStatement, periodWords, runKindLabel, shopDay, dayWords,
-  methodLabel, historyLine, markTally, financialYearOf, maskSensitive, daysText, isDayRateType,
+  methodLabel, markTally, financialYearOf, maskSensitive, daysText, isDayRateType,
 } from '../../lib/payrollView';
 import { Button } from '../../components/ui/button';
 import { Tabs, FilterPills } from '../../components/ui/Tabs';
@@ -24,7 +24,8 @@ import PayOneDialog from '../../components/payroll/PayOneDialog';
 import ConfirmDialog from '../../components/payroll/ConfirmDialog';
 import PaySlip from '../../components/payroll/PaySlip';
 import StatementPrint from '../../components/payroll/StatementPrint';
-import StatementTable from '../../components/payroll/StatementTable';
+import StatementTable, { YtdBlock } from '../../components/payroll/StatementTable';
+import { yearToDateLines, buildPayslip } from '../../lib/payslip';
 import {
   inr, Avatar, statusPill, Pill, payTypeWords, rateWords, Eyebrow, MonthStep, ErrorBar, EmptyState,
   Card, LinkButton, MARK, markOf,
@@ -84,6 +85,13 @@ export default function EmployeeProfile() {
   const statement = useMemo(() => (line ? salaryStatement({
     line, month, records: payrollRecords, methods: payrollPaymentMethods, accountFor, asOf: today,
   }) : null), [line, month, payrollRecords, payrollPaymentMethods, accountFor, today]);
+
+  // Year to date for the statement: the financial year's saved lines whose
+  // period ends by the end of the month on screen.
+  const stmtYtd = useMemo(() => {
+    const f = financialYearOf(win.from);
+    return { fy: f, upTo: win.to, ytd: yearToDateLines({ records: payrollRecords, employeeId, fyFrom: f.from, fyTo: f.to, include: (r) => (parsePeriodEnd(r.period) || '') <= win.to }) };
+  }, [payrollRecords, employeeId, win.from, win.to]);
 
   // This person's saved lines, newest first: the payslips.
   const slips = useMemo(() => (payrollRecords || [])
@@ -237,7 +245,7 @@ export default function EmployeeProfile() {
         </div>
       ) : tab === 'STATEMENT' ? (
         <StatementTab month={month} setMonth={setMonth} st={statement} failed={failed} inactive={inactive} name={emp.name}
-          onPrint={() => setPrintStmt(true)} />
+          ytd={stmtYtd} onPrint={() => setPrintStmt(true)} />
       ) : tab === 'ATTENDANCE' ? (
         <AttendanceView month={month} setMonth={setMonth} today={today} att={att} fy={fy} emp={emp} records={payrollRecords} />
       ) : tab === 'PAYSLIPS' ? (
@@ -264,7 +272,9 @@ export default function EmployeeProfile() {
         }} />
       {slip && <PaySlip run={slip.run} items={slip.items} employees={employees} records={payrollRecords}
         paymentMethods={payrollPaymentMethods} accounts={accounts} business={businessProfile} onClose={() => setSlip(null)} />}
-      {printStmt && statement && <StatementPrint st={statement} emp={emp} business={businessProfile} month={month} today={today} onClose={() => setPrintStmt(false)} />}
+      {printStmt && statement && <StatementPrint st={statement} emp={emp} business={businessProfile} month={month} today={today}
+        ytd={<YtdBlock print ytd={stmtYtd.ytd} fyLabel={stmtYtd.fy.label} upTo={stmtYtd.upTo} stillToPay={statement.stillToPay} />}
+        onClose={() => setPrintStmt(false)} />}
     </div>
   );
 }
@@ -347,7 +357,7 @@ function MiniCal({ month, today, days, records, employeeId }) {
 }
 
 /** Salary statement (22). Rows are lib/payrollView.salaryStatement's. */
-function StatementTab({ month, setMonth, st, failed, inactive, name, onPrint }) {
+function StatementTab({ month, setMonth, st, failed, inactive, name, ytd, onPrint }) {
   const [only, setOnly] = useState('ALL');
   const rows = st?.rows || [];
   const earnedN = rows.filter((r) => r.type === 'earned' || r.type === 'deduction').length;
@@ -367,6 +377,7 @@ function StatementTab({ month, setMonth, st, failed, inactive, name, onPrint }) 
         : !st ? (failed ? <EmptyState title="Statement not loaded" text="The pay figures could not be loaded." /> : <Skeleton className="h-48 w-full" />) : (
         <>
           <StatementTable st={st} rows={shown} />
+          <YtdBlock ytd={ytd.ytd} fyLabel={ytd.fy.label} upTo={ytd.upTo} stillToPay={st.stillToPay} />
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] text-body">
             <span className="inline-flex items-center gap-[5px]"><i className="inline-block h-2 w-2 rounded-full bg-good" />Earned</span>
             <span className="inline-flex items-center gap-[5px]"><i className="inline-block h-2 w-2 rounded-full bg-ink" />Payment</span>
@@ -484,10 +495,13 @@ function PayslipsTab({ slips, methods, emp, onOpen, today }) {
   const [fyLabel, setFy] = useState(() => financialYearOf(today).label);
   const pick = years.includes(fyLabel) ? fyLabel : years[0] || financialYearOf(today).label;
   const list = slips.filter(({ r }) => financialYearOf(parsePeriodEnd(r.period) || today).label === pick);
-  const lines = list.map(({ item }) => historyLine(item));
-  const gross = lines.reduce((t, h) => t + h.base + h.extras, 0);
-  const ded = lines.reduce((t, h) => t + h.deductions + h.paidEarlier, 0);
-  const net = lines.reduce((t, h) => t + h.net, 0);
+  // Year to date: the picked financial year's saved lines, summed the way
+  // each slip prints them (lib/payslip.yearToDateLines).
+  const fyOf = financialYearOf(`${pick.slice(0, 4)}-04-01`);
+  const ytd = yearToDateLines({ records: list.map((x) => x.r), employeeId: emp.id, fyFrom: fyOf.from, fyTo: fyOf.to });
+  const gross = ytd.gross;
+  const ded = ytd.deductionsTotal;
+  const net = ytd.net;
   return (
     <div className="m-rise">
       <div className="mb-3 flex flex-wrap items-center gap-2.5">
@@ -501,10 +515,11 @@ function PayslipsTab({ slips, methods, emp, onOpen, today }) {
         <div className="flex-1" />
         <Button variant="secondary" disabled={!list.length} onClick={() => list.length && onOpen(list[0].r, list.map((x) => x.item))}><Printer /> Print the latest</Button>
       </div>
-      <div className="mb-3.5 grid grid-cols-2 md:grid-cols-3">
-        <Tile label="Paid this year" value={inr(net)} sub={`FY ${pick} · ${list.length} payslip${list.length === 1 ? '' : 's'}`} />
-        <Tile label="Gross" value={inr(gross)} sub="base pay and extras" />
-        <Tile label="Deductions" value={inr(ded)} sub={ded > 0 ? 'PF, ESI, tax, typed and paid earlier' : `none for ${emp.name.split(' ')[0]}`} />
+      <div className="mb-3.5 grid grid-cols-2 md:grid-cols-4">
+        <Tile label="Gross, year to date" value={inr(gross)} sub={`FY ${pick} · earnings on the payslips`} />
+        <Tile label="Deductions, year to date" value={inr(ded)} sub={ded > 0 ? ytd.deductions.map((d) => d.label).join(', ') : `none for ${emp.name.split(' ')[0]}`} />
+        <Tile label="Net, year to date" value={inr(net)} sub={`${inr(gross)} − ${inr(ded)}`} />
+        <Tile label="Payslips" value={String(list.length)} sub={`FY ${pick}`} />
       </div>
       {list.length === 0 ? <EmptyState icon={FileText} title="No payslips this year" text="Payslips appear once a pay run includes this person." /> : (
         <div className="overflow-hidden rounded-[14px] border border-line bg-surface">
@@ -514,15 +529,15 @@ function PayslipsTab({ slips, methods, emp, onOpen, today }) {
             </tr></thead>
             <tbody>
               {list.map(({ r, item }) => {
-                const h = historyLine(item);
+                const sl = buildPayslip({ run: r, item });
                 return (
                   <tr key={r.id} className="[&>td]:border-b [&>td]:border-sep [&>td]:px-3.5 [&>td]:py-2.5">
                     <td><b className="block font-tight font-semibold">{periodWords(r.period)}</b><small className="text-[11.5px] text-mute">{runKindLabel(r.period)}</small></td>
                     <td>{r.processed_at ? dayWords(shopDay(r.processed_at)) : '—'}</td>
                     <td>{methodLabel(methods[r.id]) || '—'}</td>
-                    <td className="text-right tabular-nums">{inr(h.base + h.extras)}</td>
-                    <td className="text-right tabular-nums">{inr(h.deductions + h.paidEarlier)}</td>
-                    <td className="text-right font-tight font-semibold tabular-nums">{inr(h.net)}</td>
+                    <td className="text-right tabular-nums">{inr(sl?.grossEarnings)}</td>
+                    <td className="text-right tabular-nums">{inr(sl?.deductions)}</td>
+                    <td className="text-right font-tight font-semibold tabular-nums">{inr(sl?.netPay)}</td>
                     <td className="text-right"><button type="button" onClick={() => onOpen(r, [item])} aria-label={`Payslip for ${periodWords(r.period)}`} className="m-press inline-grid h-[30px] w-[30px] place-items-center rounded-[9px] text-body shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile"><FileText size={14} /></button></td>
                   </tr>
                 );
@@ -569,7 +584,7 @@ function DetailsTab({ emp, users, onEdit }) {
           <Switch id="show-sensitive" checked={reveal} onChange={setReveal} label="Show sensitive data" />
           <span aria-hidden="true">Show sensitive data</span>
         </span>
-        <span className="text-[12px] text-mute">Off each time this page opens. Bank, PAN, Aadhaar, PF and ESI numbers show the last 4 only.</span>
+        <span className="text-[12px] text-mute">Sensitive numbers show the last 4 only while the switch is off. It turns off again when you leave this tab.</span>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         {cards.map(([title, rows]) => (
