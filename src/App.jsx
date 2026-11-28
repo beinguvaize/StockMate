@@ -46,6 +46,7 @@ const Clients          = lazy(() => import('./pages/Clients'));
 const Reports          = lazy(() => import('./pages/Reports'));
 const Orders           = lazy(() => import('./pages/Orders'));
 const Payroll          = lazy(() => import('./pages/Payroll'));
+const EmployeeProfile  = lazy(() => import('./pages/payroll/EmployeeProfile'));
 const DayBook          = lazy(() => import('./pages/DayBook'));
 const Purchases        = lazy(() => import('./pages/purchases'));
 const Suppliers        = lazy(() => import('./pages/Suppliers'));
@@ -254,6 +255,7 @@ function AppRoutes() {
         <Route path="reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
         <Route path="orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
         <Route path="payroll" element={<ProtectedRoute><Payroll /></ProtectedRoute>} />
+        <Route path="payroll/employee/:employeeId" element={<ProtectedRoute><EmployeeProfile /></ProtectedRoute>} />
         <Route path="daybook" element={<ProtectedRoute><DayBook /></ProtectedRoute>} />
         <Route path="accounts" element={<ProtectedRoute><Accounts /></ProtectedRoute>} />
         <Route path="purchases" element={<ProtectedRoute><Purchases /></ProtectedRoute>} />
