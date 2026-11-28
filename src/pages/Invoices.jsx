@@ -1,31 +1,37 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  FileText, Plus, Search, TrendingUp,
-  CheckCircle, Clock, AlertTriangle,
-  Printer, Share2, Eye, Trash2, X,
-  Calendar, Download, Zap, Package,
-  CheckCircle2, CreditCard, Wallet, Landmark, Truck, BellRing
+  FileText, Calendar, Clock, CheckCircle2, Printer, Share2, BellRing, Truck, Repeat, Download, Plus, Search,
+  ChevronLeft, ChevronRight, CreditCard,
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import RecurringInvoicesModal from '../components/sales/RecurringInvoicesModal';
 import EwayBillModal from '../components/sales/EwayBillModal';
 import { useSales } from '../hooks/useSales';
-import { useInventory } from '../hooks/useInventory';
 import { usePeople } from '../hooks/usePeople';
 import { useNotifications } from '../context/NotificationContext';
-import { formatINR, calculateGST, shareToWhatsApp } from '../lib/gstEngine';
+import { shareToWhatsApp } from '../lib/gstEngine';
 import { sendPaymentReminder } from '../lib/reminders';
-import { formatCurrency, todayISOInAppTZ, formatDate, formatDateTime, parseLocalDate } from '../lib/utils';
+import { formatCurrency, todayISOInAppTZ, formatDate, formatShortDateTime } from '../lib/utils';
+import {
+  resolveInvoiceStatus, invoiceOutstanding, inInvoiceDateRange, summarizeInvoices, filterInvoices,
+  pageOf, invoiceCsvRows, STATUS_LABEL, STATUS_TONE, deliveryPill,
+} from '../lib/invoiceList';
 import InvoiceTemplate from '../components/invoice/InvoiceTemplate';
 import POSReceipt from '../components/invoice/POSReceipt';
 import Modal from '../shared/Modal';
-import Table from '../shared/Table';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { FilterPills } from '../components/ui/Tabs';
+import { FigureStrip, Figure } from '../components/ui/FigureStrip';
+import SegmentedTabs from '../components/motion/SegmentedTabs';
+import { RowMenu, MenuItem, MenuRule } from '../components/ui/RowMenu';
+import RecordPaymentDialog from '../components/invoices/RecordPaymentDialog';
+import { classifyWriteFailure } from '../lib/writeOutcome';
 
-// ── helpers ───────────────────────────────────────────────────────────
-const isPaid  = (s) => s === 'PAID';
-const isUnpaid = (s) => s === 'UNPAID' || s === 'PARTIAL';
+const PAGE_SIZE = 50;
 
 const downloadCSV = (rows, filename) => {
   if (!rows.length) return;
@@ -38,46 +44,10 @@ const downloadCSV = (rows, filename) => {
   URL.revokeObjectURL(url);
 };
 
-// ── sub-components ────────────────────────────────────────────────────
-const SummaryCard = ({ label, value, sub, tone }) => {
-  const cls = tone === 'emerald' ? 'text-emerald-600' : tone === 'amber' ? 'text-accent-signature' : tone === 'rose' ? 'text-rose-500' : 'text-ink-primary';
-  return (
-    <div className="bg-white rounded-2xl border border-black/5 px-4 py-3">
-      <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{label}</div>
-      <div className={` text-xl font-bold tabular-nums mt-0.5 ${cls}`}>{value}</div>
-      {sub && <div className="text-[11px] font-semibold text-muted-foreground mt-0.5">{sub}</div>}
-    </div>
-  );
-};
+// "26 Nov": the list's date, from the invoice's own (date-only) date.
+const shortDay = (ymd) => formatShortDateTime(String(ymd || '').slice(0, 10)) || '—';
 
-const StatusBadge = ({ status }) => {
-  const map = {
-    PAID:    'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60',
-    UNPAID:  'bg-accent-signature/10 text-accent-signature-hover ring-1 ring-accent-signature/20',
-    PARTIAL: 'bg-blue-50 text-blue-700 ring-1 ring-blue-200/60',
-    OVERDUE: 'bg-rose-50 text-rose-600 ring-1 ring-rose-200/60',
-  };
-  const dot = {
-    PAID: 'bg-emerald-500', UNPAID: 'bg-accent-signature', PARTIAL: 'bg-blue-500', OVERDUE: 'bg-rose-500'
-  };
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${map[status] || map.UNPAID}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${dot[status] || dot.UNPAID}`} />
-      {status === 'UNPAID' ? 'Pending' : status.charAt(0) + status.slice(1).toLowerCase()}
-    </span>
-  );
-};
-
-const DateTab  = ({ k, label, active, onClick }) => (
-  <button onClick={onClick} className={`px-3 py-1.5 rounded-pill text-xs font-semibold transition-colors ${active ? 'bg-accent-signature text-button-text' : 'bg-white text-ink-secondary hover:text-ink-primary border border-black/5'}`}>{label}</button>
-);
-
-const StatusTab = ({ k, label, count, active, onClick }) => (
-  <button onClick={onClick} className={`px-3.5 py-1.5 rounded-pill text-xs font-semibold transition-colors ${active ? 'bg-ink-primary text-surface' : 'bg-white text-ink-secondary hover:text-ink-primary border border-black/5'}`}>
-    {label}{count != null && <span className={`ml-1.5 ${active ? 'opacity-70' : 'text-muted-foreground'}`}>{count}</span>}
-  </button>
-);
-
+// ── legacy detail pieces (replaced by the detail page in the next phase) ──
 const MetaRow = ({ icon: Icon, label, value, tone }) => {
   const cls = tone === 'emerald' ? 'text-emerald-600' : tone === 'amber' ? 'text-accent-signature' : 'text-ink-primary';
   return (
@@ -99,13 +69,23 @@ const TotalRow = ({ label, value, bold, tone }) => {
   );
 };
 
+/** The status cell: payment pill, then delivery, then e-Way bill. */
+export const InvoiceStatusPills = ({ inv, status }) => {
+  const dp = deliveryPill(inv);
+  return (
+    <div className="flex flex-wrap gap-1">
+      <Badge tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Badge>
+      {dp && <Badge tone={dp.tone}>{dp.label}</Badge>}
+      {inv.eway_no && <Badge tone="good" title={`e-Way bill ${inv.eway_no}`}>e-Way bill</Badge>}
+    </div>
+  );
+};
+
 // ── main ──────────────────────────────────────────────────────────────
 const Invoices = () => {
   const navigate = useNavigate();
-  const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile, currentTenant } = useTenant();
-  const { invoices, createInvoice, markInvoicePaid, enqueueIrn, refetch: refetchInvoices } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
-  const { products } = useInventory(currentTenantId);
+  const { invoices, markInvoicePaid, enqueueIrn, refetch: refetchInvoices } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
   const { clients }  = usePeople(currentTenantId);
   const [showRecurring, setShowRecurring] = useState(false);
   const [ewayInv, setEwayInv] = useState(null);
@@ -122,321 +102,219 @@ const Invoices = () => {
   const [invoiceMode,    setInvoiceMode]    = useState('gst');
   const [detailInv,      setDetailInv]      = useState(null);
   const [settleInput,    setSettleInput]    = useState('');
+  const [payInv,         setPayInv]         = useState(null);
 
   // filters
   const [searchTerm,   setSearchTerm]   = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [dateFilter,   setDateFilter]   = useState('ALL');
   const [customRange,  setCustomRange]  = useState({ from: '', to: '' });
-
-  // creator
+  const [page,         setPage]         = useState(0);
 
   // ── lookups ───────────────────────────────────────────────────────
   const clientOf = useCallback((inv) =>
     clients.find(c => c.id === inv.client_id) || { name: inv.client_name || 'Walk-in' },
   [clients]);
+  const clientName = useCallback((inv) => clientOf(inv)?.name || '', [clientOf]);
 
-  const outstandingOf = (inv) => Math.max(0, (inv.grand_total || 0) - (inv.paid_amount || 0));
+  const today = todayISOInAppTZ();
+  const inDateRange = useCallback((inv) => inInvoiceDateRange(inv, dateFilter, customRange, today), [dateFilter, customRange, today]);
 
-  const resolveStatus = (inv) => {
-    if (isPaid(inv.payment_status)) return 'PAID';
-    if (inv.payment_status === 'PARTIAL') return 'PARTIAL';
-    if (inv.due_date && parseLocalDate(inv.due_date) < new Date()) return 'OVERDUE';
-    return 'UNPAID';
-  };
+  const summary = useMemo(() => summarizeInvoices(invoices, inDateRange), [invoices, inDateRange]);
+  const filtered = useMemo(
+    () => filterInvoices(invoices, { inRange: inDateRange, status: statusFilter, query: searchTerm, clientName }),
+    [invoices, inDateRange, statusFilter, searchTerm, clientName],
+  );
+  useEffect(() => { setPage(0); }, [dateFilter, customRange, statusFilter, searchTerm]);
+  const pg = pageOf(filtered, page, PAGE_SIZE);
 
-  // ── date filter ───────────────────────────────────────────────────
-  const inDateRange = useCallback((inv) => {
-    if (dateFilter === 'ALL') return true;
-    const d = (inv.invoice_date || '').slice(0, 10);
-    if (!d) return false;
-    const today = todayISOInAppTZ();
-    if (dateFilter === 'TODAY') return d === today;
-    const todayMs = new Date(today + 'T00:00:00Z').getTime();
-    const dMs     = new Date(d + 'T00:00:00Z').getTime();
-    if (dateFilter === '7D')  return dMs >= todayMs - 7  * 86400000;
-    if (dateFilter === '30D') return dMs >= todayMs - 30 * 86400000;
-    if (dateFilter === 'CUSTOM') {
-      if (customRange.from && d < customRange.from) return false;
-      if (customRange.to   && d > customRange.to)   return false;
-      return true;
-    }
-    return true;
-  }, [dateFilter, customRange]);
-
-  // ── summary ───────────────────────────────────────────────────────
-  const summary = useMemo(() => {
-    let revenue = 0, paidAmt = 0, paidCt = 0, unpaidCt = 0, unpaidAmt = 0, overdue = 0;
-    for (const inv of invoices) {
-      if (!inDateRange(inv)) continue;
-      const gt = inv.grand_total || 0;
-      revenue += gt;
-      const st = resolveStatus(inv);
-      if (st === 'PAID') { paidAmt += gt; paidCt++; }
-      else { unpaidCt++; unpaidAmt += outstandingOf(inv); if (st === 'OVERDUE') overdue += outstandingOf(inv); }
-    }
-    return { revenue, paidAmt, paidCt, unpaidCt, unpaidAmt, overdue, count: paidCt + unpaidCt };
-  }, [invoices, inDateRange]);
-
-  // ── filtered list ─────────────────────────────────────────────────
-  const filtered = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase();
-    return invoices
-      .filter(inv => {
-        if (!inDateRange(inv)) return false;
-        const st = resolveStatus(inv);
-        if (statusFilter !== 'ALL' && st !== statusFilter) return false;
-        if (!q) return true;
-        const name = clientOf(inv)?.name?.toLowerCase() || '';
-        return (inv.invoice_number || '').toLowerCase().includes(q) || name.includes(q);
-      })
-      // Sort by invoice_date desc, then invoice_number desc as a stable
-      // tiebreaker so same-day rows land in newest-number-first order
-      // on every load. created_at can't be the tiebreaker because
-      // bulk-backfilled rows share an identical microsecond timestamp
-      // and the visible order then differs between web and mobile (and
-      // even between page reloads).
-      .sort((a, b) => {
-        const ad = a.invoice_date || '';
-        const bd = b.invoice_date || '';
-        if (ad !== bd) return bd.localeCompare(ad);
-        return String(b.invoice_number || '').localeCompare(String(a.invoice_number || ''));
-      });
-  }, [invoices, searchTerm, statusFilter, inDateRange, clientOf]);
-
-  // ── export ────────────────────────────────────────────────────────
-  const handleExport = () => {
-    downloadCSV(
-      filtered.map(inv => ({
-        date: inv.invoice_date,
-        invoice: inv.invoice_number,
-        client: clientOf(inv)?.name || '',
-        taxable: inv.taxable_amount ?? '',
-        grand_total: inv.grand_total ?? 0,
-        paid_amount: inv.paid_amount ?? 0,
-        outstanding: outstandingOf(inv),
-        status: resolveStatus(inv),
-      })),
-      `invoices_${todayISOInAppTZ()}.csv`
-    );
-  };
+  const handleExport = () => downloadCSV(invoiceCsvRows(filtered, clientName), `invoices_${todayISOInAppTZ()}.csv`);
 
   // ── settle ────────────────────────────────────────────────────────
+  // The same write as before the redesign: the full balance marks the invoice
+  // paid; less than that sets its paid amount and PARTIAL. Only now the
+  // server's answer is read and returned instead of being dropped.
+  const recordPayment = async (inv, amt) => {
+    const out = invoiceOutstanding(inv);
+    if (amt >= out) {
+      const res = await markInvoicePaid(inv.id);
+      if (res?.error) return { error: res.error };
+    } else {
+      const { supabase } = await import('../lib/supabase');
+      const { error } = await supabase.from('invoices')
+        .update({ paid_amount: (inv.paid_amount || 0) + amt, payment_status: 'PARTIAL' })
+        .eq('id', inv.id);
+      if (error) return { error };
+      refetchInvoices?.();
+    }
+    addNotification?.(`Payment of ${formatCurrency(amt)} recorded on ${inv.invoice_number || 'the invoice'}`, 'success');
+    return { ok: true };
+  };
+
+  // Legacy detail modal's settle box, on the same path.
   const handleSettle = async () => {
     if (!detailInv) return;
     const amt = parseFloat(settleInput);
-    const out = outstandingOf(detailInv);
+    const out = invoiceOutstanding(detailInv);
     if (!amt || amt <= 0) return alert('Enter positive amount');
     if (amt > out) return alert(`Max payable: ${formatCurrency(out)}`);
-    if (amt >= out) {
-      await markInvoicePaid(detailInv.id);
-    } else {
-      // partial — update paid_amount
-      const { supabase } = await import('../lib/supabase');
-      await supabase.from('invoices')
-        .update({ paid_amount: (detailInv.paid_amount || 0) + amt, payment_status: 'PARTIAL' })
-        .eq('id', detailInv.id);
+    const res = await recordPayment(detailInv, amt);
+    if (res?.error) {
+      const f = classifyWriteFailure(res.error, { noun: 'payment' });
+      return addNotification?.(`${f.title}: ${f.detail}`, 'error');
     }
     setSettleInput('');
     setDetailInv(null);
   };
 
-  // ── table definition ──────────────────────────────────────────────
-  const headers = [
-    { label: 'Date' },
-    { label: 'Invoice #' },
-    { label: 'Client' },
-    { label: 'Amount', className: 'text-right' },
-    { label: 'Status' },
-    { label: '', className: 'text-right' },
-  ];
+  // Delivery flag on or off. Same update as before; a refusal is now shown.
+  const toggleDelivery = async (inv) => {
+    const { supabase } = await import('../lib/supabase');
+    const newRequired = !inv.delivery_required;
+    const { error } = await supabase.from('invoices')
+      .update({ delivery_required: newRequired, delivery_status: newRequired ? 'PENDING' : null })
+      .eq('id', inv.id);
+    if (error) {
+      const f = classifyWriteFailure(error, { noun: 'delivery change' });
+      addNotification?.(`${f.title}: ${f.detail}`, 'error');
+    }
+    refetchInvoices?.();
+  };
 
+  const openPrint = (inv) => { setViewingInvoice(inv); setInvoiceMode('gst'); };
+
+  // ── row ───────────────────────────────────────────────────────────
   const renderRow = (inv) => {
-    const client  = clientOf(inv);
-    const status  = resolveStatus(inv);
-    const out     = outstandingOf(inv);
-
+    const client = clientOf(inv);
+    const status = resolveInvoiceStatus(inv);
+    const out    = invoiceOutstanding(inv);
+    const unpaid = status !== 'PAID';
     return (
-      <tr
-        key={inv.id}
-        onClick={() => setDetailInv(inv)}
-        className="group hover:bg-canvas/70 transition-colors cursor-pointer"
-      >
-        <td className="px-4 py-4">
-          <div className="text-sm font-semibold text-ink-primary">{formatDate(inv.invoice_date)}</div>
-          {inv.due_date && status !== 'PAID' && (
-            <div className="text-[11px] font-medium text-muted-foreground mt-0.5">Due {formatDate(inv.due_date)}</div>
+      <TableRow key={inv.id} onClick={() => setDetailInv(inv)} className="cursor-pointer"
+        data-state={detailInv?.id === inv.id ? 'selected' : undefined}>
+        <TableCell className="whitespace-nowrap text-ink-2">
+          {shortDay(inv.invoice_date)}
+          {inv.due_date && unpaid && <span className="block mt-px text-[12px] text-mute">Due {shortDay(inv.due_date)}</span>}
+        </TableCell>
+        <TableCell>
+          <span className="font-tight text-[13.5px] font-semibold text-ink whitespace-nowrap">{inv.invoice_number}</span>
+        </TableCell>
+        <TableCell>
+          <span className="block font-tight text-[14px] font-semibold text-ink">{client?.name}</span>
+          <span className="font-tight text-[12px] font-medium tracking-[0.01em] text-mute">{client?.gstin || client?.gst_no || 'URD'}</span>
+        </TableCell>
+        <TableCell numeric className="whitespace-nowrap">
+          <span className="text-ink">{formatCurrency(inv.grand_total)}</span>
+          {out > 0 && unpaid && (
+            <span className="block mt-px font-tight text-[12px] font-semibold text-amber-text tabular-nums">Due {formatCurrency(out)}</span>
           )}
-        </td>
-        <td className="px-4 py-4">
-          <div className="text-sm font-bold text-ink-primary tracking-tight">#{inv.invoice_number}</div>
-        </td>
-        <td className="px-4 py-4">
-          <div className="text-sm font-semibold text-ink-primary">{client?.name}</div>
-          <div className="text-[11px] font-medium text-muted-foreground mt-0.5">{client?.gstin || client?.gst_no || 'URD'}</div>
-        </td>
-        <td className="px-4 py-4 text-right">
-          <div className="text-sm font-bold text-ink-primary tabular-nums">{formatCurrency(inv.grand_total)}</div>
-          {out > 0 && status !== 'PAID' && (
-            <div className="text-[11px] font-semibold text-accent-signature tabular-nums mt-0.5">Due: {formatCurrency(out)}</div>
-          )}
-        </td>
-        <td className="px-4 py-4">
-          <div className="flex flex-col gap-1">
-            <StatusBadge status={status} />
-            {inv.delivery_required && (
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                inv.delivery_status === 'DELIVERED'  ? 'bg-green-50 text-green-700' :
-                inv.delivery_status === 'IN_TRANSIT' ? 'bg-blue-50 text-blue-700'  :
-                'bg-orange-50 text-orange-700'
-              }`}>
-                <Truck size={9} />
-                {inv.delivery_status === 'DELIVERED' ? 'Delivered' : inv.delivery_status === 'IN_TRANSIT' ? 'In Transit' : 'Awaiting Dispatch'}
-              </span>
+        </TableCell>
+        <TableCell><InvoiceStatusPills inv={inv} status={status} /></TableCell>
+        <TableCell numeric className="w-12" onClick={e => e.stopPropagation()}>
+          <RowMenu label={`Invoice ${inv.invoice_number || ''}`}>
+            {(close) => (
+              <>
+                {unpaid && (
+                  <MenuItem primary icon={CheckCircle2} hint={`${formatCurrency(out)} due`} onClick={() => { close(); setPayInv(inv); }}>
+                    Record payment
+                  </MenuItem>
+                )}
+                <MenuItem icon={Printer} onClick={() => { close(); openPrint(inv); }}>View and print</MenuItem>
+                <MenuItem icon={Share2} onClick={() => { close(); shareToWhatsApp(inv, client, businessProfile); }}>Share on WhatsApp</MenuItem>
+                {unpaid && (
+                  <MenuItem icon={BellRing} title="Send payment reminder (SMS/WhatsApp)" onClick={() => { close(); handleRemind(inv, client); }}>
+                    Send payment reminder
+                  </MenuItem>
+                )}
+                <MenuRule />
+                <MenuItem icon={FileText} hint={inv.eway_no ? 'Saved' : null}
+                  title={inv.eway_no ? `e-Way ${inv.eway_no}` : 'Generate e-Way bill'}
+                  onClick={() => { close(); setEwayInv(inv); }}>
+                  e-Way bill
+                </MenuItem>
+                <MenuItem icon={Truck} onClick={() => { close(); toggleDelivery(inv); }}>
+                  {inv.delivery_required ? 'Remove delivery flag' : 'Mark as requires delivery'}
+                </MenuItem>
+              </>
             )}
-          </div>
-        </td>
-        <td className="px-4 py-4 text-right" onClick={e => e.stopPropagation()}>
-          <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
-            {/* e-Way bill */}
-            <button
-              onClick={() => setEwayInv(inv)}
-              title={inv.eway_no ? `e-Way ${inv.eway_no}` : 'Generate e-Way bill'}
-              className={`p-2 rounded-pill transition-colors ${inv.eway_no ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'hover:bg-accent-signature/10 text-muted-foreground hover:text-accent-signature'}`}
-            >
-              <FileText size={15} />
-            </button>
-            {/* Delivery toggle */}
-            <button
-              onClick={async () => {
-                const { supabase } = await import('../lib/supabase');
-                const newRequired = !inv.delivery_required;
-                await supabase.from('invoices')
-                  .update({ delivery_required: newRequired, delivery_status: newRequired ? 'PENDING' : null })
-                  .eq('id', inv.id);
-                refetchInvoices?.();
-              }}
-              title={inv.delivery_required ? 'Remove delivery flag' : 'Mark as requires delivery'}
-              className={`p-2 rounded-pill transition-colors ${inv.delivery_required ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'hover:bg-blue-50 text-muted-foreground hover:text-blue-600'}`}
-            >
-              <Truck size={15} />
-            </button>
-            {status !== 'PAID' && (
-              <button
-                onClick={() => { setDetailInv(inv); setSettleInput(String(out)); }}
-                title="Settle Payment"
-                className="p-2 rounded-pill hover:bg-emerald-50 text-muted-foreground hover:text-emerald-600 transition-colors"
-              >
-                <CheckCircle2 size={15} />
-              </button>
-            )}
-            <button
-              onClick={() => { setViewingInvoice(inv); setInvoiceMode('gst'); }}
-              title="View / Print"
-              className="p-2 rounded-pill hover:bg-white text-muted-foreground hover:text-ink-primary transition-colors"
-            >
-              <Printer size={15} />
-            </button>
-            <button
-              onClick={() => shareToWhatsApp(inv, client, businessProfile)}
-              title="Share WhatsApp"
-              className="p-2 rounded-pill hover:bg-[#25D366]/10 text-muted-foreground hover:text-[#25D366] transition-colors"
-            >
-              <Share2 size={15} />
-            </button>
-            {status !== 'PAID' && (
-              <button
-                onClick={() => handleRemind(inv, client)}
-                title="Send payment reminder (SMS/WhatsApp)"
-                className="p-2 rounded-pill hover:bg-accent-signature/10 text-muted-foreground hover:text-accent-signature transition-colors"
-              >
-                <BellRing size={15} />
-              </button>
-            )}
-          </div>
-        </td>
-      </tr>
+          </RowMenu>
+        </TableCell>
+      </TableRow>
     );
   };
 
   // ── render ────────────────────────────────────────────────────────
   return (
-    <div className="animate-fade-in flex flex-col gap-6 pb-16">
-
-      {/* Header */}
-      <div className="flex justify-between items-center py-2 border-b border-black/5">
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
-            Invoices<span className="text-accent-signature">.</span>
-          </h1>
-          <span className="text-[10px] font-semibold text-muted-foreground hidden sm:block">GST billing & settlement</span>
-        </div>
-        <button
-          onClick={() => navigate('/documents/new?type=SALES_INVOICE')}
-          className="btn-signature flex items-center gap-2 text-xs font-black"
-        >
-          <Plus size={12} /> New Invoice
-        </button>
-      </div>
-
+    <div className="flex flex-col pb-16">
       {/* Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <SummaryCard label="Total Billed"  value={formatCurrency(summary.revenue)} />
-        <SummaryCard label="Collected"     value={formatCurrency(summary.paidAmt)}  tone="emerald" />
-        <SummaryCard label="Outstanding"   value={formatCurrency(summary.unpaidAmt)}
-          sub={summary.unpaidCt > 0 ? `${summary.unpaidCt} invoice${summary.unpaidCt > 1 ? 's' : ''}` : null}
-          tone="amber" />
-        <SummaryCard label="Overdue"       value={formatCurrency(summary.overdue)}  tone="rose" />
-      </div>
+      <FigureStrip cols={4} className="m-rise mb-5" style={{ '--i': 1 }}>
+        <Figure label="Total billed" value={formatCurrency(summary.revenue)}
+          sub={`${summary.count.toLocaleString('en-IN')} ${summary.count === 1 ? 'invoice' : 'invoices'}`} />
+        <Figure label="Collected" value={<span className="text-good-text">{formatCurrency(summary.paidAmt)}</span>}
+          sub={`${summary.paidCt.toLocaleString('en-IN')} paid ${summary.paidCt === 1 ? 'invoice' : 'invoices'}`} />
+        <Figure label="Outstanding" value={<span className="text-amber-text">{formatCurrency(summary.unpaidAmt)}</span>}
+          sub={summary.unpaidCt > 0 ? `${summary.unpaidCt.toLocaleString('en-IN')} ${summary.unpaidCt === 1 ? 'invoice' : 'invoices'}` : 'nothing due'} />
+        <Figure label="Overdue" value={<span className="text-bad-text">{formatCurrency(summary.overdue)}</span>} sub="past the due date" />
+      </FigureStrip>
 
-      {/* Date range */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Calendar size={14} className="text-muted-foreground" />
-        {[['ALL','All time'],['TODAY','Today'],['7D','7 days'],['30D','30 days'],['CUSTOM','Custom']].map(([k,l]) => (
-          <DateTab key={k} k={k} label={l} active={dateFilter === k} onClick={() => setDateFilter(k)} />
-        ))}
+      {/* Date range + recurring / export / new */}
+      <div className="m-rise flex flex-wrap items-center gap-2.5 mb-3" style={{ '--i': 2 }}>
+        <div className="max-w-full overflow-x-auto no-scrollbar">
+          <SegmentedTabs
+            items={[
+              { key: 'ALL', label: 'All time' }, { key: 'TODAY', label: 'Today' },
+              { key: '7D', label: '7 days' }, { key: '30D', label: '30 days' }, { key: 'CUSTOM', label: 'Custom' },
+            ]}
+            value={dateFilter}
+            onChange={setDateFilter}
+            trackClass="bg-well"
+            indicatorClass="bg-ink"
+            activeClass="text-white"
+            className="[&_button]:font-tight [&_button]:text-[12.5px] [&_button]:font-semibold [&_button]:px-[13px] [&_button]:h-[30px] [&_button:not([aria-selected=true])]:text-body"
+          />
+        </div>
         {dateFilter === 'CUSTOM' && (
-          <div className="flex items-center gap-2 ml-2">
-            <input type="date" value={customRange.from} onChange={e => setCustomRange(r => ({ ...r, from: e.target.value }))}
-              className="px-2.5 py-1.5 rounded-lg border border-black/10 text-xs font-semibold bg-white" />
-            <span className="text-xs text-muted-foreground">to</span>
-            <input type="date" value={customRange.to} onChange={e => setCustomRange(r => ({ ...r, to: e.target.value }))}
-              className="px-2.5 py-1.5 rounded-lg border border-black/10 text-xs font-semibold bg-white" />
+          <div className="flex items-center gap-2 text-[12.5px] text-body">
+            <Input type="date" aria-label="From" value={customRange.from}
+              onChange={e => setCustomRange(r => ({ ...r, from: e.target.value }))} className="h-8 w-auto text-[12.5px]" />
+            to
+            <Input type="date" aria-label="To" value={customRange.to}
+              onChange={e => setCustomRange(r => ({ ...r, to: e.target.value }))} className="h-8 w-auto text-[12.5px]" />
           </div>
         )}
+        <div className="flex-1" />
+        <Button variant="secondary" size="sm" onClick={() => setShowRecurring(true)}><Repeat /> Recurring</Button>
+        <Button variant="secondary" size="sm" onClick={handleExport} disabled={!filtered.length} title="Export CSV"><Download /> Export</Button>
+        <Button size="sm" onClick={() => navigate('/documents/new?type=SALES_INVOICE', { state: { from: 'Invoices' } })}><Plus /> New invoice</Button>
       </div>
 
-      {/* Search + status + export */}
-      <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-        <div className="relative flex-1 md:max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+      {/* Status + search */}
+      <div className="m-rise flex flex-wrap items-center gap-2.5 mb-3" style={{ '--i': 3 }}>
+        <FilterPills
+          ariaLabel="Status"
+          value={statusFilter}
+          onChange={setStatusFilter}
+          items={[
+            { key: 'ALL', label: 'All', count: summary.count },
+            { key: 'PAID', label: 'Paid', count: summary.paidCt },
+            { key: 'UNPAID', label: 'Pending', count: summary.unpaidCt },
+            { key: 'OVERDUE', label: 'Overdue', count: summary.overdueCt },
+          ]}
+        />
+        <div className="flex-1" />
+        <div className="relative w-full sm:w-[280px]">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-mute pointer-events-none" size={16} />
           <input
             type="text"
-            placeholder="Search invoice # or client…"
-            className="w-full bg-white rounded-xl py-2.5 pl-10 pr-4 border border-black/5 outline-none focus:ring-2 focus:ring-accent-signature/30 text-sm font-medium"
+            aria-label="Search invoice number or client"
+            placeholder="Search invoice number or client"
+            className="w-full h-9 rounded-pill bg-well pl-10 pr-4 text-[13px] text-ink outline-none placeholder:text-mute transition-shadow duration-(--dur-press) focus:shadow-[inset_0_0_0_2px_var(--color-ink)]"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex items-center gap-2">
-          {[['ALL','All',summary.count],['PAID','Paid',summary.paidCt],['UNPAID','Pending',summary.unpaidCt],['OVERDUE','Overdue',null]].map(([k,l,c]) => (
-            <StatusTab key={k} k={k} label={l} count={c} active={statusFilter === k} onClick={() => setStatusFilter(k)} />
-          ))}
-          <button
-            onClick={() => setShowRecurring(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-xs font-semibold bg-white border border-black/5 text-ink-secondary hover:text-ink-primary hover:border-black/20 transition-colors"
-          >
-            <TrendingUp size={13} /> Recurring
-          </button>
-          <button
-            onClick={handleExport}
-            disabled={!filtered.length}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-xs font-semibold bg-white border border-black/5 text-ink-secondary hover:text-ink-primary hover:border-black/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            <Download size={13} /> Export
-          </button>
-        </div>
       </div>
+
       {showRecurring && (
         <RecurringInvoicesModal tenantId={currentTenantId} clients={clients} onClose={() => setShowRecurring(false)} />
       )}
@@ -449,20 +327,53 @@ const Invoices = () => {
           onSaved={() => refetchInvoices?.()}
         />
       )}
+      {payInv && (
+        <RecordPaymentDialog
+          invoice={payInv}
+          clientName={clientOf(payInv)?.name}
+          onClose={() => setPayInv(null)}
+          onRecord={(amt) => recordPayment(payInv, amt)}
+          onReread={() => { refetchInvoices?.(); setPayInv(null); }}
+        />
+      )}
 
       {/* Table */}
-      <Table
-        headers={headers}
-        rows={filtered}
-        renderRow={renderRow}
-        emptyMessage={
-          <div className="flex flex-col items-center gap-2 py-8 text-muted-foreground">
-            <FileText size={24} className="opacity-40" />
-            <div className="text-sm font-semibold">No invoices match</div>
-            <div className="text-xs">Adjust filters or create a new invoice.</div>
-          </div>
-        }
-      />
+      <div className="m-rise min-w-0" style={{ '--i': 4 }}>
+        <Table>
+          <TableHeader>
+            <tr>
+              <TableHead aria-sort="descending">Date<span className="ml-1 text-amber" aria-hidden="true">↓</span></TableHead>
+              <TableHead>Invoice</TableHead>
+              <TableHead>Client</TableHead>
+              <TableHead numeric>Amount</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead><span className="sr-only">Actions</span></TableHead>
+            </tr>
+          </TableHeader>
+          <TableBody>
+            {pg.rows.length > 0 ? pg.rows.map(renderRow) : (
+              <tr>
+                <td colSpan={6} className="px-4 pt-14 pb-16 text-center text-[13px] text-body">
+                  <span className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-[14px] bg-tile text-mute"><FileText size={22} strokeWidth={1.8} /></span>
+                  <b className="mb-1 block font-tight text-[15px] font-semibold text-ink">No invoices match</b>
+                  Change the dates or filters, or create a new invoice.
+                </td>
+              </tr>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      {pg.total > 0 && (
+        <div className="m-rise flex items-center justify-between gap-3 px-1 pt-3.5 text-[13px] text-body" style={{ '--i': 5 }}>
+          <span>{pg.from.toLocaleString('en-IN')} to {pg.to.toLocaleString('en-IN')} of {pg.total.toLocaleString('en-IN')} {pg.total === 1 ? 'invoice' : 'invoices'} · newest first</span>
+          {pg.pages > 1 && (
+            <div className="flex gap-1.5">
+              <Button variant="secondary" size="icon-sm" aria-label="Previous page" disabled={!pg.hasPrev} onClick={() => setPage(p => p - 1)}><ChevronLeft /></Button>
+              <Button variant="secondary" size="icon-sm" aria-label="Next page" disabled={!pg.hasNext} onClick={() => setPage(p => p + 1)}><ChevronRight /></Button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Detail modal */}
       {detailInv && (
@@ -476,8 +387,8 @@ const Invoices = () => {
           {(() => {
             const inv    = detailInv;
             const client = clientOf(inv);
-            const status = resolveStatus(inv);
-            const out    = outstandingOf(inv);
+            const status = resolveInvoiceStatus(inv);
+            const out    = invoiceOutstanding(inv);
             const items  = Array.isArray(inv.items) ? inv.items : [];
 
             return (
@@ -494,7 +405,6 @@ const Invoices = () => {
                   />
                 </div>
 
-                {/* Line items */}
                 <div className="border border-black/5 rounded-xl overflow-hidden">
                   <div className="bg-canvas px-4 py-2 text-[11px] font-bold text-ink-secondary uppercase tracking-wider grid grid-cols-12 gap-2">
                     <div className="col-span-6">Item</div>
@@ -519,7 +429,6 @@ const Invoices = () => {
                   })}
                 </div>
 
-                {/* IRN status */}
                 <div className={`rounded-xl p-4 border ${
                   inv.irn_status === 'SUCCESS' ? 'bg-emerald-50 border-emerald-200' :
                   inv.irn_status === 'FAILED'  ? 'bg-red-50 border-red-200' :
@@ -529,12 +438,7 @@ const Invoices = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">E-Invoice IRN</p>
-                      <p className={`text-sm font-bold mt-0.5 ${
-                        inv.irn_status === 'SUCCESS' ? 'text-emerald-700' :
-                        inv.irn_status === 'FAILED'  ? 'text-red-700' :
-                        inv.irn_status === 'PENDING' || inv.irn_status === 'PROCESSING' ? 'text-accent-signature-hover' :
-                        'text-ink-secondary'
-                      }`}>
+                      <p className="text-sm font-bold mt-0.5 text-ink-secondary">
                         {inv.irn_status === 'SUCCESS' ? `Generated · ${inv.irn?.slice(0, 16)}…` :
                          inv.irn_status === 'FAILED'  ? 'Failed — see error' :
                          inv.irn_status === 'PENDING' ? 'Queued for NIC' :
@@ -551,7 +455,7 @@ const Invoices = () => {
                           alert(r.already_existed ? 'Already queued' : 'IRN request queued');
                           setDetailInv(null);
                         }}
-                        className="px-3 py-1.5 rounded-pill bg-ink-primary text-white text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform"
+                        className="px-3 py-1.5 rounded-pill bg-ink-primary text-white text-[10px] font-black uppercase tracking-widest"
                       >
                         Generate IRN
                       </button>
@@ -562,7 +466,6 @@ const Invoices = () => {
                   )}
                 </div>
 
-                {/* Totals */}
                 <div className="bg-canvas rounded-xl p-4 space-y-1.5">
                   <TotalRow label="Taxable Amount" value={formatCurrency(inv.taxable_amount)} />
                   {(inv.cgst_amount > 0) && <TotalRow label="CGST" value={formatCurrency(inv.cgst_amount)} />}
@@ -571,8 +474,6 @@ const Invoices = () => {
                   <div className="h-px bg-black/10 my-2" />
                   <TotalRow label="Grand Total" value={formatCurrency(inv.grand_total)} bold />
                   {Number(inv.paid_amount) > 0 && <TotalRow label="Paid" value={formatCurrency(inv.paid_amount)} tone="emerald" />}
-                  {/* "Outstanding" alone read as the whole account and confused
-                      customers — this is only THIS bill's balance. */}
                   {out > 0 && status !== 'PAID' && <TotalRow label="Balance due (this bill)" value={formatCurrency(out)} tone="amber" bold />}
                   {(() => {
                     // The client's TOTAL across all their bills — shown only when
@@ -582,44 +483,25 @@ const Invoices = () => {
                       i.client_id === inv.client_id && !i.deleted_at && (i.payment_status || '').toUpperCase() !== 'PAID').length;
                     if (!(clientTotal > 0) || Math.abs(clientTotal - out) < 0.5) return null;
                     return (
-                      <>
-                        <div className="h-px bg-black/10 my-2" />
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-muted-foreground">{client?.name || 'This client'} — total outstanding</span>
-                          <span className="font-semibold text-amber-600 tabular-nums">
-                            {formatCurrency(clientTotal)}{unpaidCount > 1 ? ` · ${unpaidCount} bills` : ''}
-                          </span>
-                        </div>
-                      </>
+                      <div className="flex items-center justify-between text-[11px] pt-2 mt-2 border-t border-black/10">
+                        <span className="text-muted-foreground">{client?.name || 'This client'} — total outstanding</span>
+                        <span className="font-semibold text-amber-600 tabular-nums">
+                          {formatCurrency(clientTotal)}{unpaidCount > 1 ? ` · ${unpaidCount} bills` : ''}
+                        </span>
+                      </div>
                     );
                   })()}
                 </div>
 
-                {/* Settle + print */}
                 <div className="flex items-center gap-2">
                   {status !== 'PAID' && (
                     <div className="flex items-center gap-2 flex-1">
-                      <input
-                        type="number" min="0" step="0.01"
-                        value={settleInput}
-                        onChange={e => setSettleInput(e.target.value)}
-                        placeholder="Amount to collect"
-                        className="flex-1 px-3 py-2.5 rounded-lg border border-black/10 text-sm font-semibold"
-                      />
-                      <button
-                        onClick={handleSettle}
-                        className="px-4 py-2.5 rounded-pill bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 transition-colors flex items-center gap-1.5"
-                      >
-                        <CheckCircle2 size={14} /> Record Payment
-                      </button>
+                      <input type="number" min="0" step="0.01" value={settleInput} onChange={e => setSettleInput(e.target.value)}
+                        placeholder="Amount to collect" className="flex-1 px-3 py-2.5 rounded-lg border border-black/10 text-sm font-semibold" />
+                      <Button onClick={handleSettle}><CreditCard /> Record Payment</Button>
                     </div>
                   )}
-                  <button
-                    onClick={() => { setDetailInv(null); setViewingInvoice(inv); setInvoiceMode('gst'); }}
-                    className="px-4 py-2.5 rounded-pill bg-ink-primary text-surface text-xs font-bold hover:opacity-90 transition-opacity flex items-center gap-1.5"
-                  >
-                    <Printer size={14} /> Print
-                  </button>
+                  <Button variant="dark" onClick={() => { setDetailInv(null); openPrint(inv); }}><Printer /> Print</Button>
                 </div>
               </div>
             );
@@ -646,7 +528,6 @@ const Invoices = () => {
           />
         );
       })()}
-
     </div>
   );
 };

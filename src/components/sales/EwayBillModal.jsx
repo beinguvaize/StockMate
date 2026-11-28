@@ -1,18 +1,26 @@
 import React, { useMemo, useState } from 'react';
-import { useDialogClose } from '../../hooks/useDialogClose';
-import { createPortal } from 'react-dom';
-import { X, Truck, Download, CheckCircle2 } from 'lucide-react';
+import { Download, CheckCircle2, ChevronDown } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import {
   buildEwayJSON, downloadEwayJSON, validateEway, TRANSPORT_MODES, EWAY_THRESHOLD,
 } from '../../lib/ewayBill';
+import Dialog from '../ui/Dialog';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import WriteFailure from '../invoices/WriteFailure';
 
 // e-Way bill for one invoice: collect transport details → download the NIC
 // bulk-upload JSON → user uploads on ewaybillgst.gov.in → paste the EWB
 // number back here. Vehicle/transport persist on the invoice for the print.
+//
+// Web redesign (approved invoices-12): same fields, same writes. A refused or
+// unconfirmed save is now shown instead of passing silently.
+
+const Lbl = ({ htmlFor, children }) => (
+  <label htmlFor={htmlFor} className="mb-1.5 block font-tight text-[12.5px] font-semibold text-ink-2">{children}</label>
+);
 
 const EwayBillModal = ({ invoice, business, client, onClose, onSaved }) => {
-  useDialogClose(onClose);
   const [t, setT] = useState({
     mode: '1',
     distanceKm: invoice.transport?.distanceKm || '',
@@ -26,17 +34,21 @@ const EwayBillModal = ({ invoice, business, client, onClose, onSaved }) => {
   const [ewbNo, setEwbNo] = useState(invoice.eway_no || '');
   const [errs, setErrs] = useState([]);
   const [saved, setSaved] = useState(false);
+  const [failure, setFailure] = useState(null);
 
   const total = Number(invoice.grand_total || invoice.amount || 0);
   const json = useMemo(() => buildEwayJSON(invoice, business, client, t), [invoice, business, client, t]);
 
   const persist = async (extra = {}) => {
-    await supabase.from('invoices').update({
+    setFailure(null);
+    const { error } = await supabase.from('invoices').update({
       vehicle_no: t.vehicleNo ? String(t.vehicleNo).toUpperCase().replace(/[\s-]/g, '') : null,
       transport: { mode: t.mode, distanceKm: t.distanceKm, transporterName: t.transporterName, transporterId: t.transporterId, toPincode: t.toPincode, toPlace: t.toPlace },
       ...extra,
     }).eq('id', invoice.id);
+    if (error) { setFailure(error); onSaved?.(); return false; }
     onSaved?.();
+    return true;
   };
 
   const handleDownload = async () => {
@@ -48,93 +60,80 @@ const EwayBillModal = ({ invoice, business, client, onClose, onSaved }) => {
   };
 
   const handleSaveEwb = async () => {
-    await persist({ eway_no: ewbNo.trim() || null });
+    const ok = await persist({ eway_no: ewbNo.trim() || null });
+    if (!ok) return;
     setSaved(true);
     setTimeout(() => setSaved(false), 1500);
   };
 
-  const input = 'w-full border border-black/10 rounded-lg px-2.5 py-2 text-[13px] outline-none focus:border-accent-signature';
-  const label = 'block text-[11px] font-bold text-muted-foreground mb-1';
+  const set = (k) => (e) => setT({ ...t, [k]: e.target.value });
 
-  return createPortal(
-    <div className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-lg max-h-[88vh] flex flex-col overflow-hidden shadow-2xl">
-        <div className="px-6 py-4 border-b border-black/5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Truck size={17} className="text-accent-signature" />
-            <div>
-              <h2 className="text-[15px] font-black text-ink-primary">e-Way Bill</h2>
-              <p className="text-[11px] text-muted-foreground">{invoice.invoice_number} · ₹{total.toLocaleString('en-IN')}</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-xl hover:bg-muted flex items-center justify-center"><X size={15} /></button>
+  return (
+    <Dialog open onClose={onClose} width={520} title="e-Way Bill"
+      subtitle={[invoice.invoice_number, `₹${total.toLocaleString('en-IN')}`, client?.name].filter(Boolean).join(' · ')}>
+      {total < EWAY_THRESHOLD && (
+        <div className="mb-3.5 rounded-[10px] bg-amber-soft px-3 py-[9px] text-[12.5px] text-amber-text">
+          Below ₹50,000, an e-Way bill is usually not needed. Make one only if you need it.
         </div>
+      )}
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {total < EWAY_THRESHOLD && (
-            <div className="px-3 py-2 rounded-lg bg-accent-signature/10 border border-accent-signature/25 text-[11.5px] text-accent-signature-hover font-medium">
-              Below ₹50,000 — e-Way bill usually not mandatory, generate only if needed.
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={label}>Transport mode</label>
-              <select value={t.mode} onChange={e => setT({ ...t, mode: e.target.value })} className={input}>
-                {TRANSPORT_MODES.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className={label}>Distance (km)</label>
-              <input type="number" value={t.distanceKm} onChange={e => setT({ ...t, distanceKm: e.target.value })} className={input} placeholder="e.g. 120" />
-            </div>
-            <div>
-              <label className={label}>Vehicle number</label>
-              <input value={t.vehicleNo} onChange={e => setT({ ...t, vehicleNo: e.target.value.toUpperCase() })} className={`${input} tabular-nums`} placeholder="KL07AB1234" />
-            </div>
-            <div>
-              <label className={label}>Transporter name (optional)</label>
-              <input value={t.transporterName} onChange={e => setT({ ...t, transporterName: e.target.value })} className={input} />
-            </div>
-            <div>
-              <label className={label}>From pincode</label>
-              <input value={t.fromPincode} onChange={e => setT({ ...t, fromPincode: e.target.value.replace(/\D/g, '').slice(0, 6) })} className={`${input} tabular-nums`} />
-            </div>
-            <div>
-              <label className={label}>To pincode</label>
-              <input value={t.toPincode} onChange={e => setT({ ...t, toPincode: e.target.value.replace(/\D/g, '').slice(0, 6) })} className={`${input} tabular-nums`} />
-            </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Lbl htmlFor="ewb-mode">Transport mode</Lbl>
+          <div className="relative">
+            <select id="ewb-mode" value={t.mode} onChange={set('mode')}
+              className="h-9 w-full appearance-none rounded-[10px] bg-surface px-3 pr-8 text-[13.5px] text-ink shadow-[inset_0_0_0_1px_var(--color-line)] outline-none focus:shadow-[inset_0_0_0_2px_var(--color-ink)]">
+              {TRANSPORT_MODES.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+            </select>
+            <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-mute" />
           </div>
-
-          {errs.length > 0 && (
-            <ul className="px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-[11.5px] text-red-600 space-y-0.5">
-              {errs.map(e => <li key={e}>• {e}</li>)}
-            </ul>
-          )}
-
-          <button onClick={handleDownload}
-            className="w-full py-2.5 rounded-pill bg-ink-primary text-white text-[12px] font-black flex items-center justify-center gap-2 hover:opacity-90">
-            <Download size={14} /> Download NIC JSON (bulk upload)
-          </button>
-          <p className="text-[11px] text-muted-foreground -mt-2">
-            Upload at ewaybillgst.gov.in → e-Waybill → Generate Bulk. Paste the EWB number below after generation.
-          </p>
-
-          <div>
-            <label className={label}>e-Way bill number (after portal generation)</label>
-            <div className="flex gap-2">
-              <input value={ewbNo} onChange={e => setEwbNo(e.target.value)} className={`${input} tabular-nums flex-1`} placeholder="12-digit EWB no." />
-              <button onClick={handleSaveEwb}
-                className="shrink-0 px-4 rounded-pill border border-accent-signature/40 text-accent-signature text-[12px] font-black hover:bg-accent-signature/10">
-                {saved ? <CheckCircle2 size={14} /> : 'Save'}
-              </button>
-            </div>
-            <p className="text-[10.5px] text-muted-foreground mt-1">Saved EWB + vehicle number print on the invoice.</p>
-          </div>
+        </div>
+        <div>
+          <Lbl htmlFor="ewb-km">Distance, km</Lbl>
+          <Input id="ewb-km" type="number" value={t.distanceKm} onChange={set('distanceKm')} placeholder="e.g. 120" />
+        </div>
+        <div>
+          <Lbl htmlFor="ewb-veh">Vehicle number</Lbl>
+          <Input id="ewb-veh" value={t.vehicleNo} onChange={e => setT({ ...t, vehicleNo: e.target.value.toUpperCase() })} placeholder="KL07AB1234" />
+        </div>
+        <div>
+          <Lbl htmlFor="ewb-tr">Transporter name, optional</Lbl>
+          <Input id="ewb-tr" value={t.transporterName} onChange={set('transporterName')} />
+        </div>
+        <div>
+          <Lbl htmlFor="ewb-from">From pincode</Lbl>
+          <Input id="ewb-from" value={t.fromPincode} onChange={e => setT({ ...t, fromPincode: e.target.value.replace(/\D/g, '').slice(0, 6) })} />
+        </div>
+        <div>
+          <Lbl htmlFor="ewb-to">To pincode</Lbl>
+          <Input id="ewb-to" value={t.toPincode} onChange={e => setT({ ...t, toPincode: e.target.value.replace(/\D/g, '').slice(0, 6) })} />
         </div>
       </div>
-    </div>,
-    document.body
+
+      {errs.length > 0 && (
+        <ul className="mt-3 list-disc rounded-[10px] bg-bad-soft py-[9px] pl-7 pr-3 text-[12.5px] text-bad-text">
+          {errs.map(e => <li key={e}>{e}</li>)}
+        </ul>
+      )}
+
+      <Button variant="dark" size="lg" className="mt-4 w-full" onClick={handleDownload}>
+        <Download /> Download file for the e-Way bill portal
+      </Button>
+      <p className="mt-1.5 text-[12px] text-mute">
+        Upload it at ewaybillgst.gov.in, under e-Waybill, Generate Bulk. Then type the e-Way bill number below.
+      </p>
+
+      <div className="my-3 border-t border-sep" />
+      <Lbl htmlFor="ewb-no">e-Way bill number, after the portal makes it</Lbl>
+      <div className="flex gap-2">
+        <Input id="ewb-no" value={ewbNo} onChange={e => setEwbNo(e.target.value)} placeholder="12 digit number" className="flex-1" />
+        <Button variant="secondary" onClick={handleSaveEwb} aria-label="Save e-Way bill number">
+          {saved ? <CheckCircle2 className="text-good-text" /> : 'Save'}
+        </Button>
+      </div>
+      <span className="mt-1.5 block text-[12px] text-mute">The saved e-Way bill number and vehicle number print on the invoice.</span>
+      <WriteFailure error={failure} noun="e-Way bill" onReread={onSaved} className="mt-3" />
+    </Dialog>
   );
 };
 
