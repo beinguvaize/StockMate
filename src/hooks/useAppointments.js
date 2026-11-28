@@ -8,6 +8,9 @@ export function useAppointments(tenantId) {
   const { currentUser } = useAuth();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+  // A failed read used to leave the list empty, which reads as "No
+  // appointments yet". The reason is kept so the page can say so.
+  const [error, setError] = useState(null);
 
   const fetchAll = useCallback(async () => {
     if (!tenantId) { setLoading(false); return; }
@@ -18,6 +21,8 @@ export function useAppointments(tenantId) {
       .eq('tenant_id', tenantId)
       .order('start_at', { ascending: true });
     if (!error) setAppointments(data || []);
+    else console.error('[appointments] read failed', error);
+    setError(error || null);
     setLoading(false);
   }, [tenantId]);
 
@@ -116,5 +121,5 @@ export function useAppointments(tenantId) {
     return { error };
   };
 
-  return { appointments, loading, refresh: fetchAll, book, update, complete, setStatus, remove };
+  return { appointments, loading, error, refresh: fetchAll, book, update, complete, setStatus, remove };
 }
