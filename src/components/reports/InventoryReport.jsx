@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { isRaw, isStocked } from '../../lib/productTypes';
+import { isRaw } from '../../lib/productTypes';
+import { needsRestock } from '../../lib/stockLevels';
 import { isCountableSale } from './reportUtils';
 import useReportData from './useReportData';
 import useDateWindow from './useDateWindow';
@@ -83,7 +84,7 @@ const InventoryReport = () => {
     const totalPotential = sellable.reduce((acc, p) => acc + ((p.stock || 0) * (p.sellingPrice || 0)), 0);
     const totalProfit = totalPotential - sellableCost;
     // A service is never low on stock — it has none. See productTypes.js.
-    const lowStockItems = products.filter(p => isStocked(p) && (p.stock || 0) <= (p.lowStockThreshold || 5));
+    const lowStockItems = products.filter(p => needsRestock(p, Number(p.stock) || 0));
     const lowStockCount = lowStockItems.length;
 
     const categoryMap = products.reduce((acc, p) => {
@@ -152,7 +153,7 @@ const InventoryReport = () => {
       { key: 'name', label: 'Product Name', sortable: true, width: 250 },
       { key: 'category', label: 'Category', sortable: true, width: 140, render: (val) => <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest">{val || 'GENERAL'}</span> },
       { key: 'stock', label: 'Quantity', align: 'right', sortable: true, width: 100, render: (val, row) => (
-        <span className={`font-semibold ${val <= (row.lowStockThreshold || 5) ? 'text-red-500' : 'text-emerald-600'}`}>
+        <span className={`font-semibold ${needsRestock(row, Number(val) || 0) ? 'text-red-500' : 'text-emerald-600'}`}>
           {val} {row.unit || 'pcs'}
         </span>
       )},

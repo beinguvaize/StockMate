@@ -30,6 +30,7 @@ import { FigureStrip, Figure, Eyebrow } from '../components/ui/FigureStrip';
 import usePLRanged from '../components/reports/usePLRanged';
 import { useTopSellingItems } from '../hooks/useTopSellingItems';
 import { supplierOwedSummary } from '../lib/supplierOwed';
+import { needsRestock, reorderLevel } from '../lib/stockLevels';
 import {
   periodRange, sumInRange, inRange, deltaPct, deltaTone, formatDelta,
   spanLabel, setupSteps, isNewShop,
@@ -376,12 +377,13 @@ const Dashboard = () => {
      // matched every threshold and arrived here with a Restock button
      // pointing at /purchases — for a tuition hour.
      if (!isStocked(p)) return false;
-     const threshold = p.low_stock_threshold ?? p.lowStockThreshold ?? 10;
      const balances = (inventoryBalances || []).filter(b => b.product_id === p.id);
      const totalQty = balances.length > 0
        ? balances.reduce((s, b) => s + b.quantity, 0)
        : (p.stock ?? 0);
-     return totalQty < threshold;
+     // The one low-stock rule (lib/stockLevels): at or below the product's
+     // own reorder level, low or out.
+     return needsRestock(p, totalQty);
    }),
    [products, inventoryBalances]
  );
@@ -573,7 +575,10 @@ const Dashboard = () => {
  const now = new Date();
  const thisMonthName = now.toLocaleString('en-IN', { month: 'long' });
  const lastMonthName = new Date(now.getFullYear(), now.getMonth() - 1, 1).toLocaleString('en-IN', { month: 'long' });
- const lowStockCount = kpiData ? (kpiData.low_stock_items ?? lowStockProducts.length) : lowStockProducts.length;
+ // Counted from the loaded products by the one rule (lib/stockLevels).
+ // get_dashboard_kpis.low_stock_items counts stock < 50 for every product, a
+ // different rule, so it is only the fallback when products failed to load.
+ const lowStockCount = invError ? (kpiData?.low_stock_items ?? 0) : lowStockProducts.length;
  const debtorCount = (clients || []).filter(c => (c.outstanding_balance || 0) > 0).length;
  const qtyOf = (item) => {
    const bal = (inventoryBalances || []).filter(b => b.product_id === item.id);
@@ -888,7 +893,7 @@ const Dashboard = () => {
          <div className="mt-1.5 flex-1">
            {lowStockProducts.slice(0, LIST_ROWS).map(item => {
              const qty = qtyOf(item);
-             const min = item.low_stock_threshold ?? item.lowStockThreshold ?? 10;
+             const min = reorderLevel(item);
              return (
                <ListRow key={item.id} onClick={() => navigate('/inventory')}
                  left={<><span className="block truncate text-ink-2">{item.name}</span><small className="block text-[12px] text-mute tabular-nums">{qty} in stock · reorder at {min}</small></>}

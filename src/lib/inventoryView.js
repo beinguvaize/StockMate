@@ -8,35 +8,28 @@
  * batches (recompute_product_cost) and is only ever read.
  *
  * Most of these used to live inline in pages/inventory/index.jsx and its
- * components. They moved here unchanged so they can be tested; where a rule
- * is odd (the fixed 1–5 "Low" in the tiles against the per-product reorder
- * level in the rows) it is kept as it was and named, not settled.
+ * components. They moved here unchanged so they can be tested. "Low" is
+ * lib/stockLevels everywhere (owner rule): stock at or below the product's
+ * own reorder level, 10 when it has none, in the rows, tiles and chips alike.
  */
 import { isRaw, isStocked } from './productTypes';
+import { reorderLevel, isLowStock } from './stockLevels';
 import { getAppLocale, getAppTimezone } from './utils';
 
 // Postgres numeric arrives as a string: coerce before maths.
 export const toNum = (v) => Number(v ?? 0);
 
-/** Reorder level, from whichever column name the product carries. */
-export const reorderOf = (p = {}) => toNum(
-  p.reorderLevel ?? p.reorder_level ?? p.lowStockThreshold ??
-  p.low_stock_threshold ?? p.minStock ?? p.min_stock ?? 0,
-);
+/** Reorder level in effect: the product's own, else 10 (lib/stockLevels). */
+export const reorderOf = (p = {}) => reorderLevel(p);
 
 /**
- * A row's stock state from its quantity and reorder level (5 when unset).
- * This is the ROW rule. The tiles and the Low chip use the fixed 1–5 rule
- * below (`isLowFixed`); the two disagree by design of today's code.
+ * A row's stock state from its quantity and reorder level (reorderOf):
+ * out at 0 or below, low at or below the level, else ok.
  */
 export const statusOf = (qty, reorder) => {
   if (qty <= 0) return 'crit';
-  const thr = reorder > 0 ? reorder : 5;
-  return qty <= thr ? 'low' : 'ok';
+  return qty <= toNum(reorder) ? 'low' : 'ok';
 };
-
-/** The tiles' and chips' "Low": more than 0 and at most 5, whatever the reorder level. */
-export const isLowFixed = (stock) => { const s = toNum(stock); return s > 0 && s <= 5; };
 
 /** Search, type, stock and category filters, exactly as the list applied them. */
 export function filterProducts(products = [], { query = '', type = 'ALL', stock = 'ALL', category = '' } = {}) {
@@ -52,7 +45,7 @@ export function filterProducts(products = [], { query = '', type = 'ALL', stock 
     if (stock !== 'ALL' && !isStocked(p)) return false;
     const stk = toNum(p.stock);
     if (stock === 'IN' && stk <= 0) return false;
-    if (stock === 'LOW' && !isLowFixed(stk)) return false;
+    if (stock === 'LOW' && !isLowStock(p, stk)) return false;
     if (stock === 'OUT' && stk !== 0) return false;
     return true;
   });
@@ -61,7 +54,7 @@ export function filterProducts(products = [], { query = '', type = 'ALL', stock 
 /**
  * The strip's figures. Retail value is over sellable stock only (raw material
  * has no selling price); raw material is its own figure. `inCount` is new for
- * the stock bar: stocked products above the fixed Low line, so that
+ * the stock bar: stocked products above their reorder level, so that
  * in + low + out covers every stocked product with stock of 0 or more.
  */
 export function inventoryKpis(products = []) {
@@ -76,9 +69,9 @@ export function inventoryKpis(products = []) {
   const rawValue = val(raw, 'costPrice');
   const marginValue = retailValue - sellableCost;
 
-  const lowStock = stocked.filter((p) => (p.stock || 0) > 0 && (p.stock || 0) <= 5).length;
+  const lowStock = stocked.filter((p) => isLowStock(p, toNum(p.stock))).length;
   const outOfStock = stocked.filter((p) => (p.stock || 0) === 0).length;
-  const inCount = stocked.filter((p) => (p.stock || 0) > 5).length;
+  const inCount = stocked.filter((p) => toNum(p.stock) > reorderLevel(p)).length;
   const totalUnits = stocked.reduce((s, p) => s + (p.stock || 0), 0);
   const uniqueCats = new Set(products.map((p) => p.category).filter(Boolean)).size;
   return {
