@@ -223,7 +223,7 @@ const Inventory = () => {
         <Tabs ariaLabel="Inventory" items={tabItems} value={tab} onChange={setTab}
           className="border-b-0 overflow-x-auto no-scrollbar" />
         {tab === 'products' && (
-          <div className="ml-auto flex items-center gap-2 pb-1.5">
+          <div className="ml-auto flex flex-wrap items-center gap-2 pb-1.5">
             {inventoryLocations.length > 1 && (
               <Button variant="secondary" size="xs" className="h-8 px-3.5" onClick={() => setShowTransfer(true)}><ArrowLeftRight /> Transfer stock</Button>
             )}
@@ -256,7 +256,7 @@ const Inventory = () => {
                 {bar.out > 0 && <i className="block h-full bg-bad" style={{ width: `${bar.out}%` }} />}
               </div>
             )}
-            <small className="block text-[12.5px] text-body whitespace-nowrap tabular-nums">
+            <small className="block text-[12.5px] text-body sm:whitespace-nowrap tabular-nums">
               {kpis.totalUnits.toLocaleString('en-IN')} units · {kpis.inCount} in, {kpis.lowStock} low, {kpis.outOfStock} out
             </small>
             {kpis.rawValue > 0 && (
@@ -264,7 +264,7 @@ const Inventory = () => {
             )}
           </StripFigure>
           <StripFigure label="Retail value" value={`${cur}${inr(kpis.retailValue)}`}>
-            <small className="block text-[12.5px] text-body whitespace-nowrap tabular-nums">
+            <small className="block text-[12.5px] text-body sm:whitespace-nowrap tabular-nums">
               {kpis.marginValue !== 0 ? (
                 <span className={cn('font-semibold', kpis.marginValue > 0 ? 'text-good-text' : 'text-bad-text')}>
                   {kpis.marginValue >= 0 ? '+' : '−'}{cur}{inr(Math.abs(kpis.marginValue))} margin

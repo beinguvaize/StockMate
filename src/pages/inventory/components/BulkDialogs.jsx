@@ -76,7 +76,7 @@ export function BulkEditDialog({ count, categories, onClose, onApply, onReread }
           <Hint>0%, 5%, 12%, 18% or 28%</Hint>
         </div>
       </div>
-      <FailedList failed={failed} verb="changed" onReread={onReread} />
+      <FailedList failed={failed} total={count} verb="changed" onReread={onReread} />
     </Dialog>
   );
 }
@@ -117,18 +117,18 @@ export function DeleteProductsDialog({ products, onClose, onDelete, onReread }) 
       <Notice tone="r" title={n === 1 ? 'It leaves your product list and the till' : 'They leave your product list and the till'}>
         Same delete as before, for each product in turn.
       </Notice>
-      <FailedList failed={failed} verb="deleted" onReread={onReread} />
+      <FailedList failed={failed} total={n} verb="deleted" onReread={onReread} />
     </Dialog>
   );
 }
 
 /** Which products a bulk write did not reach, each with the server's own words. */
-function FailedList({ failed, verb, onReread }) {
+function FailedList({ failed, total = 0, verb, onReread }) {
   if (!failed?.length) return null;
   return (
     <div className="mt-3 space-y-2">
       <p className="text-[12.5px] text-body">
-        {failed.length} {failed.length === 1 ? 'product was' : 'products were'} not {verb}. The rest went through.
+        {failed.length} {failed.length === 1 ? 'product was' : 'products were'} not {verb}.{total > failed.length ? ' The rest went through.' : ''}
       </p>
       {failed.slice(0, 6).map(({ item, error }) => (
         <div key={item.id}>

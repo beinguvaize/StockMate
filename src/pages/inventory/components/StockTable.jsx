@@ -171,7 +171,7 @@ const StockTable = ({
     const on = sort.key === sortKey && sortKey;
     return (
       <th aria-sort={on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}
-        className={cn('px-3.5 py-2.5 align-middle font-tight text-[12px] font-semibold text-mute border-b border-line whitespace-nowrap', align === 'right' && 'text-right', className)}>
+        className={cn('px-3.5 py-2.5 align-middle font-tight text-[12px] font-semibold text-mute border-b border-line whitespace-nowrap', align === 'right' ? 'text-right' : 'text-left', className)}>
         {sortKey ? (
           <button type="button" onClick={() => toggleSort(sortKey)} className="inline-flex items-center gap-1 hover:text-ink transition-colors duration-(--dur-press)">
             {children}
@@ -195,7 +195,7 @@ const StockTable = ({
                 <CheckBox checked={allSelected} partial={someSelected && !allSelected} onChange={toggleAll} label="Select all" />
               </th>
             )}
-            <TH className="w-full" sortKey="name">{isServiceTenant ? 'Service' : 'Product'}</TH>
+            <TH className="w-full min-w-[220px]" sortKey="name">{isServiceTenant ? 'Service' : 'Product'}</TH>
             <TH align="right" sortKey={isServiceTenant ? null : 'stock'}>{isServiceTenant ? 'Duration' : 'Stock'}</TH>
             <TH align="right" sortKey={isServiceTenant ? null : 'cost'}>{isServiceTenant ? '' : 'Cost'}</TH>
             <TH align="right" sortKey="sell">{isServiceTenant ? 'Price' : 'Sell'}</TH>
