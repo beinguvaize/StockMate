@@ -24,7 +24,7 @@ test('the owner can export the year to Tally', async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto(`/${TENANT_SLUG}/data-tools`);
 
-  await page.getByRole('button', { name: /Export to Tally/i }).click();
+  await page.getByRole('tab', { name: /Export to Tally/i }).click();
   await expect(page.getByText(/Gateway/i)).toBeVisible({ timeout: 10_000 });
 
   // Widen the window so the seeded sales are certainly inside it.
@@ -33,7 +33,7 @@ test('the owner can export the year to Tally', async ({ page }) => {
   await page.waitForTimeout(400);
 
   const download = page.waitForEvent('download', { timeout: 30_000 });
-  await page.getByRole('button', { name: /Download Tally XML/i }).click();
+  await page.getByRole('button', { name: /Download Tally file/i }).click();
   const file = await download;
   expect(file.suggestedFilename()).toMatch(/^tally-.*\.xml$/);
 

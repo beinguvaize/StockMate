@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Download, FileJson, FileSpreadsheet,
-  ArrowLeft, Database,
-} from 'lucide-react';
+import { Download, ChevronLeft } from 'lucide-react';
+import { Tabs } from '../components/ui/Tabs';
+import { Button } from '../components/ui/button';
+import OptionCard, { OptionGroup } from '../components/ui/OptionCard';
+import { Seg } from '../components/documents/DocParts';
 import { useInventory } from '../hooks/useInventory';
 import { usePeople } from '../hooks/usePeople';
 import { useSales } from '../hooks/useSales';
@@ -53,8 +54,8 @@ export default function DataToolsPage() {
   const { purchases = [], suppliers = [] } = usePurchases(currentTenantId) || {};
 
   const TABS = [
-    { key: 'export', label: 'Export Data' },
-    ...(isOwner ? [{ key: 'excel', label: 'Bulk Import · Upload Excel' }] : []),
+    { key: 'export', label: 'Export data' },
+    ...(isOwner ? [{ key: 'excel', label: 'Bulk import · Upload Excel' }] : []),
     ...(isOwner ? [{ key: 'tally', label: 'Export to Tally' }] : []),
   ];
 
@@ -105,57 +106,32 @@ export default function DataToolsPage() {
   };
 
   const currentModuleData = getModuleData(selectedModule);
+  const currentMod = MODULES.find(m => m.key === selectedModule);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => navigate(-1)}
-          className="p-2 rounded-pill hover:bg-muted transition-colors text-muted-foreground"
-        >
-          <ArrowLeft size={20} />
+    <div className="flex flex-col pb-16">
+      <div className="mb-4 flex flex-wrap items-center gap-3.5">
+        <button type="button" onClick={() => navigate('/settings?tab=data')}
+          className="m-press inline-flex h-8 items-center gap-1 rounded-pill bg-well pl-2 pr-3 font-tight text-[13px] font-semibold text-ink-2 hover:bg-[#E8E8E7]">
+          <ChevronLeft size={16} aria-hidden="true" />Settings
         </button>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gray-900 flex items-center justify-center">
-            <Database size={18} className="text-emerald-400" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-black text-foreground tracking-tight">Data Tools</h1>
-            <p className="text-xs text-muted-foreground">Import &amp; export your business data</p>
-          </div>
+        <h3 className="font-tight text-[20px] font-semibold tracking-[-0.02em] text-ink">Data tools</h3>
+        <span className="text-[13px] text-mute">Import and export your business data</span>
+      </div>
+
+      <Tabs ariaLabel="Data tools" className="mb-5" value={activeTab} onChange={setActiveTab}
+        items={TABS.map(t => ({ key: t.key, label: t.label }))} />
+
+      {/* Excel Bulk Import tab: the same importer as Inventory's bulk import. */}
+      {activeTab === 'excel' && (
+        <div className="max-w-[880px] rounded-[14px] border border-line bg-surface p-6">
+          <ImportData modal />
         </div>
-      </div>
+      )}
 
-      {/* Tabs */}
-      <div className="flex gap-1 p-1 bg-muted rounded-xl w-fit">
-        {TABS.map(t => (
-          <button
-            key={t.key}
-            onClick={() => setActiveTab(t.key)}
-            className={`px-4 py-2 rounded-pill text-sm font-semibold transition-all ${
-              activeTab === t.key
-                ? 'bg-white text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-ink-secondary'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Content */}
-      <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
-
-        {/* Excel Bulk Import tab */}
-        {activeTab === 'excel' && (
-          <div className="p-6">
-            <ImportData modal />
-          </div>
-        )}
-
-        {/* Tally XML export */}
-        {activeTab === 'tally' && (
+      {/* Tally XML export */}
+      {activeTab === 'tally' && (
+        <div className="max-w-[720px]">
           <TallyExportPanel
             sales={orders}
             purchases={purchases}
@@ -163,70 +139,41 @@ export default function DataToolsPage() {
             suppliers={suppliers}
             shopName={currentTenant?.name}
           />
-        )}
+        </div>
+      )}
 
-        {/* Export / CSV-Import tabs */}
-        {activeTab !== 'excel' && (
-          <div className="p-6 space-y-6">
-            {/* Module selector */}
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Data Module</p>
-              <div className="flex flex-wrap gap-2">
-                {MODULES.map(mod => (
-                  <button
-                    key={mod.key}
-                    onClick={() => setSelectedModule(mod.key)}
-                    className={`px-4 py-2 rounded-pill text-xs font-semibold border transition-all ${
-                      selectedModule === mod.key
-                        ? 'bg-gray-900 text-emerald-400 border-gray-900'
-                        : 'bg-muted text-ink-secondary border-border hover:border-gray-400'
-                    }`}
-                  >
-                    {mod.label}
-                  </button>
-                ))}
-              </div>
+      {activeTab === 'export' && (
+        <div className="grid max-w-[880px] gap-4">
+          <section className="overflow-hidden rounded-[14px] border border-line bg-surface">
+            <div className="border-b border-sep px-5 pb-3.5 pt-4">
+              <h4 className="font-tight text-[15px] font-semibold text-ink">Choose a list</h4>
+              <p className="mt-0.5 text-[13px] text-body">Exports what this device has loaded for that list.</p>
             </div>
-
-            {/* EXPORT */}
-            {activeTab === 'export' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-muted rounded-xl border border-border">
-                  <div>
-                    <p className="text-xs text-muted-foreground font-semibold">Records available</p>
-                    <p className="text-3xl font-black text-foreground">{currentModuleData.length}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    {['csv', 'json'].map(fmt => (
-                      <button
-                        key={fmt}
-                        onClick={() => setExportFormat(fmt)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-pill text-xs font-bold border transition-all ${
-                          exportFormat === fmt
-                            ? 'bg-gray-900 text-emerald-400 border-gray-900'
-                            : 'bg-white text-ink-secondary border-border hover:border-gray-400'
-                        }`}
-                      >
-                        {fmt === 'csv' ? <FileSpreadsheet size={13} /> : <FileJson size={13} />}
-                        {fmt.toUpperCase()}
-                      </button>
-                    ))}
-                  </div>
+            <div className="px-5 py-4">
+              <OptionGroup cols={1} aria-label="List to export" className="grid-cols-2 sm:grid-cols-5">
+                {MODULES.map(mod => (
+                  <OptionCard key={mod.key} title={mod.label}
+                    hint={`${getModuleData(mod.key).length.toLocaleString('en-IN')} records`}
+                    selected={selectedModule === mod.key} onClick={() => setSelectedModule(mod.key)} />
+                ))}
+              </OptionGroup>
+              <div className="mb-1.5 mt-[18px] font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-mute">Format</div>
+              <Seg ariaLabel="Format" value={exportFormat} onChange={setExportFormat} options={[['csv', 'CSV'], ['json', 'JSON']]} />
+              {exportFormat === 'csv' && (
+                <div className="mt-4 rounded-xl bg-tile px-3.5 py-[11px] text-[13px] text-body shadow-[inset_0_0_0_1px_var(--color-line)]">
+                  Columns: {currentMod?.fields.join(', ')}.
                 </div>
-                <button
-                  onClick={handleExport}
-                  disabled={!currentModuleData.length}
-                  className="w-full flex items-center justify-center gap-3 py-4 bg-gray-900 text-white rounded-pill font-bold text-sm hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  <Download size={17} />
-                  Export {currentModuleData.length} {MODULES.find(m => m.key === selectedModule)?.label} Records
-                </button>
-              </div>
-            )}
-
-          </div>
-        )}
-      </div>
+              )}
+            </div>
+            <div className="flex justify-end border-t border-sep bg-tile px-5 py-3">
+              <Button onClick={handleExport} disabled={!currentModuleData.length}>
+                <Download aria-hidden="true" />
+                Export {currentModuleData.length.toLocaleString('en-IN')} {currentMod?.label.toLowerCase()}
+              </Button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

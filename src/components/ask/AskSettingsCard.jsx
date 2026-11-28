@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { callAsk, setAskEnabled } from '../../lib/askClient';
+import { Button } from '../ui/button';
 
 /**
  * Owner's switch for Ask. Turning it on goes through the panel's consent
  * screen, which says what is sent and where; only turning off is direct.
+ * Drawn as a Settings card (approved settings-01).
  */
 export default function AskSettingsCard() {
   const [on, setOn] = useState(null);
@@ -30,25 +32,30 @@ export default function AskSettingsCard() {
   };
 
   return (
-    <section className="border border-border rounded-xl bg-card p-5" data-testid="ask-settings">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h2 className="text-[14px] font-semibold text-foreground" data-testid="ask-settings-state">
-            {on === null ? 'Ask' : on ? 'Ask is on' : 'Ask is off'}
-          </h2>
-          <p className="text-[13px] text-muted-foreground mt-0.5">
-            {on
-              ? 'Short AI explanations of your figures are on. Turn it off and nothing more is sent to the AI.'
-              : 'Short AI explanations of your figures. When off, no shop data is sent to the AI.'}
-          </p>
-        </div>
-        {on === null ? null : on
-          ? <button type="button" disabled={saving} onClick={turnOff}
-              className="h-8 px-3.5 rounded-pill text-[13px] font-semibold border border-border text-foreground hover:bg-muted disabled:opacity-50">Turn off</button>
-          : <button type="button" onClick={() => window.dispatchEvent(new Event('ask:open'))}
-              className="h-8 px-3.5 rounded-pill text-[13px] font-semibold border border-border text-foreground hover:bg-muted">Turn on</button>}
+    <section className="overflow-hidden rounded-[14px] border border-line bg-surface" data-testid="ask-settings">
+      <div className="border-b border-sep px-5 pb-3.5 pt-4">
+        <h4 className="font-tight text-[15px] font-semibold text-ink">Ask</h4>
+        <p className="mt-0.5 text-[13px] text-body">Short AI explanations of your figures. When off, no shop data is sent to the AI.</p>
       </div>
-      {error && <p className="text-[13px] text-[color:var(--color-neg)] mt-2" role="alert">{error}</p>}
+      <div className="grid items-start gap-1.5 px-5 py-3.5 sm:grid-cols-[200px_minmax(0,1fr)] sm:gap-6">
+        <div>
+          <b className="block font-tight text-[13.5px] font-semibold text-ink" data-testid="ask-settings-state">
+            {on === null ? 'Ask' : on ? 'Ask is on' : 'Ask is off'}
+          </b>
+          <small className="mt-0.5 block text-[12px] text-mute">
+            {on ? 'Turn it off and nothing more is sent to the AI.' : 'Turning it on shows what is sent, and where, first.'}
+          </small>
+        </div>
+        <span className="pt-0.5 text-[12.5px] text-mute">Shown to the owner only, when Ask is offered for this shop.</span>
+      </div>
+      {error && <p className="px-5 pb-3 text-[13px] text-bad-text" role="alert">{error}</p>}
+      {on !== null && (
+        <div className="flex justify-end border-t border-sep bg-tile px-5 py-3">
+          {on
+            ? <Button variant="outline" size="sm" disabled={saving} onClick={turnOff}>Turn off</Button>
+            : <Button variant="outline" size="sm" onClick={() => window.dispatchEvent(new Event('ask:open'))}>Turn on</Button>}
+        </div>
+      )}
     </section>
   );
 }
