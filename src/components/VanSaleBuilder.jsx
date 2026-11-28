@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '../lib/utils';
 import { useNotifications } from '../context/NotificationContext';
+import { CREDIT_NEEDS_CLIENT } from '../lib/vanSale';
 
 const VanSaleBuilder = ({
   vanItems = [],
@@ -145,7 +146,10 @@ const VanSaleBuilder = ({
     if (isSubmitting) return;
     if (!cart.length) { addNotification('Cart is empty', 'error'); return; }
     if (paymentMethod === 'CREDIT' && selectedClientId === 'WALKIN') {
-      addNotification('Credit requires a client', 'error'); return;
+      // Same words as the hook's own guard (lib/vanSale.js), which refuses it
+      // too: a credit sale with nobody to owe it is the bug, not an option.
+      setSubmitError(CREDIT_NEEDS_CLIENT);
+      addNotification(CREDIT_NEEDS_CLIENT, 'error'); return;
     }
     setSubmitError('');
     setIsSubmitting(true);
