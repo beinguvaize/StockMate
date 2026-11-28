@@ -59,6 +59,13 @@ describe('buildPayslip', () => {
       .earnings[0].note).toBe('3 days × ₹900.00');
   });
 
+  it('does not print the usual rate as the arithmetic when a day had its own rate', () => {
+    // 2 days at 900 and 1 at 1,200: "3 days × 900" would read 2,700 against 3,000.
+    const note = buildPayslip({ run, item: { ...akbar, daysWorked: 3, basePay: 3000, netPay: 3000 } }).earnings[0].note;
+    expect(note).toBe('3 days, some at their own rate (usual ₹900.00)');
+    expect(note).not.toMatch(/×/);
+  });
+
   it('omits earnings lines that are zero', () => {
     // A slip listing Overtime 0, Commission 0, Bonus 0 buries the one real line.
     const s = buildPayslip({ run, item: akbar });

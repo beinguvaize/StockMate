@@ -106,8 +106,15 @@ export function buildPayslip({ run, item, employee, business, records, payment,
       label: isDaily ? 'Basic pay' : 'Salary',
       // The base figure has to be checkable by the person holding the slip.
       // A bare number is not.
+      // "N days × the usual rate" only when that IS the figure. A day carrying
+      // its own rate makes the product wrong, and a slip whose note disagrees
+      // with its own amount reads as an error in the wage.
       note: isDaily
-        ? (dailyRate > 0 ? `${daysWorked} day${daysWorked === 1 ? '' : 's'} × ${money(dailyRate)}` : null)
+        ? (dailyRate > 0
+            ? (Math.round(daysWorked * dailyRate) === Math.round(basePay)
+                ? `${daysWorked} day${daysWorked === 1 ? '' : 's'} × ${money(dailyRate)}`
+                : `${daysWorked} day${daysWorked === 1 ? '' : 's'}, some at their own rate (usual ${money(dailyRate)})`)
+            : null)
         : (perDay > 0 ? `${periodLen} days × ${money(perDay)}` : null),
       amount: isDaily ? basePay : (salary > 0 ? salary : basePay),
     },
