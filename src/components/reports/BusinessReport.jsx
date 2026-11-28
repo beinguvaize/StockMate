@@ -33,52 +33,23 @@ import ReportHeader from './ReportHeader';
 import usePLRanged from './usePLRanged';
 import PLTieOut from './PLTieOut';
 import { SectionHead, StatStrip } from './ReportBits';
+import { FigureTile } from './frame';
 import { isCountableSale, priorRange, pctChange } from './reportUtils';
 import { formatCurrency } from '../../lib/utils';
 import { useLinkedRange } from '../../lib/linkedRange';
 import useDateWindow from './useDateWindow';
 
 /* ─── Date preset helpers ─────────────────────────────────────────────────── */
-/* ─── Mini sparkline ──────────────────────────────────────────────────────── */
-const Spark = ({ data = [], color = 'var(--color-accent-signature)' }) => (
-  <ResponsiveContainer width="100%" height={36}>
-    <AreaChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
-      <defs>
-        <linearGradient id={`sg_${color.replace('#','')}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity={0.25} />
-          <stop offset="100%" stopColor={color} stopOpacity={0} />
-        </linearGradient>
-      </defs>
-      <Area type="monotone" dataKey="v" stroke={color} strokeWidth={1.5}
-        fill={`url(#sg_${color.replace('#','')})`} dot={false} isAnimationActive={false} />
-    </AreaChart>
-  </ResponsiveContainer>
-);
-
-/* ─── KPI card ────────────────────────────────────────────────────────────── */
-const KPI = ({ label, value, sub, spark, color = 'var(--color-accent-signature)', icon: Icon, loading }) => (
-  <div className="bg-surface rounded-[14px] border border-line p-5 flex flex-col gap-3">
-    <div className="flex items-center justify-between">
-      <div className={`w-9 h-9 rounded-xl flex items-center justify-center`}
-        style={{ background: `color-mix(in srgb, ${color} 10%, transparent)` }}>
-        <Icon size={16} style={{ color }} />
-      </div>
-      {sub !== undefined && (
-        <span className={`text-[11.5px] font-semibold flex items-center gap-0.5 ${
-          sub > 0 ? 'text-good-text' : sub < 0 ? 'text-bad-text' : 'text-body'
-        }`}>
-          {sub > 0 ? <ArrowUpRight size={11} /> : sub < 0 ? <ArrowDownRight size={11} /> : <Minus size={11} />}
-          {sub !== 0 ? `${Math.abs(sub).toFixed(1)}%` : '—'}
-        </span>
-      )}
-    </div>
-    {loading
-      ? <div className="h-7 w-24 bg-tile animate-pulse rounded-lg" />
-      : <div className="tabular-nums text-2xl font-semibold text-ink tabular-nums leading-none">{value}</div>
-    }
-    <div className="text-[12px] font-medium text-body">{label}</div>
-    {spark && spark.length > 1 && <Spark data={spark} color={color} />}
-  </div>
+/* ─── Figure tile (reports-04): the trend, when there is one, as a line ─── */
+const KPI = ({ label, value, sub, note, loading }) => (
+  <FigureTile label={label} value={value} loading={loading}
+    sub={sub !== undefined ? (
+      <>
+        <span className={sub > 0 ? 'font-semibold text-good-text' : sub < 0 ? 'font-semibold text-bad-text' : 'text-body'}>
+          {sub > 0 ? '↑' : sub < 0 ? '↓' : ''} {sub !== 0 ? `${Math.abs(sub).toFixed(1)}%` : '—'}
+        </span> on the same length before
+      </>
+    ) : note} />
 );
 
 /* ─── Section header ──────────────────────────────────────────────────────── */
@@ -384,19 +355,14 @@ const BusinessReport = () => {
           Volume metrics only. Purchases and Outstanding deliberately live in
           "Cash & Stock" below: purchases are money out for stock that may not
           have sold yet, and showing them beside revenue read as a huge loss. */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <KPI label="Revenue billed (before returns)" loading={salesLoading}
           value={formatCurrency(salesMetrics.totalRevenue)}
-          sub={revenueChange ?? undefined}
-          spark={salesMetrics.dailyTrend.map(d => ({ v: d.revenue }))}
-          icon={TrendingUp} color="var(--color-accent-signature)" />
+          sub={revenueChange ?? undefined} />
         <KPI label="Total Orders"    loading={salesLoading}
-          value={salesMetrics.totalOrders}
-          spark={salesMetrics.dailyTrend.map(d => ({ v: d.orders }))}
-          icon={ShoppingBag} color="#10b981" />
+          value={salesMetrics.totalOrders} note="bills, voids left out" />
         <KPI label="Avg. Order Value" loading={salesLoading}
-          value={formatCurrency(salesMetrics.aov)}
-          icon={ChevronRight} color="#f59e0b" />
+          value={formatCurrency(salesMetrics.aov)} note="billed ÷ orders" />
       </div>
       {prior && revenueChange !== null && (
         <p className="text-[12px] text-body -mt-2">
@@ -412,7 +378,7 @@ const BusinessReport = () => {
           period — folding them into sale-time cash would double-count. */}
       <div className="space-y-2">
         <div>
-          <h2 className="text-sm font-semibold text-ink">Cash position</h2>
+          <h2 className="font-tight text-[15px] font-semibold text-ink">Cash position</h2>
           <p className="text-[12px] text-body mt-0.5">
             Collected is taken from each bill&apos;s payment status. Credit sales count as money in
             only once they are settled.
@@ -447,9 +413,9 @@ const BusinessReport = () => {
                       <stop offset="100%" stopColor="var(--color-accent-signature)" stopOpacity={0}   />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 600 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 600 }} axisLine={false} tickLine={false}
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-sep)" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--color-mute)', fontWeight: 600 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--color-mute)', fontWeight: 600 }} axisLine={false} tickLine={false}
                     tickFormatter={v => `₹${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
                   <Tooltip content={<ChartTip />} />
                   <Area type="monotone" dataKey="revenue" name="Revenue" stroke="var(--color-accent-signature)" strokeWidth={2}
@@ -674,22 +640,19 @@ const BusinessReport = () => {
           running balance as of today, so it ignores the date filter. */}
       <div className="space-y-3">
         <div>
-          <h2 className="text-sm font-semibold text-ink">Cash &amp; Stock</h2>
+          <h2 className="font-tight text-[15px] font-semibold text-ink">Cash &amp; Stock</h2>
           <p className="text-[12px] text-body mt-0.5">
             Money out for stock this period, and what customers still owe. Not part of the profit
             calculation above — stock bought but unsold stays on the shelf, not in cost of goods.
           </p>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <KPI label="Stock purchased (money out)" loading={purchLoading}
-            value={formatCurrency(purchMetrics.total)}
-            icon={Truck} color="#8b5cf6" />
+            value={formatCurrency(purchMetrics.total)} note="stock bought, may not be sold yet" />
           <KPI label="Cost of goods sold (in P&L)" loading={plLoading}
-            value={formatCurrency(pnl.cogs)}
-            icon={Package} color="#0ea5e9" />
+            value={formatCurrency(pnl.cogs)} />
           <KPI label="Outstanding · all time, as of today" loading={false}
-            value={formatCurrency(salesMetrics.outstanding)}
-            icon={Clock} color="#ef4444" />
+            value={formatCurrency(salesMetrics.outstanding)} />
         </div>
       </div>
 
