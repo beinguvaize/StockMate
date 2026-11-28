@@ -89,3 +89,12 @@ describe('the Customise form', () => {
     expect(countChanges(b, a)).toBe(4);
   });
 });
+
+describe('new shops', () => {
+  it('create-tenant writes the same value as DEFAULT_INVOICE_TEMPLATE', async () => {
+    const { readFileSync } = await import('fs');
+    const src = readFileSync(new URL('../../supabase/functions/create-tenant/index.ts', import.meta.url), 'utf8');
+    expect(src).toContain(`print_settings: { invoiceTemplate: "${DEFAULT_INVOICE_TEMPLATE}" }`);
+    expect(resolveInvoiceTemplate({ invoiceTemplate: 'model-modern' }, REGULAR)).toBe('model-modern');
+  });
+});
