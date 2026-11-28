@@ -25,7 +25,7 @@ export const Eyebrow = ({ className, ...props }) => (
   <span className={cn('font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-mute', className)} {...props} />
 );
 
-export function Figure({ label, value, sub, onClick, title, className }) {
+export function Figure({ label, value, sub, cap, onClick, title, className }) {
   const body = (
     <>
       <Eyebrow>{label}</Eyebrow>
@@ -33,6 +33,7 @@ export function Figure({ label, value, sub, onClick, title, className }) {
       {sub !== undefined && sub !== null && (
         <small className="flex items-center gap-1.5 text-[12px] text-body whitespace-nowrap">{sub}</small>
       )}
+      {cap && <span className="mt-1 block text-[11.5px] text-mute whitespace-nowrap">{cap}</span>}
     </>
   );
   const base = 'relative block text-left px-3 py-2.5 rounded-xl min-w-0 [&+&]:before:content-[""] [&+&]:before:absolute [&+&]:before:left-0 [&+&]:before:top-3.5 [&+&]:before:bottom-3.5 [&+&]:before:w-px [&+&]:before:bg-sep';

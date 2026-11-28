@@ -2,7 +2,6 @@ import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import { isStocked } from '../lib/productTypes';
 import useRefetchOnFocus from '../hooks/useRefetchOnFocus';
 import { useDashboardKpis } from '../hooks/useDashboardKpis';
-import { useAuth } from '../context/AuthContext';
 import BannerCarousel from '../components/BannerCarousel';
 import ExpiryAlertCard from '../components/ExpiryAlertCard';
 import { useTenant } from '../context/TenantContext';
@@ -16,7 +15,7 @@ import { usePeople } from '../hooks/usePeople';
 import { useStaffDues } from '../hooks/useStaffDues';
 import { useOperations } from '../hooks/useOperations';
 import { useAccounts } from '../hooks/useAccounts';
-import { TrendingUp, ShoppingCart, Package, RefreshCw } from 'lucide-react';
+import { RefreshCw, Check, Circle, X } from 'lucide-react';
 import { useNavigate} from 'react-router-dom';
 import usePlayOnce from '../components/motion/usePlayOnce';
 import CountUp from '../components/motion/CountUp';
@@ -27,7 +26,15 @@ import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
-import { FigureStrip, Figure } from '../components/ui/FigureStrip';
+import { FigureStrip, Figure, Eyebrow } from '../components/ui/FigureStrip';
+import usePLRanged from '../components/reports/usePLRanged';
+import { useTopSellingItems } from '../hooks/useTopSellingItems';
+import { supplierOwedSummary } from '../lib/supplierOwed';
+import {
+  periodRange, comparisonRange, sumInRange, inRange, deltaPct, deltaTone, formatDelta,
+  comparisonWords, spanLabel, setupSteps, isNewShop,
+} from '../lib/dashboardFigures';
+import { DashboardQuickActions } from '../components/AppLayout';
 import { todayISOInAppTZ, formatShortDateTime, parseLocalDate } from '../lib/utils';
 import { realtimeEnabled } from '../lib/realtime';
 import {
@@ -163,38 +170,131 @@ const OpsRow = ({ label, sub, value, meter, onClick }) => (
     right={value} />
 );
 
+// Empty card body, as the mockup's new-shop state: a soft tile with a bold
+// line, a quieter one, and sometimes a link to the thing that fills it.
+const EmptyNote = ({ title, children, action, onAction, className = 'min-h-[150px]' }) => (
+  <div className={`mt-2.5 grid place-items-center content-center gap-1.5 rounded-xl bg-tile p-2.5 text-center text-[13px] text-mute ${className}`}>
+    <b className="font-tight text-[14px] font-semibold text-ink-2">{title}</b>
+    {children && <span>{children}</span>}
+    {action && <SeeAll onClick={onAction}>{action}</SeeAll>}
+  </div>
+);
+// A part of the page whose read failed: says so, with a way to try again.
+// Never a zero, which would read as "nothing happened".
+const LoadFailed = ({ what, onRetry, className = 'min-h-[150px]' }) => (
+  <div role="alert" className={`mt-2.5 grid place-items-center content-center gap-1.5 rounded-xl bg-bad-soft/60 p-2.5 text-center text-[13px] text-bad-text ${className}`}>
+    <b className="font-tight text-[14px] font-semibold">{what} could not be loaded</b>
+    {onRetry && <button type="button" onClick={onRetry} className="font-tight text-[13px] font-semibold underline underline-offset-4">Try again</button>}
+  </div>
+);
+const FailedSub = () => <span className="text-bad-text">Could not load</span>;
+
+// Section heading over a row of figures: "FOR THE PERIOD  Today, compared with yesterday".
+const FigHead = ({ title, meta }) => (
+  <div className="flex flex-wrap items-center gap-2 mb-0.5">
+    <Eyebrow className="text-ink-2">{title}</Eyebrow>
+    {meta && <span className="text-[12.5px] text-mute">{meta}</span>}
+  </div>
+);
+
+// Same thresholds as "Owed to you most": red over 5,000, amber 1,000 to 5,000, green below.
+const owedTone = (n) => (n > 5000 ? 'bad' : n >= 1000 ? 'warn' : 'good');
+
+const SETUP_HIDDEN_KEY = (tenantId) => `dashboard.setupHidden.${tenantId}`;
+const readSetupHidden = (tenantId) => {
+  try { return !!tenantId && window.localStorage.getItem(SETUP_HIDDEN_KEY(tenantId)) === '1'; } catch { return false; }
+};
+
+// "Set up your shop": progress, the five steps (ticked from real data), and
+// a cross that hides it on this device.
+const SetupGuide = ({ setup, onStep, onHide }) => (
+  <section aria-label="Set up your shop"
+    className="m-rise mb-[18px] grid grid-cols-[1fr_auto] md:grid-cols-[auto_1fr_auto] items-center gap-x-3.5 gap-y-3 rounded-[14px] border border-line px-4 py-3.5">
+    <div>
+      <b className="block font-tight text-[15px] font-semibold">Set up your shop</b>
+      <small className="mt-1 flex items-center gap-2 text-[12.5px] text-body">
+        <span role="progressbar" aria-label="Setup progress" aria-valuenow={setup.done} aria-valuemin={0} aria-valuemax={setup.total}
+          className="block h-1.5 w-[72px] overflow-hidden rounded-pill bg-well">
+          <i className="block h-full rounded-pill bg-amber" style={{ width: `${(setup.done / setup.total) * 100}%` }} />
+        </span>
+        {setup.done} of {setup.total} done
+      </small>
+    </div>
+    <div className="col-span-2 md:col-span-1 row-start-2 md:row-start-auto flex flex-wrap gap-1.5">
+      {setup.steps.map(st => (
+        <button key={st.key} type="button" onClick={() => onStep(st)}
+          aria-label={`${st.label}${st.done ? ', done' : ''}`}
+          className={`m-press inline-flex items-center gap-[5px] whitespace-nowrap rounded-pill px-2.5 py-[5px] font-tight text-[12px] ${
+            st.done ? 'bg-tile font-medium text-mute line-through'
+              : st.next ? 'bg-amber-soft font-semibold text-amber-text'
+              : 'bg-tile font-medium text-ink-2 hover:bg-well'}`}>
+          {st.done
+            ? <Check size={13} strokeWidth={2.2} className="text-good" aria-hidden="true" />
+            : <Circle size={13} strokeWidth={2.2} aria-hidden="true" />}
+          {st.label}
+        </button>
+      ))}
+    </div>
+    <button type="button" onClick={onHide} aria-label="Hide setup guide"
+      className="m-press col-start-2 row-start-1 md:col-start-auto md:row-start-auto grid size-7 place-items-center rounded-full text-mute hover:bg-well">
+      <X size={14} strokeWidth={2} />
+    </button>
+  </section>
+);
+
 const Dashboard = () => {
   // Entrance motion: blocks rise once per page open (CSS, .m-rise); charts
   // draw / grow once while this is true, then redraw in place on refresh.
   const playing = usePlayOnce();
-  const { currentTenant, currentTenantId, businessProfile } = useTenant();
-  const slug = currentTenant?.slug || '';
+  const { currentTenantId, businessProfile } = useTenant();
   const { products, inventoryBalances, refetch: refetchInventory, loading: invLoading, error: invError } = useInventory(currentTenantId);
-  const { sales, refetch: refetchSales, loading: salesLoading } = useSales(currentTenantId, { lean: true });
-  const { purchases, refetch: refetchPurchases, loading: purLoading } = usePurchases(currentTenantId, { withReturns: false, withPayments: false });
-  const { expenses, dayBook, refetch: refetchFinance, loading: finLoading } = useFinance(currentTenantId);
-  const { clients, employees, refetch: refetchPeople } = usePeople(currentTenantId);
+  const { sales, refetch: refetchSales, loading: salesLoading, error: salesError } = useSales(currentTenantId, { lean: true });
+  const { purchases, suppliers, refetch: refetchPurchases, loading: purLoading, error: purError } = usePurchases(currentTenantId, { withReturns: false, withPayments: false });
+  const { expenses, dayBook, refetch: refetchFinance, loading: finLoading, error: finError } = useFinance(currentTenantId);
+  const { clients, employees, users, refetch: refetchPeople, loading: peopleLoading, error: peopleError } = usePeople(currentTenantId);
   // What staff are still owed this month, from attendance and pay runs.
   const staffDue = useStaffDues(currentTenantId, employees);
   const refetchStaffDue = staffDue.refetch;
   const { routes, movementLog, refetch: refetchOps } = useOperations(currentTenantId);
-  const { accounts, balances: accountBalances } = useAccounts(currentTenantId);
+  const { accounts, balances: accountBalances, error: accountsError } = useAccounts(currentTenantId);
 
   const isLoading = invLoading || salesLoading || purLoading || finLoading;
 
   // Server-side KPI aggregation via Supabase RPC (replaces 7 client-side filters).
   // Shared with the side menu's low-stock count and the notifications
   // (useDashboardKpis), so all three read one answer and cannot disagree.
-  // Same RPC and arguments as before; a fresh read on every visit as before.
-  const { data: kpiData, refetch: fetchKpis } = useDashboardKpis(currentTenantId);
+  const { data: kpiData, error: kpiError, refetch: fetchKpis } = useDashboardKpis(currentTenantId);
 
   useEffect(() => { fetchKpis(); }, [fetchKpis]);
+
+ const navigate = useNavigate();
+
+ // ── The period ───────────────────────────────────────────────────────────
+ const [datePreset, setDatePreset] = useState('Today');
+ const [customRange, setCustomRange] = useState({ start: '', end: ''});
+
+ // Business dates in the shop's timezone (lib/dashboardFigures). `range` is
+ // null for all time; `prior` is the period of equal length just before it.
+ const todayStr = todayISOInAppTZ();
+ const range = useMemo(() => periodRange(datePreset, todayStr, customRange), [datePreset, todayStr, customRange]);
+ const prior = useMemo(() => comparisonRange(range), [range]);
+
+ // Profit: get_pl_ranged's gross_profit, the figure the Business report and
+ // the P&L show (sales.totalCogs based, returns netted). Never worked out here.
+ // All time has no window, so it reads from far enough back to cover the books.
+ const plWindow = range || { start: '2000-01-01', end: todayStr };
+ const { pl, error: plError, refetch: refetchPl } = usePLRanged(plWindow.start, plWindow.end);
+ const { pl: priorPl, error: priorPlError, refetch: refetchPriorPl } = usePLRanged(prior?.start, prior?.end);
+
+ // Top-selling items for the same window (lib/topSelling, shared with Sales).
+ const top = useTopSellingItems(currentTenantId, range, { limit: 5 });
+ const refetchTop = top.refetch;
 
   const refetchAll = useCallback(() => {
     refetchInventory(); refetchSales(); refetchPurchases();
     refetchFinance(); refetchPeople(); refetchOps(); refetchStaffDue();
-    fetchKpis();
-  }, [refetchInventory, refetchSales, refetchPurchases, refetchFinance, refetchPeople, refetchOps, refetchStaffDue, fetchKpis]);
+    fetchKpis(); refetchPl(); refetchPriorPl(); refetchTop();
+  }, [refetchInventory, refetchSales, refetchPurchases, refetchFinance, refetchPeople, refetchOps, refetchStaffDue, fetchKpis, refetchPl, refetchPriorPl, refetchTop]);
 
   useRefetchOnFocus(refetchAll, 15_000);
 
@@ -215,77 +315,20 @@ const Dashboard = () => {
     return () => { clearTimeout(timer); supabase.removeChannel(ch); };
   }, [currentTenantId]);
 
-  // Placeholders for remaining data
-  const payrollRecords = [];
-  const clientPayments = [];
- const navigate = useNavigate();
+ // Period sums: the rule the Dashboard has always used (Σ amount of the rows
+ // dated in the window); the window itself is now in the shop's timezone.
+ const saleAmt = (s) => s.totalAmount || 0;
+ const expAmt = (e) => e.amount || 0;
+ const purAmt = (p) => p.total_cost || p.total_amount || 0;
+ const rangeSales = useMemo(() => sumInRange(sales, range, saleAmt), [sales, range]);
+ const rangeExpenses = useMemo(() => sumInRange(expenses, range, expAmt), [expenses, range]);
+ const rangePurchases = useMemo(() => sumInRange(purchases, range, purAmt), [purchases, range]);
+ // The same sums over the previous period, for the comparison pills. Both
+ // sides of a comparison use the same rows and the same rule.
+ const priorSales = useMemo(() => (prior ? sumInRange(sales, prior, saleAmt) : null), [sales, prior]);
+ const priorExpenses = useMemo(() => (prior ? sumInRange(expenses, prior, expAmt) : null), [expenses, prior]);
+ const priorPurchases = useMemo(() => (prior ? sumInRange(purchases, prior, purAmt) : null), [purchases, prior]);
 
- // Core Metrics Calculation
- const [datePreset, setDatePreset] = useState('Today');
- const [customRange, setCustomRange] = useState({ start: '', end: ''});
-
- // Pull a clean YYYY-MM-DD out of any input ("2026-05-15", "2026-05-15T00:00:00Z", Date, etc)
- // No Date-object parsing — avoids timezone off-by-one (esp. negative UTC offsets).
- const toYMD = (v) => {
-   if (!v) return '';
-   if (typeof v === 'string') {
-     const m = v.match(/^(\d{4}-\d{2}-\d{2})/);
-     if (m) return m[1];
-   }
-   // Fallback for Date objects — use local components, not toISOString (UTC).
-   const d = v instanceof Date ? v : new Date(v);
-   if (isNaN(d.getTime())) return '';
-   const y = d.getFullYear();
-   const mo = String(d.getMonth() + 1).padStart(2, '0');
-   const day = String(d.getDate()).padStart(2, '0');
-   return `${y}-${mo}-${day}`;
- };
-
- const isWithinRange = (dateStr) => {
-   if (!dateStr) return false;
-   const dStr = toYMD(dateStr);
-   if (!dStr) return false;
-   const todayStr = toYMD(new Date());
-
-   if (datePreset === 'Today') {
-     return dStr === todayStr;
-   } else if (datePreset === 'This Week') {
-     const today = new Date();
-     today.setHours(0,0,0,0);
-     const currentDay = today.getDay() === 0 ? 7 : today.getDay();
-     const startOfWeek = new Date(today);
-     startOfWeek.setDate(today.getDate() - currentDay + 1);
-     const endOfWeek = new Date(startOfWeek);
-     endOfWeek.setDate(startOfWeek.getDate() + 6);
-     return dStr >= toYMD(startOfWeek) && dStr <= toYMD(endOfWeek);
-   } else if (datePreset === 'This Month') {
-     return dStr.slice(0, 7) === todayStr.slice(0, 7);
-   } else if (datePreset === 'Last Month') {
-     const today = new Date();
-     const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-     return dStr.slice(0, 7) === toYMD(lastMonth).slice(0, 7);
-   } else if (datePreset === 'Custom Range') {
-     if (!customRange.start || !customRange.end) return true;
-     return dStr >= toYMD(customRange.start) && dStr <= toYMD(customRange.end);
-   }
-   return true;
- };
-
- // New KPIs
- const rangeSales = useMemo(
-   () => (sales || []).filter(s => isWithinRange(s.date)).reduce((sum, s) => sum + (s.totalAmount || 0), 0),
-   [sales, datePreset, customRange]
- );
- const rangeExpenses = useMemo(
-   () => (expenses || []).filter(e => isWithinRange(e.date)).reduce((sum, e) => sum + (e.amount || 0), 0),
-   [expenses, datePreset, customRange]
- );
- const rangePurchases = useMemo(
-   () => (purchases || []).filter(p => isWithinRange(p.date)).reduce((sum, p) => sum + (p.total_cost || p.total_amount || 0), 0),
-   [purchases, datePreset, customRange]
- );
-
- const todayStr = todayISOInAppTZ();
  const currentCashBalance = useMemo(() => {
    if (accounts && accounts.length > 0) {
      return accounts
@@ -301,6 +344,9 @@ const Dashboard = () => {
    () => (clients || []).reduce((sum, c) => sum + (c.outstanding_balance || 0), 0),
    [clients]
  );
+
+ // "You owe": the Suppliers list's figure (lib/supplierOwed, SupplierWorkspace).
+ const owed = useMemo(() => supplierOwedSummary(suppliers, purchases), [suppliers, purchases]);
 
  // null until attendance and pay runs have been read: the tile shows a dash
  // rather than a 0 nobody checked.
@@ -383,7 +429,7 @@ const Dashboard = () => {
  return data;
 }, [sales]);
 
- // Chart 3: Cash vs Credit Donut
+ // Chart 3: Cash vs Credit
  const chart3Data = useMemo(() => {
  let cash = 0;
  let credit = 0;
@@ -409,12 +455,12 @@ const Dashboard = () => {
  // Chart 4: Expenses by Category
  const chart4Data = useMemo(() => {
   const categories = {};
-  (expenses || []).filter(e => isWithinRange(e.date)).forEach(e => {
+  (expenses || []).filter(e => inRange(e.date, range)).forEach(e => {
     categories[e.category] = (categories[e.category] || 0) + (e.amount || 0);
   });
   return Object.keys(categories).map(c => ({ name: c, value: categories[c]})).sort((a,b) => b.value - a.value);
-}, [expenses, datePreset, customRange]);
- 
+}, [expenses, range]);
+
  // Recent Transactions
  const recentTransactions = useMemo(() => {
  const txs = [];
@@ -423,12 +469,6 @@ const Dashboard = () => {
  return txs.sort((a, b) => (b.time > a.time ? 1 : b.time < a.time ? -1 : 0)).slice(0, 10);
 }, [sales, expenses]);
 
- // Operational Metrics
- const activeRoutes = useMemo(
-   () => (routes || []).filter(r => r.status === 'ACTIVE'),
-   [routes]
- );
-
  const topDebtors = useMemo(() => {
  return (clients || [])
  .filter(c => (c.outstanding_balance || 0) > 0)
@@ -436,54 +476,10 @@ const Dashboard = () => {
  .slice(0, 5);
 }, [clients]);
 
-  // (The "Analytics" expense pie that read an identical category split was
-  // removed in the web redesign; "Expenses by category" shows these figures.)
-
- // Activity Feed: Merged Timeline
- const activityFeed = useMemo(() => {
- const events = [];
- (sales || []).forEach(s => events.push({ id: `ord-${s.id}`, type: 'ORDER', title: `Sale ${s?.id?.slice(-4) || '...'}`, desc: `Client: ${s.customerName || 'Walk-in'} · ₹${s.totalAmount}`, date: s.date, icon: <ShoppingCart size={14} />, color: '#000'}));
- (routes || []).forEach(r => events.push({ id: `rt-${r.id}`, type: 'ROUTE', title: r.status === 'ACTIVE' ? 'Route Dispatched' : 'Route Reconciled', desc: `Driver ID: ${r.driverId}`, date: r.status === 'ACTIVE' ? r.date : r.reconciledAt, icon: <Package size={14} />, color: r.status === 'ACTIVE' ? '#404040' : '#000'}));
- (movementLog || []).slice(0, 10).forEach(m => {
- events.push({ 
- id: `mv-${m.id}`, 
- type: 'STOCK', 
- title: `Stock ${m.type === 'IN' ? 'In' : 'Out'}`, 
- desc: `${m.productName} (${m.quantity} ${m.type === 'IN' ? 'added' : 'removed'})`, 
- date: m.date, 
- icon: <TrendingUp size={14} />, 
- color: '#737373' 
- });
-});
- 
- return events
- .filter(e => e.date && !isNaN(new Date(e.date).getTime()))
- .sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0))
- .slice(0, 10);
-}, [sales, routes, movementLog, businessProfile]);
-
- // Best Selling Products Calculation
- const topProducts = useMemo(() => {
- const productSales = {};
- (sales || []).forEach(order => {
- (order.items || []).forEach(item => {
- if (!productSales[item.productId]) {
- productSales[item.productId] = { name: item.name, quantity: 0, revenue: 0};
-}
- productSales[item.productId].quantity += (item.quantity || 0);
- productSales[item.productId].revenue += ((item.quantity || 0) * (item.price || 0));
-});
-});
-
- return Object.values(productSales)
- .sort((a, b) => b.quantity - a.quantity)
- .slice(0, 5);
-}, [sales]);
-
  // Chart Data Preparation (Group by Date)
  const chartData = useMemo(() => {
  const dataMap = {};
- 
+
  // Initialize last 7 days
  for(let i=6; i>=0; i--) {
  const d = new Date();
@@ -512,58 +508,53 @@ const Dashboard = () => {
 
  return Object.values(dataMap);
 }, [sales, expenses]);
-
- // (The "Weekly performance" bars and the "System Status 99.9%" tile were
- // removed in the web redesign; the live sync dot is now "Synced" / "Offline"
- // in the top bar.)
+ const moneyInOutEmpty = chartData.every(d => !d.income && !d.expense);
 
  // Efficiency Metrics Calculation
  const efficiencyStats = useMemo(() => {
  const completedRoutes = (routes || []).filter(r => r.status === 'COMPLETED').length;
  const totalRoutes = (routes || []).length || 1;
- 
+
   const totalStock = (products || []).reduce((sum, p) => {
     const productTotal = (inventoryBalances || []).filter(b => b.product_id === p.id).reduce((s, b) => s + b.quantity, 0);
     return sum + productTotal;
   }, 0) || 1;
  const totalMovedOut = (movementLog || []).filter(m => m.type === 'OUT').reduce((sum, m) => sum + (m.quantity || 0), 0);
- 
- // "Vehicle payload" (a fixed 85% whenever a trip was active) was removed in
- // the web redesign. These two are unchanged.
+
  return [
  { label: 'Route coverage', value: Math.round((completedRoutes / totalRoutes) * 100)},
  { label: 'Stock turnover', value: Math.min(100, Math.round((totalMovedOut / totalStock) * 100))}
  ];
 }, [routes, products, movementLog, inventoryBalances]);
 
- // Real Growth Calculation (This 7 days vs Previous 7 days)
- const growthPercent = useMemo(() => {
- const now = new Date();
- const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
- const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-
- const currentWeekSales = (sales || []).filter(o => parseLocalDate(o.date) >= sevenDaysAgo).reduce((sum, o) => sum + (o.totalAmount || 0), 0);
- const previousWeekSales = (sales || []).filter(o => {
- const d = parseLocalDate(o.date);
- return d >= fourteenDaysAgo && d < sevenDaysAgo;
-}).reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-
- if (previousWeekSales === 0) return currentWeekSales > 0 ? 100 : 0;
- return ((currentWeekSales - previousWeekSales) / previousWeekSales) * 100;
-}, [sales]);
+ // ── Setup guide (new shop) ───────────────────────────────────────────────
+ const [setupHidden, setSetupHidden] = useState(() => readSetupHidden(currentTenantId));
+ useEffect(() => { setSetupHidden(readSetupHidden(currentTenantId)); }, [currentTenantId]);
+ const hideSetup = () => {
+   setSetupHidden(true);
+   try { window.localStorage.setItem(SETUP_HIDDEN_KEY(currentTenantId), '1'); } catch { /* private window: hidden for this visit only */ }
+ };
+ const setup = useMemo(() => setupSteps({
+   products, inventoryBalances, businessProfile,
+   salesCount: (sales || []).length, usersCount: (users || []).length,
+ }), [products, inventoryBalances, businessProfile, sales, users]);
+ const newShop = !salesLoading && !salesError && isNewShop(sales, todayStr);
+ // Only once what the steps read has loaded, so it never flashes "0 of 5".
+ const setupReady = !invLoading && !salesLoading && !peopleLoading && !invError && !salesError && !peopleError;
+ const showSetup = setupReady && newShop && !setup.complete && !setupHidden;
+ const hasAnySale = (sales || []).length > 0;
 
  // ── Display helpers (wording and formatting only; no figure changes) ─────
  const sym = businessProfile?.currencySymbol || '₹';
- const fmtMoney = (n) => `${sym}${Math.round(n).toLocaleString('en-IN')}`;
+ const fmtMoney = (n) => `${n < 0 ? '−' : ''}${sym}${Math.abs(Math.round(n)).toLocaleString('en-IN')}`;
  const RANGE_WORD = { 'Today': 'today', 'This Week': 'this week', 'This Month': 'this month', 'Last Month': 'last month', 'All Time': 'all time', 'Custom Range': 'in range' };
- const rangeWord = RANGE_WORD[datePreset] || '';
+ const PRESET_LABEL = { 'Today': 'Today', 'This Week': 'This week', 'This Month': 'This month', 'Last Month': 'Last month', 'All Time': 'All time', 'Custom Range': range ? spanLabel(range) : 'All dates' };
+ const rangeWord = (datePreset === 'Custom Range' && !range) ? 'all time' : (RANGE_WORD[datePreset] || '');
+ const rangeTitle = rangeWord ? rangeWord.charAt(0).toUpperCase() + rangeWord.slice(1) : null;
+ const words = comparisonWords(datePreset, range, prior, PRESET_LABEL[datePreset]);
  const now = new Date();
  const thisMonthName = now.toLocaleString('en-IN', { month: 'long' });
  const lastMonthName = new Date(now.getFullYear(), now.getMonth() - 1, 1).toLocaleString('en-IN', { month: 'long' });
- // Same colour rule as before: up is green, down is red, flat is grey.
- const deltaPill = (d) => typeof d !== 'number' ? null : (
-   <Badge tone={d > 0 ? 'good' : d < 0 ? 'bad' : 'neutral'}>{d > 0 ? '+' : d < 0 ? '−' : ''}{Math.abs(d).toFixed(1)}%</Badge>
- );
  const lowStockCount = kpiData ? (kpiData.low_stock_items ?? lowStockProducts.length) : lowStockProducts.length;
  const debtorCount = (clients || []).filter(c => (c.outstanding_balance || 0) > 0).length;
  const qtyOf = (item) => {
@@ -571,18 +562,83 @@ const Dashboard = () => {
    return bal.length > 0 ? bal.reduce((s, b) => s + b.quantity, 0) : (item.stock ?? 0);
  };
  const LIST_ROWS = 5;
+ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
- const figures = [
-   { label: `Sales ${rangeWord}`,     value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_sales ?? rangeSales) : rangeSales),             delta: kpiData?.sales_delta_pct, to: '/sales', count: true },
-   { label: `Expenses ${rangeWord}`,  value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_expenses ?? rangeExpenses) : rangeExpenses),    delta: kpiData?.expenses_delta_pct, to: '/expenses' },
-   { label: 'Cash balance',           value: Math.round(currentCashBalance),                                                                                sub: 'all cash and bank', to: '/daybook' },
-   { label: 'Owed to you',            value: Math.round(kpiData ? (kpiData.outstanding_collections ?? totalOutstanding) : totalOutstanding),               sub: clients ? `from ${debtorCount} client${debtorCount === 1 ? '' : 's'}` : null, to: '/clients' },
-   { label: `Purchases ${rangeWord}`, value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_purchases ?? rangePurchases) : rangePurchases), sub: 'stock bought', to: '/purchases' },
-   { label: 'Salary pending',         value: salariesPending === null ? null : Math.round(salariesPending),                                                 sub: `for ${thisMonthName}`, to: '/payroll' },
+ // A comparison under a period figure: the pill, then "vs yesterday".
+ // `failed` is the previous period's read failing: say so, never a made-up 0%.
+ const compareSub = ({ kind, pct, failed }) => {
+   if (!prior) return null;
+   if (failed) return <><Badge tone="neutral">—</Badge><span className="text-mute">could not compare</span></>;
+   if (typeof pct !== 'number') return <><Badge tone="neutral">—</Badge>nothing to compare yet</>;
+   return <><Badge tone={deltaTone(kind, pct)}>{formatDelta(pct)}</Badge><span className="text-mute">{words.short}</span></>;
+ };
+
+ // Today's three sums come from get_dashboard_kpis, as before. The pill
+ // compares the same client-side sums on both sides, so a figure is never
+ // compared with one worked out a different way.
+ const useKpi = datePreset === 'Today' && kpiData;
+ const salesValue = useKpi ? (kpiData.today_sales ?? rangeSales) : rangeSales;
+ const expensesValue = useKpi ? (kpiData.today_expenses ?? rangeExpenses) : rangeExpenses;
+ const purchasesValue = useKpi ? (kpiData.today_purchases ?? rangePurchases) : rangePurchases;
+ const profitValue = pl ? Number(pl.gross_profit || 0) : null;
+ const priorProfit = priorPl ? Number(priorPl.gross_profit || 0) : null;
+
+ const periodFigures = [
+   { key: 'sales', label: `Sales ${rangeWord}`, to: '/sales', count: true,
+     value: salesError && !useKpi ? null : salesValue, failed: salesError && !useKpi,
+     sub: compareSub({ kind: 'income', pct: salesError ? null : deltaPct(rangeSales, priorSales), failed: !!salesError }),
+     cap: hasAnySale ? 'all bills, cash and credit' : 'your first sale shows here' },
+   { key: 'profit', label: `Profit ${rangeWord}`, to: '/reports',
+     value: plError ? null : profitValue, failed: !!plError, loading: !pl && !plError,
+     sub: plError ? null : compareSub({ kind: 'income', pct: priorProfit === null ? null : deltaPct(profitValue, priorProfit), failed: !!priorPlError }),
+     cap: 'Sales minus cost of goods' },
+   { key: 'expenses', label: `Expenses ${rangeWord}`, to: '/expenses',
+     value: finError && !useKpi ? null : expensesValue, failed: finError && !useKpi,
+     sub: compareSub({ kind: 'cost', pct: finError ? null : deltaPct(rangeExpenses, priorExpenses), failed: !!finError }),
+     cap: 'shop running costs' },
+   { key: 'purchases', label: `Purchases ${rangeWord}`, to: '/purchases',
+     value: purError && !useKpi ? null : purchasesValue, failed: purError && !useKpi,
+     sub: compareSub({ kind: 'neutral', pct: purError ? null : deltaPct(rangePurchases, priorPurchases), failed: !!purError }),
+     cap: 'stock bought' },
  ];
+
+ const owedToYou = kpiData ? (kpiData.outstanding_collections ?? totalOutstanding) : totalOutstanding;
+ const owedToYouFailed = !kpiData && (!!kpiError || !!peopleError);
+ const balanceFigures = [
+   { key: 'cash', label: 'Cash balance', to: '/daybook',
+     value: accountsError && !(accounts || []).length ? null : currentCashBalance,
+     failed: !!accountsError && !(accounts || []).length,
+     sub: newShop && !currentCashBalance ? 'add your opening cash' : 'all cash and bank' },
+   { key: 'owed-to-you', label: 'Owed to you', to: '/clients',
+     value: owedToYouFailed ? null : owedToYou, failed: owedToYouFailed,
+     sub: debtorCount ? `from ${plural(debtorCount, 'client')}` : (newShop ? 'no credit sales yet' : 'nobody owes you') },
+   { key: 'you-owe', label: 'You owe', to: '/suppliers',
+     value: purError ? null : owed.total, failed: !!purError,
+     sub: owed.count ? `to ${plural(owed.count, 'supplier')}` : (newShop ? 'no supplier bills yet' : 'nothing owed') },
+   { key: 'salary', label: 'Salary pending', to: '/payroll',
+     value: staffDue.error ? null : salariesPending, failed: !!staffDue.error,
+     sub: (employees || []).length ? `for ${thisMonthName}` : 'no staff added' },
+ ];
+
+ const renderFigure = (m) => (
+   <Figure key={m.key} label={m.label}
+     onClick={() => m.to && navigate(m.to)}
+     value={m.value === null || m.value === undefined
+       ? '—'
+       : m.count ? <CountUp value={Math.round(m.value)} format={(n) => fmtMoney(n)} /> : fmtMoney(m.value)}
+     sub={m.failed ? <FailedSub /> : m.sub}
+     cap={m.cap} />
+ );
 
  return (
  <div className="flex flex-col">
+   {/* Quick actions sit in the top bar from lg; below that, here. */}
+   <DashboardQuickActions className="lg:hidden mb-4" />
+
+   {showSetup && (
+     <SetupGuide setup={setup} onHide={hideSetup} onStep={(st) => navigate(st.to)} />
+   )}
+
    {/* Announcement (left) and expiry alert (right). Each hides itself when
        there is nothing to say, and the row goes with them. */}
    <div className="m-rise grid grid-cols-1 lg:grid-cols-2 gap-3 mb-[18px] empty:hidden">
@@ -624,39 +680,47 @@ const Dashboard = () => {
      </Button>
    </div>
 
-   {/* Six figures; each opens its page */}
-   <FigureStrip cols={6} className="m-rise mb-[22px]" style={{ '--i': 2 }}>
-     {figures.map((m) => (
-       <Figure key={m.to} label={m.label}
-         onClick={() => m.to && navigate(m.to)}
-         value={m.count
-           ? <CountUp value={m.value} format={(n) => fmtMoney(n)} />
-           : (m.value === null ? '—' : fmtMoney(m.value))}
-         sub={typeof m.delta === 'number' ? deltaPill(m.delta) : m.sub} />
-     ))}
-   </FigureStrip>
+   {/* For the period: four figures, each compared with the period before. */}
+   <div className="m-rise" style={{ '--i': 2 }}>
+     <FigHead title="For the period" meta={newShop && !hasAnySale ? PRESET_LABEL[datePreset] : words.heading} />
+     <FigureStrip cols={4} className="mb-3.5">
+       {periodFigures.map(renderFigure)}
+     </FigureStrip>
+   </div>
+   {/* Right now: balances, the same whatever the date range. */}
+   <div className="m-rise" style={{ '--i': 2 }}>
+     <FigHead title="Right now" meta={newShop && !hasAnySale ? 'Balances' : 'Balances. These stay the same whatever date range you pick'} />
+     <FigureStrip cols={4} className="mb-[22px]">
+       {balanceFigures.map(renderFigure)}
+     </FigureStrip>
+   </div>
 
    {/* Charts, row 1 */}
    <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-5">
      <Card className="m-rise flex flex-col" style={{ '--i': 3 }}>
-       <CardHeader title="Sales this month" aside={<><Key swatch="var(--color-amber)">{thisMonthName}</Key><Key dashed>{lastMonthName}</Key></>} />
-       <div className="relative mt-3.5 h-[210px]">
-         {chart2Data.reduce((s, d) => s + d.thisMonth + d.lastMonth, 0) === 0 ? (
-           <ChartNote>No sales this month or last month yet</ChartNote>
-         ) : (
+       <CardHeader title="Sales this month" aside={hasAnySale ? <><Key swatch="var(--color-amber)">{thisMonthName}</Key><Key dashed>{lastMonthName}</Key></> : null} />
+       {salesError ? <LoadFailed what="Sales" onRetry={refetchSales} className="min-h-[200px]" />
+       : chart2Data.reduce((s, d) => s + d.thisMonth + d.lastMonth, 0) === 0 ? (
+         <EmptyNote title="No sales yet this month" className="min-h-[200px]"
+           action={hasAnySale ? null : 'Make your first sale'} onAction={() => navigate('/sales')}>
+           Your daily sales line starts after your first sale
+         </EmptyNote>
+       ) : (
+         <div className="relative mt-3.5 h-[210px]">
            <MonthlyComparisonAreaChart data={chart2Data} currencySymbol={sym} playing={playing} thisLabel={thisMonthName} lastLabel={lastMonthName} />
-         )}
-       </div>
+         </div>
+       )}
      </Card>
      <Card className="m-rise flex flex-col" style={{ '--i': 4 }}>
-       <CardHeader title="Sales this week" aside={<><Key swatch="var(--color-amber)">This week</Key><Key swatch="#D9D8D5">Last week</Key></>} />
-       <div className="relative mt-3.5 h-[210px]">
-         {chart1Data.reduce((s, d) => s + d.value, 0) === 0 ? (
-           <ChartNote>No sales this week yet</ChartNote>
-         ) : (
+       <CardHeader title="Sales this week" aside={hasAnySale ? <><Key swatch="var(--color-amber)">This week</Key><Key swatch="#D9D8D5">Last week</Key></> : null} />
+       {salesError ? <LoadFailed what="Sales" onRetry={refetchSales} className="min-h-[200px]" />
+       : chart1Data.reduce((s, d) => s + d.value, 0) === 0 ? (
+         <EmptyNote title="No sales this week yet" className="min-h-[200px]">This week and last week show side by side</EmptyNote>
+       ) : (
+         <div className="relative mt-3.5 h-[210px]">
            <WeeklySalesBarChart data={chart1Data} currencySymbol={sym} playing={playing} />
-         )}
-       </div>
+         </div>
+       )}
      </Card>
    </div>
 
@@ -665,8 +729,12 @@ const Dashboard = () => {
      <DailyRevenueTrendChart playing={playing} className="m-rise" style={{ '--i': 5 }} />
      <Card className="m-rise flex flex-col" style={{ '--i': 6 }}>
        <CardHeader title="How you were paid" aside="This month" />
-       {chart3Total === 0 ? (
-         <div className="flex-1 grid place-items-center py-10 text-[13px] text-mute">No sales this month yet</div>
+       {salesError ? <LoadFailed what="Sales" onRetry={refetchSales} /> : chart3Total === 0 ? (
+         <>
+           <div className="mt-2.5 font-tight text-[28px] font-semibold leading-tight tracking-[-0.02em] tabular-nums">{sym}0</div>
+           <div className="flex h-2.5 overflow-hidden rounded-pill mt-4 mb-2 bg-well" aria-hidden="true" />
+           <p className="text-[12.5px] text-mute">Cash and credit split shows after your first sale.</p>
+         </>
        ) : (
          <>
            <div className="mt-2.5 font-tight text-[28px] font-semibold leading-tight tracking-[-0.02em] tabular-nums">{sym}{chart3Total.toLocaleString()}</div>
@@ -686,20 +754,27 @@ const Dashboard = () => {
      </Card>
    </div>
 
-   {/* Row 3 */}
-   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mt-5">
+   {/* Row 3, two across: money in and out, expenses, top sellers, operations */}
+   <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
      <Card className="m-rise flex flex-col" style={{ '--i': 7 }}>
        <CardHeader title="Money in and out" aside="Last 7 days" />
-       <div className="flex gap-3.5 mt-2 text-[12.5px]"><Key swatch="var(--color-good)">Sales</Key><Key swatch="var(--color-bad)">Expenses</Key></div>
-       <div className="relative mt-2.5 h-[170px]">
-         <MoneyInOutChart data={chartData} currencySymbol={sym} />
-       </div>
+       {salesError || finError ? <LoadFailed what={salesError ? 'Sales' : 'Expenses'} onRetry={salesError ? refetchSales : refetchFinance} />
+       : moneyInOutEmpty ? (
+         <EmptyNote title="No money in or out yet">Sales and expenses for the last 7 days</EmptyNote>
+       ) : (
+         <>
+           <div className="flex gap-3.5 mt-2 text-[12.5px]"><Key swatch="var(--color-good)">Sales</Key><Key swatch="var(--color-bad)">Expenses</Key></div>
+           <div className="relative mt-2.5 h-[170px]">
+             <MoneyInOutChart data={chartData} currencySymbol={sym} />
+           </div>
+         </>
+       )}
      </Card>
 
      <Card className="m-rise flex flex-col" style={{ '--i': 8 }}>
-       <CardHeader title="Expenses by category" aside={rangeWord ? rangeWord.charAt(0).toUpperCase() + rangeWord.slice(1) : null} />
-       {chart4Data.length === 0 ? (
-         <div className="flex-1 grid place-items-center py-10 text-[13px] text-mute">No expenses {rangeWord} yet</div>
+       <CardHeader title="Expenses by category" aside={rangeTitle} />
+       {finError ? <LoadFailed what="Expenses" onRetry={refetchFinance} /> : chart4Data.length === 0 ? (
+         <EmptyNote title={`No expenses ${rangeWord}`} action="Record expense" onAction={() => navigate('/expenses?new=1')} />
        ) : (
          <>
            <div className="mt-2 max-h-[176px] overflow-y-auto">
@@ -721,14 +796,58 @@ const Dashboard = () => {
        )}
      </Card>
 
-     <Card className="m-rise flex flex-col md:col-span-2 xl:col-span-1" style={{ '--i': 8 }}>
+     {/* Top-selling items: the same ranking as the Sales history's best
+         sellers (lib/topSelling), for the period picked above. */}
+     <Card className="m-rise flex flex-col" style={{ '--i': 8 }}>
+       <CardHeader title="Top-selling items" aside={rangeTitle} />
+       {top.error ? <LoadFailed what="Top-selling items" onRetry={refetchTop} />
+       : top.loading && top.rows.length === 0 ? <ListNote>Loading</ListNote>
+       : top.rows.length === 0 ? (
+         <EmptyNote title="No items sold yet">Your best sellers show here after a few sales</EmptyNote>
+       ) : (
+         <>
+           <Table wrapperClassName="mt-1.5 flex-1" className="[&_th]:px-0 [&_td]:px-0 [&_th]:py-2 [&_td]:py-2">
+             <TableHeader>
+               <tr>
+                 <TableHead>Item</TableHead>
+                 <TableHead numeric className="!pl-3.5">Sold</TableHead>
+                 <TableHead numeric className="!pl-3.5">Sales ↓</TableHead>
+               </tr>
+             </TableHeader>
+             <TableBody>
+               {top.rows.map(r => (
+                 <TableRow key={r.key}>
+                   <TableCell className="w-[62%]">
+                     <div className="flex gap-2 text-ink-2 min-w-0">
+                       <span className="w-[18px] shrink-0 font-tight text-[12px] font-semibold text-faint">{r.rank}</span>
+                       <span className="truncate" title={r.name}>{r.name}</span>
+                     </div>
+                     <div className="ml-[26px] mt-1.5 h-1 overflow-hidden rounded-pill bg-well" aria-hidden="true">
+                       <i className="block h-full rounded-pill bg-amber/75" style={{ width: `${r.share}%` }} />
+                     </div>
+                   </TableCell>
+                   <TableCell numeric className="!pl-3.5">{r.qty.toLocaleString('en-IN')}</TableCell>
+                   <TableCell numeric className="!pl-3.5">{fmtMoney(r.value)}</TableCell>
+                 </TableRow>
+               ))}
+             </TableBody>
+           </Table>
+           <CardFooter>
+             <span>Top {top.rows.length} of {plural(top.itemCount, 'item')} sold</span>
+             <SeeAll onClick={() => navigate('/reports')}>See all in Reports</SeeAll>
+           </CardFooter>
+         </>
+       )}
+     </Card>
+
+     <Card className="m-rise flex flex-col" style={{ '--i': 8 }}>
        <CardHeader title="Operations" />
        <div className="mt-1.5">
          <OpsRow label="Products" onClick={() => navigate('/inventory')}
            value={<b className="font-tight text-[16px] font-semibold tabular-nums">{kpiData ? (kpiData.total_products ?? (products || []).length) : (products || []).length}</b>} />
          <OpsRow label="Low stock items" onClick={() => navigate('/inventory')}
-           value={<Badge tone={lowStockCount > 0 ? 'warn' : 'neutral'}>{lowStockCount} need attention</Badge>} />
-         <OpsRow label="Active trips" sub={`${routes?.length || 0} routes in all`} onClick={() => navigate('/vehicles')}
+           value={lowStockCount > 0 ? <Badge tone="warn">{lowStockCount} need attention</Badge> : <Badge tone="good">All stocked</Badge>} />
+         <OpsRow label="Active trips" sub={routes?.length ? `${routes.length} routes in all` : 'no routes yet'} onClick={() => navigate('/vehicles')}
            value={<b className="font-tight text-[16px] font-semibold tabular-nums">{kpiData ? (kpiData.active_trips ?? (routes || []).filter(r => r.status === 'ACTIVE').length) : (routes || []).filter(r => r.status === 'ACTIVE').length}</b>} />
          {efficiencyStats.map((stat) => (
            <OpsRow key={stat.label} label={stat.label}
@@ -739,27 +858,29 @@ const Dashboard = () => {
      </Card>
    </div>
 
-   {/* Lists that need action: 5 rows each, then "See all" */}
-   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mt-5">
+   {/* Lists that need action, two across: 5 rows each, then "See all" */}
+   <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
      <Card className="m-rise flex flex-col" style={{ '--i': 8 }}>
-       <CardHeader><CardTitle>Reorder soon<Count tone="warn">{lowStockCount}</Count></CardTitle></CardHeader>
-       <div className="mt-1.5 flex-1">
-         {lowStockProducts.length === 0 ? (
-           <ListNote>All products stocked</ListNote>
-         ) : lowStockProducts.slice(0, LIST_ROWS).map(item => {
-           const qty = qtyOf(item);
-           const min = item.low_stock_threshold ?? item.lowStockThreshold ?? 10;
-           return (
-             <ListRow key={item.id} onClick={() => navigate('/inventory')}
-               left={<><span className="block truncate text-ink-2">{item.name}</span><small className="block text-[12px] text-mute tabular-nums">{qty} in stock · reorder at {min}</small></>}
-               right={<>
-                 {qty <= 0 && <Badge tone="bad">Out</Badge>}
-                 <Button variant="secondary" size="xs" onClick={(e) => { e.stopPropagation(); navigate('/purchases'); }}>Restock</Button>
-               </>} />
-           );
-         })}
-       </div>
-       {lowStockProducts.length > 0 && (
+       <CardHeader><CardTitle>Reorder soon{lowStockCount > 0 && <Count tone="warn">{lowStockCount}</Count>}</CardTitle></CardHeader>
+       {invError ? <LoadFailed what="Stock" onRetry={refetchInventory} /> : lowStockProducts.length === 0 ? (
+         <EmptyNote title="Nothing to reorder">Every product is above its reorder level</EmptyNote>
+       ) : (
+         <div className="mt-1.5 flex-1">
+           {lowStockProducts.slice(0, LIST_ROWS).map(item => {
+             const qty = qtyOf(item);
+             const min = item.low_stock_threshold ?? item.lowStockThreshold ?? 10;
+             return (
+               <ListRow key={item.id} onClick={() => navigate('/inventory')}
+                 left={<><span className="block truncate text-ink-2">{item.name}</span><small className="block text-[12px] text-mute tabular-nums">{qty} in stock · reorder at {min}</small></>}
+                 right={<>
+                   {qty <= 0 && <Badge tone="bad">Out</Badge>}
+                   <Button variant="secondary" size="xs" onClick={(e) => { e.stopPropagation(); navigate('/purchases'); }}>Restock</Button>
+                 </>} />
+             );
+           })}
+         </div>
+       )}
+       {!invError && lowStockProducts.length > 0 && (
          <CardFooter>
            <span>Showing {Math.min(LIST_ROWS, lowStockProducts.length)} of {lowStockProducts.length}</span>
            <SeeAll onClick={() => navigate('/inventory')}>See all in Inventory</SeeAll>
@@ -769,28 +890,34 @@ const Dashboard = () => {
 
      <Card className="m-rise flex flex-col" style={{ '--i': 8 }}>
        <CardHeader aside={staffDue.ready && pendingSalaryAlerts.length > LIST_ROWS ? <SeeAll onClick={() => navigate('/payroll')}>See all</SeeAll> : null}>
-         <CardTitle>Staff pay due<Count tone="warn">{pendingSalaryAlerts.length}</Count></CardTitle>
+         <CardTitle>Staff pay due{pendingSalaryAlerts.length > 0 && <Count tone="warn">{pendingSalaryAlerts.length}</Count>}</CardTitle>
        </CardHeader>
-       <div className="mt-1.5 flex-1">
-         {!staffDue.ready ? (
-           <ListNote>{staffDue.error ? 'Salary dues could not be loaded. Open Payroll to check.' : 'Loading'}</ListNote>
-         ) : pendingSalaryAlerts.length === 0 ? (
-           <ListNote>All salaries cleared</ListNote>
-         ) : pendingSalaryAlerts.slice(0, LIST_ROWS).map(row => {
-           const emp = row.employee;
-           return (
-             <ListRow key={emp.id}
-               left={<><span className="block truncate text-ink-2">{emp.name}</span><small className="block text-[12px] text-mute tabular-nums">
-                 {row.dayRate ? `${row.daysWorked} day${row.daysWorked === 1 ? '' : 's'} × ${sym}${row.rate.toLocaleString('en-IN')}` : `Earned ${sym}${row.earned.toLocaleString('en-IN')}`} · paid {sym}{row.paid.toLocaleString('en-IN')}
-               </small></>}
-               right={<>
-                 <span className="font-tight text-[13.5px] font-semibold tabular-nums">{sym}{row.pending.toLocaleString('en-IN')}</span>
-                 <Button variant="secondary" size="xs" onClick={() => navigate('/payroll')}>Pay</Button>
-               </>} />
-           );
-         })}
-       </div>
-       {staffDue.ready && pendingSalaryAlerts.length > 0 && (
+       {staffDue.error ? (
+         <LoadFailed what="Salary dues" onRetry={refetchStaffDue} />
+       ) : !(employees || []).length && !peopleLoading ? (
+         <EmptyNote title="No staff yet" action="Invite staff" onAction={() => navigate('/users')} />
+       ) : !staffDue.ready ? (
+         <ListNote>Loading</ListNote>
+       ) : pendingSalaryAlerts.length === 0 ? (
+         <EmptyNote title="All salaries cleared" />
+       ) : (
+         <div className="mt-1.5 flex-1">
+           {pendingSalaryAlerts.slice(0, LIST_ROWS).map(row => {
+             const emp = row.employee;
+             return (
+               <ListRow key={emp.id}
+                 left={<><span className="block truncate text-ink-2">{emp.name}</span><small className="block text-[12px] text-mute tabular-nums">
+                   {row.dayRate ? `${row.daysWorked} day${row.daysWorked === 1 ? '' : 's'} × ${sym}${row.rate.toLocaleString('en-IN')}` : `Earned ${sym}${row.earned.toLocaleString('en-IN')}`} · paid {sym}{row.paid.toLocaleString('en-IN')}
+                 </small></>}
+                 right={<>
+                   <span className="font-tight text-[13.5px] font-semibold tabular-nums">{sym}{row.pending.toLocaleString('en-IN')}</span>
+                   <Button variant="secondary" size="xs" onClick={() => navigate('/payroll')}>Pay</Button>
+                 </>} />
+             );
+           })}
+         </div>
+       )}
+       {staffDue.ready && !staffDue.error && pendingSalaryAlerts.length > 0 && (
          <CardFooter>
            <span>Still to pay</span>
            <span className="font-tight text-[13.5px] font-semibold text-ink tabular-nums">{salariesPending === null ? '—' : `${sym}${Math.round(salariesPending).toLocaleString('en-IN')}`}</span>
@@ -798,32 +925,60 @@ const Dashboard = () => {
        )}
      </Card>
 
-     <Card className="m-rise flex flex-col md:col-span-2 xl:col-span-1" style={{ '--i': 8 }}>
+     <Card className="m-rise flex flex-col" style={{ '--i': 8 }}>
        <CardHeader title="Owed to you most" />
-       <div className="mt-1.5 flex-1">
-         {topDebtors.length === 0 ? (
-           <ListNote>No outstanding balances</ListNote>
-         ) : topDebtors.map((client, idx) => {
-           const out = client.outstanding_balance || 0;
-           // Same thresholds as before: red over 5,000, amber 1,000 to 5,000, green below.
-           const tone = out > 5000 ? 'bad' : out >= 1000 ? 'warn' : 'good';
-           return (
-             <ListRow key={client.id} onClick={() => navigate(`/clients?client=${client.id}`)}
+       {peopleError ? <LoadFailed what="Clients" onRetry={refetchPeople} /> : topDebtors.length === 0 ? (
+         <EmptyNote title="Nobody owes you money">Clients who buy on credit show here</EmptyNote>
+       ) : (
+         <div className="mt-1.5 flex-1">
+           {topDebtors.map((client, idx) => {
+             const out = client.outstanding_balance || 0;
+             return (
+               <ListRow key={client.id} onClick={() => navigate(`/clients?client=${client.id}`)}
+                 left={<span className="flex items-center gap-2 min-w-0">
+                   <span className="w-[18px] shrink-0 font-tight text-[12px] font-semibold text-faint">{idx + 1}</span>
+                   <span className="truncate text-ink-2">{client.name}</span>
+                 </span>}
+                 right={<>
+                   <Badge tone={owedTone(out)}>{fmtMoney(out)}</Badge>
+                   <Button variant="secondary" size="xs" onClick={(e) => { e.stopPropagation(); navigate(`/clients?client=${client.id}`); }}>Collect</Button>
+                 </>} />
+             );
+           })}
+         </div>
+       )}
+       {!peopleError && topDebtors.length > 0 && (
+         <CardFooter>
+           <span>Top {topDebtors.length} of {plural(debtorCount, 'client')}</span>
+           <SeeAll onClick={() => navigate('/clients')}>See all in Clients</SeeAll>
+         </CardFooter>
+       )}
+     </Card>
+
+     {/* You owe most: the Suppliers list's owed figure (lib/supplierOwed). */}
+     <Card className="m-rise flex flex-col" style={{ '--i': 8 }}>
+       <CardHeader title="You owe most" />
+       {purError ? <LoadFailed what="Supplier bills" onRetry={refetchPurchases} /> : owed.owing.length === 0 ? (
+         <EmptyNote title="You don't owe any supplier">Purchases bought on credit show here</EmptyNote>
+       ) : (
+         <div className="mt-1.5 flex-1">
+           {owed.owing.slice(0, LIST_ROWS).map((s, idx) => (
+             <ListRow key={s.id} onClick={() => navigate('/suppliers')}
                left={<span className="flex items-center gap-2 min-w-0">
                  <span className="w-[18px] shrink-0 font-tight text-[12px] font-semibold text-faint">{idx + 1}</span>
-                 <span className="truncate text-ink-2">{client.name}</span>
+                 <span className="truncate text-ink-2">{s.name}</span>
                </span>}
                right={<>
-                 <Badge tone={tone}>₹{Math.round(out).toLocaleString()}</Badge>
-                 <Button variant="secondary" size="xs" onClick={(e) => { e.stopPropagation(); navigate(`/clients?client=${client.id}`); }}>Collect</Button>
+                 <Badge tone={owedTone(s.owed)}>{fmtMoney(s.owed)}</Badge>
+                 <Button variant="secondary" size="xs" onClick={(e) => { e.stopPropagation(); navigate('/suppliers'); }}>Pay</Button>
                </>} />
-           );
-         })}
-       </div>
-       {topDebtors.length > 0 && (
+           ))}
+         </div>
+       )}
+       {!purError && owed.owing.length > 0 && (
          <CardFooter>
-           <span>Top {topDebtors.length} of {debtorCount} client{debtorCount === 1 ? '' : 's'}</span>
-           <SeeAll onClick={() => navigate('/clients')}>See all in Clients</SeeAll>
+           <span>Top {Math.min(LIST_ROWS, owed.owing.length)} of {plural(owed.count, 'supplier')}</span>
+           <SeeAll onClick={() => navigate('/suppliers')}>See all in Suppliers</SeeAll>
          </CardFooter>
        )}
      </Card>
@@ -832,30 +987,33 @@ const Dashboard = () => {
    {/* Recent transactions */}
    <Card className="m-rise mt-5 pb-2" style={{ '--i': 8 }}>
      <CardHeader title="Recent transactions" aside="Last 10" />
-     <Table wrapperClassName="mt-2" className="min-w-[560px]">
-       <TableHeader>
-         <tr>
-           <TableHead className="pl-0">Time</TableHead>
-           <TableHead>Type</TableHead>
-           <TableHead>Description</TableHead>
-           <TableHead numeric className="pr-0">Amount</TableHead>
-         </tr>
-       </TableHeader>
-       <TableBody>
-         {recentTransactions.length === 0 ? (
-           <tr><TableCell colSpan={4} className="py-8 text-center text-[13px] text-mute">No transactions recorded yet.</TableCell></tr>
-         ) : recentTransactions.map((tx) => (
-           <TableRow key={tx.id}>
-             <TableCell className="pl-0 whitespace-nowrap text-ink-2">{formatShortDateTime(tx.time) || '—'}</TableCell>
-             <TableCell><Badge tone={tx.isPositive ? 'good' : 'bad'}>{tx.type}</Badge></TableCell>
-             <TableCell className="text-ink-2">{tx.desc}</TableCell>
-             <TableCell numeric className={`pr-0 font-semibold ${tx.isPositive ? 'text-good-text' : 'text-bad-text'}`}>
-               {tx.isPositive ? '+' : '−'}₹{Math.round(tx.amount || 0).toLocaleString()}
-             </TableCell>
-           </TableRow>
-         ))}
-       </TableBody>
-     </Table>
+     {salesError || finError ? <LoadFailed what={salesError ? 'Sales' : 'Expenses'} onRetry={salesError ? refetchSales : refetchFinance} className="min-h-[110px]" />
+     : recentTransactions.length === 0 ? (
+       <EmptyNote title="No sales or expenses yet" className="min-h-[110px]">Your first sale will show here</EmptyNote>
+     ) : (
+       <Table wrapperClassName="mt-2" className="min-w-[560px]">
+         <TableHeader>
+           <tr>
+             <TableHead className="pl-0">Time</TableHead>
+             <TableHead>Type</TableHead>
+             <TableHead>Description</TableHead>
+             <TableHead numeric className="pr-0">Amount</TableHead>
+           </tr>
+         </TableHeader>
+         <TableBody>
+           {recentTransactions.map((tx) => (
+             <TableRow key={tx.id}>
+               <TableCell className="pl-0 whitespace-nowrap text-ink-2">{formatShortDateTime(tx.time) || '—'}</TableCell>
+               <TableCell><Badge tone={tx.isPositive ? 'good' : 'bad'}>{tx.type}</Badge></TableCell>
+               <TableCell className="text-ink-2">{tx.desc}</TableCell>
+               <TableCell numeric className={`pr-0 font-semibold ${tx.isPositive ? 'text-good-text' : 'text-bad-text'}`}>
+                 {tx.isPositive ? '+' : '−'}{sym}{Math.round(tx.amount || 0).toLocaleString('en-IN')}
+               </TableCell>
+             </TableRow>
+           ))}
+         </TableBody>
+       </Table>
+     )}
    </Card>
  </div>
  );
