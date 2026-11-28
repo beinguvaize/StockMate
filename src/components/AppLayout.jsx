@@ -108,6 +108,7 @@ const EXTRA_TITLES = [
   ['/bulk-add', 'Bulk Add'],
   ['/data-tools', 'Data Tools'],
   ['/backup', 'Backup'],
+  ['/documents/new', 'Invoices'],
 ];
 
 // Bump when the meaning of a stored choice changes; the old answer is dropped

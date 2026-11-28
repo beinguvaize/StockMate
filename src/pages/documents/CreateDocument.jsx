@@ -1,9 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, FileText, FileCheck, Wallet,
   RotateCcw, ReceiptText, Truck, FileSpreadsheet, FilePen,
 } from 'lucide-react';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Seg } from '../../components/documents/DocParts';
+import { classifyWriteFailure } from '../../lib/writeOutcome';
 import InvoiceTemplate from '../../components/invoice/InvoiceTemplate';
 import { useTenant } from '../../context/TenantContext';
 import { useNotifications } from '../../context/NotificationContext';
@@ -36,6 +40,7 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 
 const CreateDocument = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [params] = useSearchParams();
   const { currentTenantId, currentTenant, businessProfile = {} } = useTenant();
   const { addNotification } = useNotifications();
@@ -135,7 +140,15 @@ const CreateDocument = () => {
   const handleSave = async () => {
     if (!canSave) return;
     setSaving(true);
-    const fail = (m) => { addNotification(`Save failed: ${m}`, 'error'); setSaving(false); };
+    // A refusal says "Not saved" and the server's reason. A dropped connection
+    // may still have committed, so it says it could not confirm instead.
+    const fail = (m) => {
+      const f = classifyWriteFailure(typeof m === 'string' ? new Error(m) : m, { noun: cfg.label.toLowerCase() });
+      addNotification(f.maySaved
+        ? `${f.title}. It may have been saved: check the list before saving again. ${f.detail}`
+        : `${f.title}: ${f.detail}`, 'error', 9000);
+      setSaving(false);
+    };
     try {
       let res;
       if (cfg.save === 'invoice') {
@@ -231,46 +244,51 @@ const CreateDocument = () => {
     }
   };
 
-  const Icon = cfg.icon;
+  // Where "back" goes, as its words: the page that opened this one says what
+  // it is (the Invoices list passes "Invoices"); otherwise just "Back".
+  const backLabel = location.state?.from || 'Back';
+  const goBack = () => navigate(-1);
+  const partyMeta = cfg.noItems ? 'Payment' : cfg.label;
 
   return (
-    <div className="min-h-screen bg-canvas">
-      {/* Header */}
-      <div className="sticky top-0 z-20 bg-white border-b border-black/5 px-4 sm:px-6 py-3 flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="p-1.5 rounded-pill hover:bg-black/5"><ArrowLeft size={18} /></button>
-        <div className="w-7 h-7 rounded-lg bg-accent-signature text-white grid place-items-center font-black text-sm">B</div>
-        <div className="font-black text-base text-ink-primary">Create {cfg.label.toLowerCase()}</div>
-        <div className="ml-auto flex gap-2">
-          <button onClick={() => navigate(-1)} className="px-3 py-2 rounded-pill text-[12px] font-bold border border-black/10 hover:bg-black/5">Cancel</button>
-          <button disabled={!canSave} onClick={handleSave}
-            className="px-4 py-2 rounded-pill text-[12px] font-black bg-accent-signature text-white disabled:opacity-40 hover:opacity-90">
-            {saving ? 'Saving…' : `Save ${cfg.label.toLowerCase()}`}
+    <div className="flex flex-col pb-16">
+      {/* Header: back, title, cancel and save */}
+      <div className="m-rise mb-4 flex flex-wrap items-center gap-2.5">
+        <div className="min-w-0">
+          <button type="button" onClick={goBack}
+            className="inline-flex items-center gap-1 font-tight text-[13px] font-semibold text-body hover:text-ink">
+            <ArrowLeft size={14} /> {backLabel}
           </button>
+          <h3 className="mt-1 font-tight text-[22px] font-semibold tracking-[-0.02em] text-ink">Create {cfg.label.toLowerCase()}</h3>
         </div>
+        <span className="flex-1" />
+        <Button variant="secondary" onClick={goBack}>Cancel</Button>
+        <Button disabled={!canSave} onClick={handleSave}>
+          {saving ? 'Saving…' : `Save ${cfg.label.toLowerCase()}`}
+        </Button>
       </div>
 
       {/* Doc-type switch */}
-      <div className="px-4 sm:px-6 py-3 flex gap-2 flex-wrap border-b border-black/5 bg-white">
+      <div role="group" aria-label="Document type" className="m-rise mb-4 flex flex-wrap gap-1.5" style={{ '--i': 1 }}>
         {Object.entries(DOC_TYPES).map(([k, d]) => (
-          <button key={k} onClick={() => { setDocType(k); }}
-            className={`px-3 py-1.5 rounded-pill text-[12px] font-bold transition-colors ${
-              docType === k ? 'bg-accent-signature text-white' : 'text-muted-foreground border border-black/10 hover:text-ink-primary'
+          <button key={k} type="button" aria-pressed={docType === k} onClick={() => { setDocType(k); }}
+            className={`m-press whitespace-nowrap rounded-pill px-3.5 py-[7px] font-tight text-[13px] font-semibold ${
+              docType === k ? 'bg-ink text-white' : 'text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile'
             }`}>{d.label}</button>
         ))}
       </div>
 
-      <div className="max-w-6xl mx-auto p-4 sm:p-6 flex flex-col gap-4">
+      <div className="flex flex-col gap-4">
         {/* Party + meta */}
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="m-rise grid gap-4 md:grid-cols-2" style={{ '--i': 2 }}>
           <PartyPicker label={cfg.party} party={party} clients={clients} onChange={setParty} manual={cfg.manual} />
 
-          <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-4 grid grid-cols-2 gap-3">
-            <Field label={`${cfg.prefix} no.`} value={`${cfg.prefix}-XXXX`} mono />
-            <div>
-              <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Date</div>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-                className="w-full text-[13px] font-bold border border-black/10 rounded-lg px-2 py-1.5 outline-none focus:border-accent-signature/40" />
-            </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-[14px] border border-line bg-surface px-5 py-[18px]">
+            <Field label={`${partyMeta} no.`} value="Given on save" muted />
+            <label className="block">
+              <span className="block font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-mute">Date</span>
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-[3px] h-8" aria-label="Date" />
+            </label>
             <Field label="Place of supply" value={party?.state || businessState || '—'} />
             <Field label="Type" value={cfg.gst ? 'GST document' : 'Non-GST'} />
           </div>
@@ -278,48 +296,50 @@ const CreateDocument = () => {
 
         {/* Item grid */}
         {!cfg.noItems && (
-          <DocItemGrid lines={lines} products={products} gstOn={cfg.gst} onAdd={addLine} onPatch={patchLine} onRemove={removeLine} manual={cfg.manual} onAddBlank={addBlankLine} />
+          <div className="m-rise" style={{ '--i': 3 }}>
+            <DocItemGrid lines={lines} products={products} gstOn={cfg.gst} onAdd={addLine} onPatch={patchLine} onRemove={removeLine} manual={cfg.manual} onAddBlank={addBlankLine} />
+          </div>
         )}
 
         {/* Payment In — amount card (no line items) */}
         {cfg.noItems && (
-          <div className="bg-white rounded-2xl border border-black/10 shadow-sm p-4 max-w-sm">
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Amount received</div>
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-black text-muted-foreground">₹</span>
-              <input type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} placeholder="0.00"
-                className="flex-1 text-xl font-black tabular-nums border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40" />
+          <div className="m-rise max-w-[440px] rounded-[14px] border border-line bg-surface px-5 py-[18px]" style={{ '--i': 3 }}>
+            <label htmlFor="pay-in-amt" className="mb-1.5 block font-tight text-[12.5px] font-semibold text-ink-2">Amount received</label>
+            <div className="flex h-[52px] items-center gap-2 rounded-xl px-4 shadow-[inset_0_0_0_1px_var(--color-line)] focus-within:shadow-[inset_0_0_0_2px_var(--color-ink)]">
+              <span className="font-tight text-[20px] font-semibold text-mute">₹</span>
+              <input id="pay-in-amt" type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} placeholder="0.00"
+                className="w-full bg-transparent font-tight text-[26px] font-semibold tracking-[-0.02em] tabular-nums text-ink outline-none placeholder:text-faint" />
             </div>
-            <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}
-              className="mt-3 w-full text-[12px] border border-black/10 rounded-lg px-2 py-2 outline-none">
-              <option>CASH</option><option>BANK</option><option>UPI</option>
-            </select>
-            <div className="text-[11px] text-muted-foreground mt-2">Settles the party's oldest open invoice.</div>
+            <span className="mt-3.5 mb-1.5 block font-tight text-[12.5px] font-semibold text-ink-2">Paid by</span>
+            <Seg value={payMethod} onChange={setPayMethod} ariaLabel="Paid by"
+              options={[['CASH', 'Cash'], ['BANK', 'Bank'], ['UPI', 'UPI']]} />
+            <p className="mt-3 text-[12px] text-mute">Settles the party's oldest open invoice.</p>
           </div>
         )}
 
-        {/* Footer: terms + totals */}
+        {/* Footer: notes + terms, totals */}
         {!cfg.noItems && (
-        <div className="grid md:grid-cols-2 gap-4">
-          <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-4">
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Notes</div>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Notes for the customer…"
-              className="w-full text-[12px] border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40 resize-none" />
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground mt-3 mb-1">Terms</div>
-            <div className="text-[12px] text-muted-foreground leading-relaxed">
+        <div className="m-rise grid items-start gap-4 md:grid-cols-[minmax(0,1fr)_360px]" style={{ '--i': 4 }}>
+          <div className="rounded-[14px] border border-line bg-surface px-5 py-[18px]">
+            <label htmlFor="doc-notes" className="mb-1.5 block font-tight text-[12.5px] font-semibold text-ink-2">Notes</label>
+            <textarea id="doc-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Notes for the customer"
+              className="min-h-[64px] w-full resize-none rounded-[10px] px-3 py-[9px] text-[13.5px] text-ink shadow-[inset_0_0_0_1px_var(--color-line)] outline-none placeholder:text-mute focus:shadow-[inset_0_0_0_2px_var(--color-ink)]" />
+            <span className="mt-3.5 block font-tight text-[12.5px] font-semibold text-ink-2">Terms</span>
+            <p className="mt-1 text-[12.5px] leading-relaxed text-body">
               Goods once sold are not taken back. Disputes subject to local jurisdiction.
-            </div>
+            </p>
           </div>
-          <div>
-            <TotalsPanel gst={gst} gstOn={cfg.gst} interstate={interstate} showPayment={cfg.save === 'invoice'}
-              markPaid={markPaid} setMarkPaid={setMarkPaid} payMethod={payMethod} setPayMethod={setPayMethod}
-              charges={charges} setCharges={setCharges} billDiscount={billDiscount} setBillDiscount={setBillDiscount}
-              received={received} setReceived={setReceived}
-              taxMode={taxMode} setTaxMode={setTaxMode} taxModeLocked={taxModeLocked}
-              taxModeHint={taxModeLocked
-                ? 'Set by your GST settings; a sales invoice is taxed server-side.'
-                : undefined} />
-          </div>
+          <TotalsPanel gst={gst} gstOn={cfg.gst} interstate={interstate} showPayment={cfg.save === 'invoice'}
+            markPaid={markPaid} setMarkPaid={setMarkPaid} payMethod={payMethod} setPayMethod={setPayMethod}
+            charges={charges} setCharges={setCharges} billDiscount={billDiscount} setBillDiscount={setBillDiscount}
+            received={received} setReceived={setReceived}
+            taxMode={taxMode} setTaxMode={setTaxMode} taxModeLocked={taxModeLocked}
+            taxModeHint={taxModeLocked
+              ? 'Set by your GST settings; a sales invoice is taxed when it is saved.'
+              : undefined}
+            note={docType === 'CREDIT_NOTE' && party?.name
+              ? `Credits ${party.name}'s account. The items go back into stock.`
+              : undefined} />
         </div>
         )}
       </div>

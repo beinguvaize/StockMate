@@ -233,10 +233,6 @@ function AppRoutes() {
       <Route path="/admin" element={<ProtectedRoute requireGlobalAdmin><AdminPanel /></ProtectedRoute>} />
       <Route path="/nexus-hq" element={<ProtectedRoute requireGlobalAdmin><SuperAdminPortal /></ProtectedRoute>} />
 
-      {/* Full-page, sidebar-free transaction builder (Sales Invoice, Quotation,
-          Payment In, Sales Return, Credit Note, Delivery Challan, Proforma). */}
-      <Route path="documents/new" element={<ProtectedRoute><TenantGate><CreateDocument /></TenantGate></ProtectedRoute>} />
-
       <Route element={<TenantGate><AppLayout /></TenantGate>}>
         <Route path="dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
@@ -263,6 +259,10 @@ function AppRoutes() {
         <Route path="suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
         <Route path="suppliers/ledger/:id" element={<ProtectedRoute><SupplierLedger /></ProtectedRoute>} />
         <Route path="invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
+        {/* Transaction builder (Sales Invoice, Quotation, Payment In, Sales
+            Return, Credit Note, Delivery Challan, Proforma). Inside the shell
+            since the web redesign (approved invoices-08); same path. */}
+        <Route path="documents/new" element={<ProtectedRoute><CreateDocument /></ProtectedRoute>} />
         <Route path="estimates" element={<ProtectedRoute><Estimates /></ProtectedRoute>} />
         <Route path="labels" element={<ProtectedRoute><LabelPrinting /></ProtectedRoute>} />
         <Route path="bulk-add" element={<ProtectedRoute><BulkAdd /></ProtectedRoute>} />
