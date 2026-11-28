@@ -51,6 +51,7 @@ const Purchases        = lazy(() => import('./pages/purchases'));
 const Suppliers        = lazy(() => import('./pages/Suppliers'));
 const SupplierLedger   = lazy(() => import('./pages/SupplierLedger'));
 const Invoices         = lazy(() => import('./pages/Invoices'));
+const InvoiceDetail    = lazy(() => import('./pages/invoices/InvoiceDetail'));
 const Estimates        = lazy(() => import('./pages/Estimates'));
 const LabelPrinting    = lazy(() => import('./pages/LabelPrinting'));
 const BulkAdd          = lazy(() => import('./pages/BulkAdd'));
@@ -259,6 +260,7 @@ function AppRoutes() {
         <Route path="suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
         <Route path="suppliers/ledger/:id" element={<ProtectedRoute><SupplierLedger /></ProtectedRoute>} />
         <Route path="invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
+        <Route path="invoices/:invoiceId" element={<ProtectedRoute><InvoiceDetail /></ProtectedRoute>} />
         {/* Transaction builder (Sales Invoice, Quotation, Payment In, Sales
             Return, Credit Note, Delivery Challan, Proforma). Inside the shell
             since the web redesign (approved invoices-08); same path. */}

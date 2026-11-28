@@ -979,7 +979,13 @@ const SupportPanel = () => (
 const SettingsHub = () => {
   const { currentTenantId, currentTenant } = useTenant();
   const { isOwner } = useAuth();
-  const [active, setActive] = useState('account');
+  // ?tab=print opens a section directly (the invoice page's "Change" link).
+  const [active, setActive] = useState(() => {
+    try {
+      const t = new URLSearchParams(window.location.search).get('tab');
+      return NAV_GROUPS.some(g => g.items.some(i => i.id === t)) ? t : 'account';
+    } catch { return 'account'; }
+  });
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">

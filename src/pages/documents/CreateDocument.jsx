@@ -244,6 +244,16 @@ const CreateDocument = () => {
     }
   };
 
+  // ?client=<id>: the party filled in, when the page was opened for one client
+  // (Issue credit note on an invoice). Only fills an empty party, once.
+  const clientParam = params.get('client');
+  useEffect(() => {
+    if (!clientParam || party) return;
+    const c = clients.find((x) => String(x.id) === String(clientParam));
+    if (c) setParty(c);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientParam, clients]);
+
   // Where "back" goes, as its words: the page that opened this one says what
   // it is (the Invoices list passes "Invoices"); otherwise just "Back".
   const backLabel = location.state?.from || 'Back';
