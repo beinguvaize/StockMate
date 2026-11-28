@@ -52,7 +52,7 @@ function DueBar({ bands, owedTotal, cur }) {
         <span className="flex-1" />
         <span className="text-[12px] text-mute">
           Unpaid bills by credit days, as on Purchases
-          {differs && ` · these add up to ${money(total, cur)}; You owe takes off money paid in advance`}
+          {differs && ` · these add up to ${money(total, cur)}; You owe is the ledger balance, which also takes off advances, money on account and debit notes`}
         </span>
       </div>
     </div>

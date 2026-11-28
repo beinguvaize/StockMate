@@ -1,41 +1,64 @@
 /**
- * What the shop owes each supplier: the Suppliers list's figure, in one place.
+ * What the shop owes each supplier: ONE figure for the whole web app.
  *
- * The code has three different "owed to a supplier" figures (this one, the
- * Purchases screen's bills.js, and the supplier ledger). The Suppliers list
- * (SupplierWorkspace) shows this one, and the Dashboard's "You owe" tile and
- * "You owe most" list read the same function, so the two screens cannot
- * disagree. The rule is unchanged from SupplierWorkspace:
+ * The single truth is the supplier ledger's closing balance (owner approved):
+ * every bill, less what was paid at the bill and every later payment, less
+ * debit notes (purchase returns), less money paid on account. The Supplier
+ * ledger page, the Suppliers list, the supplier panel and the Dashboard's
+ * "You owe" / "You owe most" all read it from here, so no two screens can
+ * disagree. Display only; nothing here writes.
  *
- *   per bill   due = max(0, total - paid)       total = total_amount ?? total_cost
- *              an overpaid bill (total - paid < 0) is money sitting with the
- *              supplier: it is tracked as `advance`
- *   per supplier owed = max(0, Σ due - advance)
+ * The ledger is built exactly as the ledger page always built it
+ * (supplierLedgerFor below, buildSupplierLedger in lib/bills):
+ *   · purchases and returns belong to a supplier by supplier_id, or by
+ *     supplier_name on older rows;
+ *   · payments the same, leaving out soft-deleted (spent) advances;
+ *   · a payment with no purchase_id is money on account.
  *
- * A purchase is matched to a supplier by supplier_id, or by supplier_name for
- * older rows that carry only the name.
+ * A closing balance above 0 is owed; below 0 is an advance with the supplier.
  */
+import { groupPurchasesIntoBills, buildSupplierLedger } from './bills';
 
 export const purchaseTotal = (p) => Number(p?.total_amount ?? p?.total_cost ?? 0);
 export const purchasePaid = (p) => Number(p?.paid_amount ?? 0);
 
+const belongs = (s, row) => row.supplier_id === s.id || row.supplier_name === s.name;
+const newestFirst = (a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0);
+
 /**
- * Map of supplier id -> { payable, advance, owed } for every supplier given.
- * `payable` is Σ of each bill's floored due, `advance` the overpaid amounts,
- * `owed` what the Suppliers list shows.
+ * One supplier's ledger, as the Supplier ledger page shows it.
+ * Returns the rows behind it and `closing`, the balance across all history.
  */
-export function owedBySupplier(suppliers = [], purchases = []) {
+export function supplierLedgerFor(supplier, { purchases = [], purchaseReturns = [], supplierPayments = [] } = {}) {
+  if (!supplier) {
+    return { supplierPurchases: [], supplierReturns: [], payments: [], onAccountPayments: [], bills: [], rows: [], closing: 0 };
+  }
+  const supplierPurchases = (purchases || []).filter((p) => belongs(supplier, p)).sort(newestFirst);
+  const supplierReturns = (purchaseReturns || []).filter((r) => belongs(supplier, r)).sort(newestFirst);
+  // Spent advances are soft-deleted and replaced by allocation rows; the
+  // offline cache can still hold one, and counting both would credit the
+  // same money twice.
+  const payments = (supplierPayments || [])
+    .filter((p) => !p.deleted_at)
+    .filter((p) => belongs(supplier, p))
+    .sort(newestFirst);
+  const onAccountPayments = payments.filter((p) => !p.purchase_id);
+  const bills = groupPurchasesIntoBills(supplierPurchases);
+  const rows = buildSupplierLedger({ bills, payments, returns: supplierReturns, onAccountPayments });
+  const closing = rows.length ? rows[rows.length - 1].balance : 0;
+  return { supplierPurchases, supplierReturns, payments, onAccountPayments, bills, rows, closing };
+}
+
+/** The ledger closing balance split into owed (> 0) and advance (< 0). */
+export const owedFromClosing = (closing) => {
+  const c = Number(closing) || 0;
+  return { closing: c, owed: Math.max(0, c), advance: Math.max(0, -c) };
+};
+
+/** Map of supplier id -> { closing, owed, advance } for every supplier given. */
+export function owedBySupplier(suppliers = [], data = {}) {
   const by = new Map();
-  (suppliers || []).forEach(s => by.set(s.id, { payable: 0, advance: 0, owed: 0 }));
-  (purchases || []).forEach(p => {
-    const sup = (suppliers || []).find(s => s.id === p.supplier_id || s.name === p.supplier_name);
-    if (!sup) return;
-    const f = by.get(sup.id);
-    const raw = purchaseTotal(p) - purchasePaid(p);
-    f.payable += Math.max(0, raw);
-    if (raw < 0) f.advance += -raw;
-  });
-  by.forEach(f => { f.owed = Math.max(0, f.payable - f.advance); });
+  (suppliers || []).forEach((s) => by.set(s.id, owedFromClosing(supplierLedgerFor(s, data).closing)));
   return by;
 }
 
@@ -43,11 +66,11 @@ export function owedBySupplier(suppliers = [], purchases = []) {
  * The "You owe" total and the suppliers owed, largest first.
  * A supplier counts as owed above 0.01, as on the Suppliers list.
  */
-export function supplierOwedSummary(suppliers = [], purchases = []) {
-  const by = owedBySupplier(suppliers, purchases);
+export function supplierOwedSummary(suppliers = [], data = {}) {
+  const by = owedBySupplier(suppliers, data);
   let total = 0, advance = 0;
   const owing = [];
-  (suppliers || []).forEach(s => {
+  (suppliers || []).forEach((s) => {
     const f = by.get(s.id);
     total += f.owed;
     advance += f.advance;

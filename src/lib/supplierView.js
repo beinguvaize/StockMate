@@ -3,8 +3,8 @@
  * approved mockups suppliers-01 … 14).
  *
  * Nothing here is a new money rule:
- *   · what a supplier is owed is lib/supplierOwed.js, the same function the
- *     Dashboard reads, unchanged;
+ *   · what a supplier is owed is lib/supplierOwed.js: the supplier ledger's
+ *     closing balance, the same function the Dashboard and the ledger read;
  *   · when a bill falls due is the Purchases register's rule (decorateBills in
  *     pages/purchases/lib/register.js: a credit bill falls due after its terms,
  *     else the supplier's credit days, else 30; a cash bill on the bill date);
@@ -12,8 +12,9 @@
  *     here so they are tested.
  *
  * Every figure keeps the source it had. The list's "You owe" and the due-date
- * bar can differ (the bar adds up unpaid BILLS, the list takes advances off);
- * when they do the screen says so rather than pick one.
+ * bar can differ (the bar adds up unpaid BILLS, the ledger also takes off
+ * advances, on-account money and debit notes); when they do the screen says
+ * so rather than pick one.
  *
  * Pure functions, no React. `today` is 'YYYY-MM-DD' in the shop's time zone.
  */
@@ -104,13 +105,14 @@ export function supplierDue(bills = []) {
 /**
  * The list rows. The figures are the ones the page showed before the
  * redesign, from the same rows and the same rule:
- *   _payable   what the list says is owed (lib/supplierOwed.js)
- *   _advance   overpaid money sitting with the supplier
+ *   _payable   what the list says is owed: the ledger closing balance above 0
+ *              (lib/supplierOwed.js)
+ *   _advance   the closing balance below 0: money sitting with the supplier
  *   billCount  purchase ROWS (one per product), as before -- see the report
  *   lastBill / oldestUnpaid  dates over purchase rows, as before
  * plus, read-only, the register's due state (`due`) for the new column.
  */
-export function supplierRows({ suppliers = [], purchases = [], supplierPayments = [], decorated = [] }) {
+export function supplierRows({ suppliers = [], purchases = [], supplierPayments = [], purchaseReturns = [], decorated = [] }) {
   const by = {};
   (suppliers || []).forEach((s) => {
     by[s.id] = { bills: [], payments: [], payable: 0, advance: 0, billCount: 0, lastBill: null, lastBillNo: null, oldestUnpaid: null, purchased: 0, decorated: [] };
@@ -136,8 +138,8 @@ export function supplierRows({ suppliers = [], purchases = [], supplierPayments 
 
   (decorated || []).forEach((b) => { if (b.supplierKey && by[b.supplierKey]) by[b.supplierKey].decorated.push(b); });
 
-  const owed = owedBySupplier(suppliers, purchases);
-  owed.forEach((o, id) => { if (by[id]) { by[id].payable = o.payable; by[id].advance = o.advance; } });
+  const owed = owedBySupplier(suppliers, { purchases, purchaseReturns, supplierPayments });
+  owed.forEach((o, id) => { if (by[id]) { by[id].payable = o.owed; by[id].advance = o.advance; } });
 
   Object.values(by).forEach((f) => {
     f.bills.sort((a, b) => String(b.date).localeCompare(String(a.date)));
@@ -150,7 +152,7 @@ export function supplierRows({ suppliers = [], purchases = [], supplierPayments 
       ...s,
       _f: f,
       _advance: f.advance || 0,
-      _payable: Math.max(0, (f.payable || 0) - (f.advance || 0)),
+      _payable: f.payable || 0,
       _due: supplierDue(f.decorated),
     };
   });

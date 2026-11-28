@@ -39,11 +39,13 @@ const build = () => {
 };
 
 describe('supplier list figures', () => {
-  it('owed is exactly lib/supplierOwed.js, no second rule', () => {
+  it('owed is exactly lib/supplierOwed.js (the ledger closing balance), no second rule', () => {
     const { rows } = build();
-    const owed = owedBySupplier(suppliers, purchases);
+    const owed = owedBySupplier(suppliers, { purchases, supplierPayments: payments });
     rows.forEach((r) => expect(r._payable).toBe(owed.get(r.id).owed));
-    expect(rows.find((r) => r.id === 's2')._advance).toBe(200);
+    // s2: 3000 + 800 bill, 1000 paid at the bill, 100 on account.
+    expect(rows.find((r) => r.id === 's2')._payable).toBe(2700);
+    expect(rows.find((r) => r.id === 's2')._advance).toBe(0);
   });
 
   it('bill count stays a count of purchase rows, as before', () => {
@@ -84,12 +86,12 @@ describe('supplier list figures', () => {
     expect(visibleRows(rows, { filter: 'ALL', q: 'asha' }).map((r) => r.id)).toEqual(['s1']);
   });
 
-  it('tiles are the old figures, including the all-time payment count', () => {
+  it('tiles: owed from the ledger, the rest the old figures, including the all-time payment count', () => {
     const { rows } = build();
     const k = supplierKpis({ rows, suppliers, purchases, supplierPayments: payments, now: new Date('2026-11-26T12:00:00') });
-    expect(k.payable).toBe(7380 + 600 + 2800);
+    expect(k.payable).toBe(7380 + 600 + 2700);
     expect(k.owing).toBe(2);
-    expect(k.advance).toBe(200);
+    expect(k.advance).toBe(0);
     expect(k.paidThisMonth).toBe(400);
     expect(k.paymentsRecorded).toBe(2);
     expect(k.billsThisMonth).toBe(6);           // rows, as before

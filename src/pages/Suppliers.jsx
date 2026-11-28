@@ -27,7 +27,7 @@ export default function Suppliers() {
   const { currentTenantId, businessProfile } = useTenant();
   const { addNotification } = useNotifications();
   const { suppliers, addSupplier, updateSupplier, deleteSupplier, loading: peopleLoading } = usePeople(currentTenantId);
-  const { purchases, supplierPayments = [], paySupplier, refetch, loading: purLoading } = usePurchases(currentTenantId, { withReturns: false });
+  const { purchases, purchaseReturns = [], supplierPayments = [], paySupplier, refetch, loading: purLoading } = usePurchases(currentTenantId);
   const cur = businessProfile?.currencySymbol || '₹';
   const today = todayISOInAppTZ();
 
@@ -39,8 +39,8 @@ export default function Suppliers() {
 
   const decorated = useMemo(() => decoratedSupplierBills({ suppliers, purchases, payments: supplierPayments, today }),
     [suppliers, purchases, supplierPayments, today]);
-  const rows = useMemo(() => supplierRows({ suppliers, purchases, supplierPayments, decorated }),
-    [suppliers, purchases, supplierPayments, decorated]);
+  const rows = useMemo(() => supplierRows({ suppliers, purchases, supplierPayments, purchaseReturns, decorated }),
+    [suppliers, purchases, supplierPayments, purchaseReturns, decorated]);
   const kpis = useMemo(() => supplierKpis({ rows, suppliers, purchases, supplierPayments }),
     [rows, suppliers, purchases, supplierPayments]);
 

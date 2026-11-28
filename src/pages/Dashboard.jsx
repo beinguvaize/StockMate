@@ -252,7 +252,9 @@ const Dashboard = () => {
   const { currentTenantId, businessProfile } = useTenant();
   const { products, inventoryBalances, refetch: refetchInventory, loading: invLoading, error: invError } = useInventory(currentTenantId);
   const { sales, refetch: refetchSales, loading: salesLoading, error: salesError } = useSales(currentTenantId, { lean: true });
-  const { purchases, suppliers, refetch: refetchPurchases, loading: purLoading, error: purError } = usePurchases(currentTenantId, { withReturns: false, withPayments: false });
+  // Returns and supplier payments are read for "You owe": it is the supplier
+  // ledger's closing balance (lib/supplierOwed), which needs both.
+  const { purchases, purchaseReturns, supplierPayments, suppliers, refetch: refetchPurchases, loading: purLoading, error: purError } = usePurchases(currentTenantId);
   const { expenses, dayBook, refetch: refetchFinance, loading: finLoading, error: finError } = useFinance(currentTenantId);
   const { clients, employees, users, refetch: refetchPeople, loading: peopleLoading, error: peopleError } = usePeople(currentTenantId);
   // What staff are still owed this month, from attendance and pay runs.
@@ -358,8 +360,11 @@ const Dashboard = () => {
    [clients]
  );
 
- // "You owe": the Suppliers list's figure (lib/supplierOwed, SupplierWorkspace).
- const owed = useMemo(() => supplierOwedSummary(suppliers, purchases), [suppliers, purchases]);
+ // "You owe": the supplier ledger's closing balance (lib/supplierOwed), the
+ // same figure the Suppliers list and each supplier's ledger show.
+ const owed = useMemo(
+   () => supplierOwedSummary(suppliers, { purchases, purchaseReturns, supplierPayments }),
+   [suppliers, purchases, purchaseReturns, supplierPayments]);
 
  // null until attendance and pay runs have been read: the tile shows a dash
  // rather than a 0 nobody checked.
