@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import PremiumReportView from './PremiumReportView';
 import ReportPeriodBar, { useReportPeriod } from './ReportPeriodBar';
 import { Download, Building2 } from 'lucide-react';
@@ -25,10 +26,10 @@ const PurchaseRegisterReport = () => {
   const range = { start: period.range.from, end: period.range.to };
   const filters = useMemo(() => ({ dateRange: range }), [range.start, range.end]);
 
-  const { data: purchases, loading } = useReportData({
+  const { data: purchases, loading, error: rdErr1, refetch: rdRe1 } = useReportData({
     table: 'purchases', select: '*', dateColumn: 'date', filters,
   });
-  const { data: suppliers } = useReportData({
+  const { data: suppliers, error: rdErr2, refetch: rdRe2 } = useReportData({
     table: 'suppliers', select: 'id, name, gstin, address',
   });
 
@@ -98,15 +99,15 @@ const PurchaseRegisterReport = () => {
         key: '_supplier', label: 'Supplier', sortable: true, width: 200,
         render: (val) => (
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+            <div className="w-6 h-6 rounded-full bg-info-soft flex items-center justify-center shrink-0">
               <Building2 size={10} className="text-blue-500" />
             </div>
-            <span className="font-semibold text-foreground">{val}</span>
+            <span className="font-semibold text-ink">{val}</span>
           </div>
         ),
       },
       { key: 'bill_no', label: 'Bill no.', width: 120, render: v => (String(v ?? '').trim() || '—') },
-      { key: '_gstin', label: 'GSTIN', width: 160, render: v => <span className="tabular-nums text-[11px]">{v}</span> },
+      { key: '_gstin', label: 'GSTIN', width: 160, render: v => <span className="tabular-nums text-[12px]">{v}</span> },
       { key: '_taxable', label: 'Taxable', type: 'currency', align: 'right', sortable: true },
       { key: '_taxRate', label: 'Rate %', align: 'right', width: 70 },
       { key: '_cgst', label: 'CGST', type: 'currency', align: 'right' },
@@ -123,14 +124,14 @@ const PurchaseRegisterReport = () => {
       <div className="no-print flex flex-wrap items-center gap-2 mb-3">
         <ReportPeriodBar {...period} />
         <button onClick={exportExcel}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white text-[11px] font-semibold transition-colors">
+          className="flex items-center gap-1.5 px-3 py-2 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white text-[12px] font-semibold transition-colors">
           <Download size={13} /> Excel for CA
         </button>
       </div>
-      <p className="no-print text-[11px] text-muted-foreground mb-2 text-right">
+      <p className="no-print text-[12px] text-body mb-2 text-right">
         Tax split derived from bill totals (rate-backed-out). Verify against supplier invoices before claiming ITC.
       </p>
-      <PremiumReportView title="GST Purchase Register" subtitle={`${range.start} → ${range.end}`} tabs={[tab]} />
+      <PremiumReportView error={loadError(rdErr1, rdErr2)} onRetry={() => { rdRe1(); rdRe2(); }} title="GST Purchase Register" subtitle={`${range.start} → ${range.end}`} tabs={[tab]} />
     </>
   );
 };

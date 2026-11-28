@@ -11,13 +11,13 @@ import { formatCurrency } from '../../lib/utils';
  * module — a ~1,000-line component with nine queries — into the bundle.
  */
 /* ─── Detailed daily breakdown ────────────────────────────────────────────── */
-const PAY_BADGE = { CASH: 'bg-emerald-50 text-emerald-700', UPI: 'bg-accent-signature/10 text-accent-signature-hover', CREDIT: 'bg-accent-signature/10 text-accent-signature-hover', BANK: 'bg-muted text-muted-foreground' };
+const PAY_BADGE = { CASH: 'bg-good-soft text-good-text', UPI: 'bg-accent-signature/10 text-amber-text', CREDIT: 'bg-accent-signature/10 text-amber-text', BANK: 'bg-muted text-body' };
 
 const APP_BADGE = {
-  WEB:     'bg-muted text-muted-foreground border-border',
-  DESKTOP: 'bg-muted text-muted-foreground border-border',
-  MOBILE:  'bg-emerald-50 text-emerald-700 border-emerald-200',
-  VAN:     'bg-accent-signature/10 text-accent-signature-hover border-accent-signature/25',
+  WEB:     'bg-muted text-body border-border',
+  DESKTOP: 'bg-muted text-body border-border',
+  MOBILE:  'bg-good-soft text-good-text border-good-soft',
+  VAN:     'bg-accent-signature/10 text-amber-text border-accent-signature/25',
 };
 
 const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }) => {
@@ -39,7 +39,7 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
 
   if (loading) return (
     <div className="bg-card rounded-[10px] border border-border/60 shadow-sm p-6 space-y-3">
-      {[...Array(4)].map((_, i) => <div key={i} className="h-12 bg-canvas animate-pulse rounded-xl" />)}
+      {[...Array(4)].map((_, i) => <div key={i} className="h-12 bg-tile animate-pulse rounded-xl" />)}
     </div>
   );
   if (byDate.length === 0) return null;
@@ -48,7 +48,7 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
     <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
       <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
         <SectionHead title="Daily Sales Detail" sub="product & client breakdown" />
-        <span className="text-[10px] font-semibold text-muted-foreground bg-canvas px-2 py-1 rounded-full">
+        <span className="text-[11.5px] font-semibold text-body bg-tile px-2 py-1 rounded-full">
           {byDate.length} days
         </span>
       </div>
@@ -59,34 +59,34 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
           <div key={day.date} className="border-b border-border/60 last:border-0">
             {/* Day header — click to expand */}
             <button
-              className="w-full flex items-center gap-4 px-6 py-4 hover:bg-canvas/40 transition-colors text-left"
+              className="w-full flex items-center gap-4 px-6 py-4 hover:bg-tile/40 transition-colors text-left"
               onClick={() => toggle(day.date)}
             >
               <div className="w-9 h-9 rounded-xl bg-accent-signature/10 flex items-center justify-center shrink-0">
-                <Calendar size={14} className="text-accent-signature" />
+                <Calendar size={14} className="text-amber-text" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="tabular-nums text-sm font-semibold text-foreground">{day.date}</div>
-                <div className="text-[10px] text-muted-foreground font-medium mt-0.5">
+                <div className="tabular-nums text-sm font-semibold text-ink">{day.date}</div>
+                <div className="text-[11.5px] text-body font-medium mt-0.5">
                   {day.orders} {day.orders === 1 ? 'sale' : 'sales'}
                 </div>
               </div>
-              <div className="tabular-nums text-base font-semibold text-foreground tabular-nums shrink-0">
+              <div className="tabular-nums text-base font-semibold text-ink tabular-nums shrink-0">
                 {formatCurrency(day.total)}
               </div>
               <ChevronDown
                 size={14}
-                className={`text-muted-foreground shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+                className={`text-body shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
               />
             </button>
 
             {/* Expanded sales for this day */}
             {isOpen && (
-              <div className="bg-canvas/30 border-t border-border/60">
+              <div className="bg-tile/30 border-t border-border/60">
                 {/* Column labels */}
                 <div className="grid grid-cols-[1fr_180px_56px_72px_72px_110px_84px_120px] gap-3 px-8 py-2 border-b border-border/60 items-center">
                   {[['Client','justify-self-start'],['Products','justify-self-start'],['Items','justify-self-center'],['Source','justify-self-center'],['App','justify-self-center'],['By','justify-self-start'],['Method','justify-self-center'],['Amount','justify-self-end']].map(([h,a]) => (
-                    <span key={h} className={`text-[9px] font-semibold text-muted-foreground uppercase tracking-widest ${a}`}>{h}</span>
+                    <span key={h} className={`text-[12px] font-semibold text-body uppercase tracking-[0.07em] ${a}`}>{h}</span>
                   ))}
                 </div>
 
@@ -102,7 +102,7 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
                     return `${it.name}${q !== 1 ? ` ×${formatQty(q, it.unit)}` : ''}`;
                   }).join(', ');
                   const method   = (s.paymentMethod || 'CASH').toUpperCase();
-                  const badgeCls = PAY_BADGE[method] || 'bg-muted text-ink-secondary';
+                  const badgeCls = PAY_BADGE[method] || 'bg-muted text-ink-2';
                   const isVan    = !!(s.routeId || s.vehicleId) || s.source_app === 'VAN';
                   const vehicle  = isVan && s.vehicleId ? vehicles.find(v => v.id === s.vehicleId) : null;
                   const vanLabel = vehicle ? (vehicle.plateNumber || vehicle.name || 'VAN') : 'VAN';
@@ -119,66 +119,66 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
                       {/* Client */}
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="w-6 h-6 rounded-full bg-accent-signature/10 flex items-center justify-center shrink-0">
-                          <span className="text-[9px] font-semibold text-accent-signature">{(cname[0]||'?').toUpperCase()}</span>
+                          <span className="text-[12px] font-semibold text-amber-text">{(cname[0]||'?').toUpperCase()}</span>
                         </div>
-                        <span className="text-xs font-semibold text-foreground truncate">{cname}</span>
+                        <span className="text-xs font-semibold text-ink truncate">{cname}</span>
                       </div>
 
                       {/* Products */}
                       <div className="min-w-0">
                         {items.length === 0
-                          ? <span className="text-xs text-muted-foreground italic">—</span>
+                          ? <span className="text-xs text-body italic">—</span>
                           : items.map((it, idx) => (
-                            <div key={idx} className="text-[11px] font-medium text-ink-secondary leading-snug truncate">
+                            <div key={idx} className="text-[12px] font-medium text-ink-2 leading-snug truncate">
                               {it.name}
-                              <span className="text-muted-foreground ml-1">×{it.quantity} @ {formatCurrency(it.rate)}</span>
+                              <span className="text-body ml-1">×{it.quantity} @ {formatCurrency(it.rate)}</span>
                             </div>
                           ))
                         }
                       </div>
 
                       {/* Total items */}
-                      <span className="tabular-nums text-xs font-semibold text-foreground tabular-nums justify-self-center">{itemQty}</span>
+                      <span className="tabular-nums text-xs font-semibold text-ink tabular-nums justify-self-center">{itemQty}</span>
 
                       {/* Source badge */}
                       {isVan
                         ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold w-fit bg-accent-signature/10 text-accent-signature-hover border border-accent-signature/25 justify-self-center">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[12px] font-semibold w-fit bg-accent-signature/10 text-amber-text border border-accent-signature/25 justify-self-center">
                             <Truck size={9} /> {vanLabel}
                           </span>
                         )
                         : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold w-fit bg-muted text-muted-foreground border border-border justify-self-center">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-semibold w-fit bg-muted text-body border border-border justify-self-center">
                             POS
                           </span>
                         )
                       }
 
                       {/* App / channel */}
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold w-fit border justify-self-center ${appCls}`}>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-semibold w-fit border justify-self-center ${appCls}`}>
                         {app}
                       </span>
 
                       {/* Sold by */}
-                      <span className="text-[11px] font-semibold text-ink-secondary truncate justify-self-start" title={user?.email || ''}>
+                      <span className="text-[12px] font-semibold text-ink-2 truncate justify-self-start" title={user?.email || ''}>
                         {byLabel}
                       </span>
 
                       {/* Payment method */}
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold w-fit justify-self-center ${badgeCls}`}>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-semibold w-fit justify-self-center ${badgeCls}`}>
                         {method}
                       </span>
 
                       {/* Amount */}
-                      <span className="tabular-nums text-xs font-semibold text-foreground tabular-nums justify-self-end">{formatCurrency(s.totalAmount)}</span>
+                      <span className="tabular-nums text-xs font-semibold text-ink tabular-nums justify-self-end">{formatCurrency(s.totalAmount)}</span>
                     </div>
                   );
                 })}
 
                 {/* Day subtotal */}
                 <div className="flex justify-end items-center px-8 py-2.5 border-t border-border/60 bg-card/40">
-                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mr-4">Day Total</span>
-                  <span className="tabular-nums text-sm font-semibold text-foreground tabular-nums">{formatCurrency(day.total)}</span>
+                  <span className="text-[11.5px] font-semibold text-body uppercase tracking-[0.07em] mr-4">Day Total</span>
+                  <span className="tabular-nums text-sm font-semibold text-ink tabular-nums">{formatCurrency(day.total)}</span>
                 </div>
               </div>
             )}

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import useReportData from './useReportData';
 import PremiumReportView from './PremiumReportView';
+import { ReportTitle, ErrorBlock } from './frame';
 import { AlertTriangle, UserCircle, Phone, Calendar, FileWarning } from 'lucide-react';
 import { formatINR } from '../../utils/financialCalculations';
 import { supabase } from '../../lib/supabase';
@@ -71,12 +72,12 @@ const ARAgingReport = () => {
     sortable: true,
     width: 118,
     render: (val) => {
-      if (!val || val <= 0) return <span className="text-muted-foreground">—</span>;
+      if (!val || val <= 0) return <span className="text-body">—</span>;
       return <span className={bucket === '120+' ? 'font-bold' : 'font-medium'}>{formatINR(val)}</span>;
     },
   });
-  const nameCell = (val) => <span className="font-semibold text-foreground block max-w-[120px] md:max-w-[160px] truncate" title={val}>{val}</span>;
-  const days = (val) => (val === undefined || val === null ? '' : <span className="text-[12px] text-muted-foreground">{val} days</span>);
+  const nameCell = (val) => <span className="font-semibold text-ink block max-w-[120px] md:max-w-[160px] truncate" title={val}>{val}</span>;
+  const days = (val) => (val === undefined || val === null ? '' : <span className="text-[12px] text-body">{val} days</span>);
 
   const summaryTab = {
     id: 'AR_AGING_SUMMARY',
@@ -87,11 +88,11 @@ const ARAgingReport = () => {
     totals: { total: aging.total, bills: aging.bills.length, ...aging.totals },
     columns: [
       { key: 'client_name', label: 'Customer', sortable: true, width: 160, render: nameCell },
-      { key: 'total', label: 'Total owed', type: 'currency', align: 'right', sortable: true, width: 140, render: (val) => <span className="font-semibold text-foreground">{formatINR(val)}</span> },
+      { key: 'total', label: 'Total owed', type: 'currency', align: 'right', sortable: true, width: 140, render: (val) => <span className="font-semibold text-ink">{formatINR(val)}</span> },
       { key: 'bills', label: 'Bills', align: 'right', sortable: true, width: 76, defaultHidden: true },
       { key: 'oldest', label: 'Oldest', align: 'right', sortable: true, width: 92, render: days },
       ...AGE_BUCKETS.map(bucketColumn),
-      { key: 'phone', label: 'Contact', width: 130, defaultHidden: true, render: (val) => (val === undefined ? '' : <span className="text-[11px] text-muted-foreground">{val || '—'}</span>) },
+      { key: 'phone', label: 'Contact', width: 130, defaultHidden: true, render: (val) => (val === undefined ? '' : <span className="text-[12px] text-body">{val || '—'}</span>) },
     ],
     kpis,
     chartConfig: {
@@ -122,7 +123,7 @@ const ARAgingReport = () => {
       paid: aging.bills.reduce((n, b) => n + Number(b.paid || 0), 0),
     },
     columns: [
-      { key: 'sale_id', label: 'Bill', sortable: true, width: 140, render: (val) => <span className="tabular-nums text-[11px] font-semibold">{val}</span> },
+      { key: 'sale_id', label: 'Bill', sortable: true, width: 140, render: (val) => <span className="tabular-nums text-[12px] font-semibold">{val}</span> },
       { key: 'client_name', label: 'Customer', sortable: true, width: 160, render: nameCell },
       { key: 'unpaid', label: 'Still owed', type: 'currency', align: 'right', sortable: true, width: 140, render: (val) => <span className="font-semibold">{formatINR(val)}</span> },
       { key: 'sale_date', label: 'Sale date', type: 'date', sortable: true, width: 130 },
@@ -152,14 +153,11 @@ const ARAgingReport = () => {
   const loadError = failure || (clientsError ? `Could not load customer balances: ${clientsError}` : '');
   if (loadError && !loading) {
     return (
-      <div className="bg-card rounded-[10px] border border-border/60 p-8" role="alert" data-testid="aging-error">
-        <h2 className="text-base font-semibold text-foreground">Customer Aging could not load</h2>
-        <p className="mt-1 text-[13px] text-ink-secondary">{loadError}</p>
-        <p className="mt-1 text-[13px] text-muted-foreground">Nothing here is a figure yet. Try again, or check Clients for balances.</p>
-        <button type="button" onClick={() => { load(); refetchClients?.(); }}
-          className="mt-4 h-9 px-4 rounded-pill border border-border text-[13px] font-semibold text-foreground hover:bg-canvas">
-          Retry
-        </button>
+      <div data-testid="aging-error">
+        <ReportTitle title="Customer Aging" />
+        <ErrorBlock title="Customer Aging could not load" message={loadError}
+          hint="Nothing here is a figure yet. Try again, or check Clients for balances."
+          onRetry={() => { load(); refetchClients?.(); }} />
       </div>
     );
   }

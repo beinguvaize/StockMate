@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import PremiumReportView from './PremiumReportView';
 import { Download, AlertTriangle, RefreshCw } from 'lucide-react';
 import { formatCurrency } from '../../lib/utils';
@@ -20,10 +21,10 @@ import { useTenant } from '../../context/TenantContext';
 // the same cost still unconfirmed after three months is a number nobody is ever
 // going to be able to verify.
 const AGE_BANDS = [
-  { id: 'FRESH', label: '< 30 days',  test: (n) => n < 30,             cls: 'text-blue-600 bg-blue-50 border-blue-200' },
+  { id: 'FRESH', label: '< 30 days',  test: (n) => n < 30,             cls: 'text-info-text bg-info-soft border-info-soft' },
   { id: 'D60',   label: '30–59 days', test: (n) => n >= 30 && n < 60,  cls: 'text-yellow-600 bg-yellow-50 border-yellow-200' },
-  { id: 'D90',   label: '60–89 days', test: (n) => n >= 60 && n < 90,  cls: 'text-accent-signature bg-accent-signature/10 border-accent-signature/25' },
-  { id: 'STALE', label: '90+ days',   test: (n) => n >= 90,            cls: 'text-red-600 bg-red-50 border-red-200' },
+  { id: 'D90',   label: '60–89 days', test: (n) => n >= 60 && n < 90,  cls: 'text-amber-text bg-accent-signature/10 border-accent-signature/25' },
+  { id: 'STALE', label: '90+ days',   test: (n) => n >= 90,            cls: 'text-bad-text bg-bad-soft border-bad-soft' },
 ];
 
 const ORIGIN_LABEL = {
@@ -35,16 +36,16 @@ const ORIGIN_LABEL = {
 };
 
 const BASIS_LABEL = {
-  ESTIMATED:  { text: 'Typed by hand', cls: 'text-red-600 bg-red-50 border-red-200' },
+  ESTIMATED:  { text: 'Typed by hand', cls: 'text-bad-text bg-bad-soft border-bad-soft' },
   LAST_KNOWN: { text: 'Last buy price', cls: 'text-yellow-600 bg-yellow-50 border-yellow-200' },
-  DERIVED:    { text: 'Computed',      cls: 'text-blue-600 bg-blue-50 border-blue-200' },
+  DERIVED:    { text: 'Computed',      cls: 'text-info-text bg-info-soft border-info-soft' },
 };
 
 const UnverifiedCostReport = () => {
   const { businessProfile } = useTenant();
   const currency = businessProfile?.currencySymbol || '₹';
 
-  const { data: batches, loading, refetch } = useReportData({
+  const { data: batches, loading, refetch, error: rdErr1 } = useReportData({
     table: 'stock_unverified_cost',
     select: 'batch_id, product_id, product_name, origin, cost_basis, received_date, age_days, unit_cost, qty_remaining, value_at_risk, sold_rows',
     dateColumn: 'received_date',
@@ -57,9 +58,9 @@ const UnverifiedCostReport = () => {
       ...b,
       _age: age,
       _band: band?.label || '—',
-      _bandCls: band?.cls || 'text-muted-foreground bg-muted border-border',
+      _bandCls: band?.cls || 'text-body bg-muted border-border',
       _origin: ORIGIN_LABEL[b.origin] || b.origin || '—',
-      _basis: BASIS_LABEL[b.cost_basis] || { text: b.cost_basis || '—', cls: 'text-muted-foreground bg-muted border-border' },
+      _basis: BASIS_LABEL[b.cost_basis] || { text: b.cost_basis || '—', cls: 'text-body bg-muted border-border' },
       _value: Number(b.value_at_risk) || 0,
       _sold: Number(b.sold_rows) || 0,
     };
@@ -111,15 +112,15 @@ const UnverifiedCostReport = () => {
         key: 'product_name', label: 'Product', sortable: true, width: 220,
         render: (v, r) => (
           <div>
-            <div className="font-semibold text-foreground">{v}</div>
-            <div className="text-[10px] text-muted-foreground">{r._origin}</div>
+            <div className="font-semibold text-ink">{v}</div>
+            <div className="text-[11.5px] text-body">{r._origin}</div>
           </div>
         ),
       },
       {
         key: 'cost_basis', label: 'Cost basis', sortable: true, width: 140,
         render: (_v, r) => (
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[10px] font-semibold ${r._basis.cls}`}>
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[11.5px] font-semibold ${r._basis.cls}`}>
             {r._basis.text}
           </span>
         ),
@@ -128,7 +129,7 @@ const UnverifiedCostReport = () => {
       {
         key: '_age', label: 'Unconfirmed for', sortable: true, width: 130,
         render: (v, r) => (
-          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold ${r._bandCls}`}>
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11.5px] font-semibold ${r._bandCls}`}>
             {v >= 90 && <AlertTriangle size={10} />}{v}d
           </span>
         ),
@@ -139,8 +140,8 @@ const UnverifiedCostReport = () => {
       {
         key: '_sold', label: 'Sold from', align: 'right', width: 100,
         render: (v) => v > 0
-          ? <span className="text-[10px] font-semibold text-red-600">{v} sale{v > 1 ? 's' : ''}</span>
-          : <span className="text-[10px] text-muted-foreground">—</span>,
+          ? <span className="text-[11.5px] font-semibold text-bad-text">{v} sale{v > 1 ? 's' : ''}</span>
+          : <span className="text-[11.5px] text-body">—</span>,
       },
     ],
     data: rows,
@@ -151,11 +152,11 @@ const UnverifiedCostReport = () => {
     <>
       <div className="no-print flex items-center justify-end gap-2 mb-3">
         <button onClick={() => refetch?.()}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-pill border border-border text-[11px] font-semibold text-ink-secondary hover:bg-card transition-colors">
+          className="flex items-center gap-1.5 px-3 py-2 rounded-pill border border-border text-[12px] font-semibold text-ink-2 hover:bg-card transition-colors">
           <RefreshCw size={13} /> Refresh
         </button>
         <button onClick={exportExcel}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white text-[11px] font-semibold transition-colors">
+          className="flex items-center gap-1.5 px-3 py-2 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white text-[12px] font-semibold transition-colors">
           <Download size={13} /> Excel
         </button>
       </div>
@@ -164,13 +165,13 @@ const UnverifiedCostReport = () => {
           error. It is stock whose cost nobody has confirmed, which is a
           different and quieter problem. */}
       <div className="no-print mb-3 rounded-xl border border-border bg-card p-3.5">
-        <div className="text-[11px] text-muted-foreground leading-relaxed">
-          These batches carry a cost that <strong className="text-foreground">no supplier bill supports</strong> —
+        <div className="text-[12px] text-body leading-relaxed">
+          These batches carry a cost that <strong className="text-ink">no supplier bill supports</strong> —
           opening stock and hand adjustments. The figures are not losses; they are guesses that
           feed profit exactly like real costs do. Confirm one by entering the purchase it came
           from, or by counting the stock and adjusting at a known price.
           {bookedRows.length > 0 && (
-            <> <strong className="text-red-600">
+            <> <strong className="text-bad-text">
               {bookedRows.length} of these {bookedRows.length === 1 ? 'has' : 'have'} already been sold from
               ({formatCurrency(bookedValue, currency)} still on hand), so a guessed cost has
               already reached the P&amp;L.
@@ -179,7 +180,7 @@ const UnverifiedCostReport = () => {
         </div>
       </div>
 
-      <PremiumReportView
+      <PremiumReportView error={loadError(rdErr1)} onRetry={() => { refetch(); }}
         title="Unverified Stock Cost"
         subtitle="Stock whose cost no purchase bill supports"
         tabs={[tab]}

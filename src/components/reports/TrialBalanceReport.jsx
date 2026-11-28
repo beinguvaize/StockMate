@@ -15,11 +15,15 @@ const TrialBalanceReport = () => {
   const { currentTenantId } = useTenant();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  // A failed load shows the error state; it used to leave an empty, "balanced" ₹0 table.
+  const [failure, setFailure] = useState(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     const fetchGL = async () => {
       if (!currentTenantId) return;
       setLoading(true);
+      setFailure(null);
       
       const { data, error } = await supabase.rpc('get_gl_balances', { p_tenant_id: currentTenantId });
       
@@ -43,11 +47,12 @@ const TrialBalanceReport = () => {
          setRows(mappedRows);
       } else {
          console.error("Failed to fetch GL balances:", error);
+         setFailure(error?.message || 'Could not load the account balances');
       }
       setLoading(false);
     };
     fetchGL();
-  }, [currentTenantId]);
+  }, [currentTenantId, attempt]);
 
   const totals = useMemo(() => {
     const totalDebit = rows.reduce((a, r) => a + r.debit, 0);
@@ -97,32 +102,32 @@ const TrialBalanceReport = () => {
     columns: [
       {
         key: 'code', label: 'Code', sortable: true, width: 100,
-        render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 font-semibold">{val}</span>,
+        render: (val) => <span className="tabular-nums text-[11.5px] bg-tile px-2 py-0.5 rounded border border-border/60 font-semibold">{val}</span>,
       },
       {
         key: 'name', label: 'Account', sortable: true, width: 260,
-        render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>,
+        render: (val) => <span className="font-semibold text-ink uppercase tracking-tight">{val}</span>,
       },
       {
         key: 'type', label: 'Type', width: 120,
         render: (val) => (
-          <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-semibold uppercase ${
-            val === 'ASSET' ? 'bg-accent-signature/10 text-accent-signature' :
-            val === 'LIABILITY' ? 'bg-rose-50 text-rose-600' :
-            val === 'EQUITY' ? 'bg-emerald-50 text-emerald-600' :
-            val === 'REVENUE' ? 'bg-sky-50 text-sky-600' :
-            'bg-accent-signature/10 text-accent-signature'
+          <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[12px] font-semibold uppercase ${
+            val === 'ASSET' ? 'bg-accent-signature/10 text-amber-text' :
+            val === 'LIABILITY' ? 'bg-bad-soft text-bad-text' :
+            val === 'EQUITY' ? 'bg-good-soft text-good-text' :
+            val === 'REVENUE' ? 'bg-info-soft text-info-text' :
+            'bg-accent-signature/10 text-amber-text'
           }`}>{val}</span>
         ),
       },
-      { key: 'category', label: 'Classification', width: 180, render: (val) => <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{val}</span> },
+      { key: 'category', label: 'Classification', width: 180, render: (val) => <span className="text-[11.5px] font-semibold text-body uppercase tracking-[0.07em]">{val}</span> },
       {
         key: 'debit', label: 'Debit', type: 'currency', align: 'right', sortable: true, width: 160,
-        render: (val) => val > 0 ? <span className="font-semibold text-accent-signature">{formatINR(val)}</span> : <span className="text-muted-foreground">—</span>,
+        render: (val) => val > 0 ? <span className="font-semibold text-amber-text">{formatINR(val)}</span> : <span className="text-body">—</span>,
       },
       {
         key: 'credit', label: 'Credit', type: 'currency', align: 'right', sortable: true, width: 160,
-        render: (val) => val > 0 ? <span className="font-semibold text-emerald-600">{formatINR(val)}</span> : <span className="text-muted-foreground">—</span>,
+        render: (val) => val > 0 ? <span className="font-semibold text-good-text">{formatINR(val)}</span> : <span className="text-body">—</span>,
       },
     ],
     kpis: kpis,
@@ -149,21 +154,21 @@ const TrialBalanceReport = () => {
     <div className="flex flex-col gap-4">
       {/* Double-entry integrity banner */}
       <div className={`no-print flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-sm ${
-        balanced ? 'bg-emerald-50 border-border/60' : 'bg-rose-50 border-border/60'
+        balanced ? 'bg-good-soft border-border/60' : 'bg-bad-soft border-border/60'
       }`}>
-        {balanced ? <CheckCircle2 className="text-emerald-600" size={20} /> : <AlertTriangle className="text-rose-600" size={20} />}
+        {balanced ? <CheckCircle2 className="text-good-text" size={20} /> : <AlertTriangle className="text-bad-text" size={20} />}
         <div className="flex-1">
-          <div className={`text-[11px] font-semibold uppercase tracking-widest ${balanced ? 'text-emerald-700' : 'text-rose-700'}`}>
+          <div className={`text-[12px] font-semibold uppercase tracking-[0.07em] ${balanced ? 'text-good-text' : 'text-bad-text'}`}>
             {balanced ? 'Double-Entry Integrity: VERIFIED' : 'Double-Entry Integrity: FAILED'}
           </div>
-          <div className="text-[10px] font-semibold text-muted-foreground mt-0.5">
+          <div className="text-[11.5px] font-semibold text-body mt-0.5">
             Debits: {formatINR(totals.debit)} · Credits: {formatINR(totals.credit)}
-            {!balanced && <> · Difference: <span className="text-rose-700 font-semibold">{formatINR(Math.abs(totals.diff))}</span></>}
+            {!balanced && <> · Difference: <span className="text-bad-text font-semibold">{formatINR(Math.abs(totals.diff))}</span></>}
           </div>
         </div>
       </div>
 
-      <PremiumReportView title="Trial Balance" tabs={[trialTab]} />
+      <PremiumReportView error={failure} onRetry={() => setAttempt((n) => n + 1)} title="Trial Balance" tabs={[trialTab]} />
     </div>
   );
 };

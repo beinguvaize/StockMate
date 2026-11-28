@@ -14,10 +14,10 @@ import { useLinkedRange } from '../../lib/linkedRange';
 
 const ShareBar = ({ share, color }) => (
   <div className="flex items-center gap-2 mt-1">
-    <div className="w-20 h-1 rounded-full bg-canvas overflow-hidden">
+    <div className="w-20 h-1 rounded-full bg-tile overflow-hidden">
       <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(100, share)}%`, background: color }} />
     </div>
-    <span className="text-[9px] font-semibold" style={{ color }}>{share.toFixed(1)}%</span>
+    <span className="text-[12px] font-semibold" style={{ color }}>{share.toFixed(1)}%</span>
   </div>
 );
 
@@ -26,41 +26,41 @@ const PartyTable = ({ title, icon: Icon, rows, totalAmount, totalLabel, colorAcc
     <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
       <SectionHead title={title} sub={`${rows.length} ${totalLabel}`} />
       <div className="text-right">
-        <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{amountLabel}</div>
-        <div className="text-base font-semibold text-foreground tabular-nums">{formatCurrency(totalAmount)}</div>
+        <div className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{amountLabel}</div>
+        <div className="text-base font-semibold text-ink tabular-nums">{formatCurrency(totalAmount)}</div>
       </div>
     </div>
 
     {loading ? (
       <div className="p-6 space-y-3">
-        {[...Array(5)].map((_, i) => <div key={i} className="h-12 bg-canvas animate-pulse rounded-xl" />)}
+        {[...Array(5)].map((_, i) => <div key={i} className="h-12 bg-tile animate-pulse rounded-xl" />)}
       </div>
     ) : rows.length === 0 ? (
-      <div className="py-16 text-center text-sm text-muted-foreground">{emptyMsg}</div>
+      <div className="py-16 text-center text-sm text-body">{emptyMsg}</div>
     ) : (
       <div>
-        <div className="grid grid-cols-[36px_1fr_80px_130px] gap-3 px-6 py-2 bg-canvas/50 border-b border-border/60">
+        <div className="grid grid-cols-[36px_1fr_80px_130px] gap-3 px-6 py-2 bg-tile/50 border-b border-border/60">
           {['#','Name','Orders','Amount'].map(h => (
-            <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
+            <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
           ))}
         </div>
         {rows.map((row, i) => (
-          <div key={row.name} className="grid grid-cols-[36px_1fr_80px_130px] gap-3 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
+          <div key={row.name} className="grid grid-cols-[36px_1fr_80px_130px] gap-3 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-tile/40 transition-colors">
             <span className={`text-sm font-semibold ${rankColors[i] || 'text-ink-tertiary'}`}>{i + 1}</span>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
                   style={{ background: `color-mix(in srgb, ${colorAccent} 10%, transparent)` }}>
-                  <span className="text-[10px] font-semibold" style={{ color: colorAccent }}>
+                  <span className="text-[11.5px] font-semibold" style={{ color: colorAccent }}>
                     {(row.name?.[0] || '?').toUpperCase()}
                   </span>
                 </div>
-                <span className="text-sm font-semibold text-foreground truncate">{row.name}</span>
+                <span className="text-sm font-semibold text-ink truncate">{row.name}</span>
               </div>
               <ShareBar share={row.share} color={colorAccent} />
             </div>
-            <span className="text-sm tabular-nums text-ink-secondary tabular-nums">{row.orders}</span>
-            <span className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(row.amount)}</span>
+            <span className="text-sm tabular-nums text-ink-2 tabular-nums">{row.orders}</span>
+            <span className="text-sm font-semibold text-ink tabular-nums">{formatCurrency(row.amount)}</span>
           </div>
         ))}
       </div>
@@ -68,7 +68,7 @@ const PartyTable = ({ title, icon: Icon, rows, totalAmount, totalLabel, colorAcc
   </div>
 );
 
-const RANK_COLORS = ['text-accent-signature', 'text-muted-foreground', 'text-accent-signature-hover'];
+const RANK_COLORS = ['text-amber-text', 'text-body', 'text-amber-text'];
 
 const SalePurchaseByPartyReport = () => {
   // ?from=&to= (an Ask answer's link) opens on the answer's own dates.

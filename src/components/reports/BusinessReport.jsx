@@ -63,8 +63,8 @@ const KPI = ({ label, value, sub, spark, color = 'var(--color-accent-signature)'
         <Icon size={16} style={{ color }} />
       </div>
       {sub !== undefined && (
-        <span className={`text-[10px] font-semibold flex items-center gap-0.5 ${
-          sub > 0 ? 'text-emerald-500' : sub < 0 ? 'text-red-400' : 'text-muted-foreground'
+        <span className={`text-[11.5px] font-semibold flex items-center gap-0.5 ${
+          sub > 0 ? 'text-good-text' : sub < 0 ? 'text-bad-text' : 'text-body'
         }`}>
           {sub > 0 ? <ArrowUpRight size={11} /> : sub < 0 ? <ArrowDownRight size={11} /> : <Minus size={11} />}
           {sub !== 0 ? `${Math.abs(sub).toFixed(1)}%` : '—'}
@@ -72,10 +72,10 @@ const KPI = ({ label, value, sub, spark, color = 'var(--color-accent-signature)'
       )}
     </div>
     {loading
-      ? <div className="h-7 w-24 bg-canvas animate-pulse rounded-lg" />
-      : <div className="tabular-nums text-2xl font-semibold text-foreground tabular-nums leading-none">{value}</div>
+      ? <div className="h-7 w-24 bg-tile animate-pulse rounded-lg" />
+      : <div className="tabular-nums text-2xl font-semibold text-ink tabular-nums leading-none">{value}</div>
     }
-    <div className="text-[11px] font-medium text-muted-foreground">{label}</div>
+    <div className="text-[12px] font-medium text-body">{label}</div>
     {spark && spark.length > 1 && <Spark data={spark} color={color} />}
   </div>
 );
@@ -86,12 +86,12 @@ const ChartTip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-card border border-black/8 rounded-xl px-3 py-2 shadow-lg text-xs">
-      <div className="font-semibold text-ink-secondary mb-1">{label}</div>
+      <div className="font-semibold text-ink-2 mb-1">{label}</div>
       {payload.map((p, i) => (
         <div key={i} className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
-          <span className="text-muted-foreground">{p.name}:</span>
-          <span className="font-semibold text-foreground">
+          <span className="text-body">{p.name}:</span>
+          <span className="font-semibold text-ink">
             {typeof p.value === 'number' && p.name?.toLowerCase().includes('rev')
               ? formatCurrency(p.value)
               : p.value}
@@ -369,7 +369,7 @@ const BusinessReport = () => {
             tone: pnl.netProfit >= 0 ? 'pos' : 'neg' },
         ]} />
         {!plLoading && (
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-[12px] text-body">
             {pnl.returnsTotal > 0 && <>{formatCurrency(pnl.returnsTotal)} of returns deducted · </>}
             Gross margin {pnl.grossMargin.toFixed(1)}% ·{' '}
             {pnl.netProfit >= 0
@@ -398,7 +398,7 @@ const BusinessReport = () => {
           icon={ChevronRight} color="#f59e0b" />
       </div>
       {prior && revenueChange !== null && (
-        <p className="text-[11px] text-muted-foreground -mt-2">
+        <p className="text-[12px] text-body -mt-2">
           Compared with {prior.start === prior.end ? prior.start : `${prior.start} → ${prior.end}`}
           {' '}(same length): revenue {formatCurrency(Number(priorPl?.revenue_net || 0))},
           {' '}net profit {formatCurrency(Number(priorPl?.net_profit || 0))}.
@@ -411,8 +411,8 @@ const BusinessReport = () => {
           period — folding them into sale-time cash would double-count. */}
       <div className="space-y-2">
         <div>
-          <h2 className="text-sm font-semibold text-foreground">Cash position</h2>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
+          <h2 className="text-sm font-semibold text-ink">Cash position</h2>
+          <p className="text-[12px] text-body mt-0.5">
             Collected is taken from each bill&apos;s payment status. Credit sales count as money in
             only once they are settled.
           </p>
@@ -434,9 +434,9 @@ const BusinessReport = () => {
         <div className="bg-card rounded-[10px] border border-border/60 p-6 shadow-sm">
           <SectionHead title="Revenue Trend" sub={`${salesMetrics.dailyTrend.length} days`} />
           {salesLoading
-            ? <div className="h-48 bg-canvas animate-pulse rounded-xl" />
+            ? <div className="h-48 bg-tile animate-pulse rounded-xl" />
             : salesMetrics.dailyTrend.length < 2
-            ? <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">Not enough data for selected range</div>
+            ? <div className="h-48 flex items-center justify-center text-xs text-body">Not enough data for selected range</div>
             : (
               <ResponsiveContainer width="100%" height={200}>
                 <AreaChart data={salesMetrics.dailyTrend} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
@@ -462,9 +462,9 @@ const BusinessReport = () => {
         <div className="bg-card rounded-[10px] border border-border/60 p-6 shadow-sm">
           <SectionHead title="Billed vs Collected" sub="by payment method" />
           {salesLoading
-            ? <div className="h-48 bg-canvas animate-pulse rounded-xl" />
+            ? <div className="h-48 bg-tile animate-pulse rounded-xl" />
             : salesMetrics.paymentSplit.length === 0
-            ? <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">No data</div>
+            ? <div className="h-48 flex items-center justify-center text-xs text-body">No data</div>
             : (
               <div className="space-y-3 mt-2">
                 {salesMetrics.paymentSplit.map(p => {
@@ -478,17 +478,17 @@ const BusinessReport = () => {
                   return (
                     <div key={p.name}>
                       <div className="flex justify-between text-xs mb-1">
-                        <span className="font-medium text-foreground flex items-center gap-1.5">
+                        <span className="font-medium text-ink flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded-full" style={{ background: color }} />
                           {p.name}
                         </span>
-                        <span className="font-semibold text-foreground tabular-nums">{formatCurrency(p.billed)}</span>
+                        <span className="font-semibold text-ink tabular-nums">{formatCurrency(p.billed)}</span>
                       </div>
-                      <div className="h-2 rounded-full bg-canvas overflow-hidden" style={{ width: `${billedPct}%`, minWidth: '8%' }}>
+                      <div className="h-2 rounded-full bg-tile overflow-hidden" style={{ width: `${billedPct}%`, minWidth: '8%' }}>
                         <div className="h-full rounded-full transition-all duration-700"
                           style={{ width: `${collPct}%`, background: color }} />
                       </div>
-                      <div className="text-[10px] text-muted-foreground mt-0.5 flex justify-between">
+                      <div className="text-[11.5px] text-body mt-0.5 flex justify-between">
                         <span>{formatCurrency(p.collected)} collected</span>
                         {unpaid > 0.5 && <span className="text-[color:var(--color-neg)]">{formatCurrency(unpaid)} unpaid</span>}
                       </div>
@@ -508,61 +508,61 @@ const BusinessReport = () => {
           <div className="flex items-center bg-muted rounded-lg p-0.5">
             {[['REVENUE', 'Revenue'], ['PROFIT', 'Profit']].map(([id, label]) => (
               <button key={id} onClick={() => setProdSort(id)}
-                className={`px-3 py-1.5 rounded-pill text-[11px] transition-colors ${
+                className={`px-3 py-1.5 rounded-pill text-[12px] transition-colors ${
                   prodSort === id
-                    ? 'bg-card text-foreground font-semibold shadow-sm'
-                    : 'text-muted-foreground font-medium hover:text-foreground'}`}>
+                    ? 'bg-card text-ink font-semibold shadow-sm'
+                    : 'text-body font-medium hover:text-ink'}`}>
                 {label}
               </button>
             ))}
           </div>
         </div>
         {salesLoading
-          ? <div className="p-6 space-y-3">{[...Array(5)].map((_,i) => <div key={i} className="h-10 bg-canvas animate-pulse rounded-xl" />)}</div>
+          ? <div className="p-6 space-y-3">{[...Array(5)].map((_,i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}</div>
           : prodRows.length === 0
-          ? <div className="py-16 text-center text-sm text-muted-foreground">No sales data for selected period</div>
+          ? <div className="py-16 text-center text-sm text-body">No sales data for selected period</div>
           : (
             <div>
               {/* Table header */}
-              <div className="grid grid-cols-[36px_1fr_90px_70px_110px_110px_110px_92px] gap-4 px-6 py-2 bg-canvas/50 border-b border-border/60">
+              <div className="grid grid-cols-[36px_1fr_90px_70px_110px_110px_110px_92px] gap-4 px-6 py-2 bg-tile/50 border-b border-border/60">
                 {['#','Product','Qty','Bills','Revenue','COGS','Gross profit','Margin'].map(h => (
-                  <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
+                  <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
                 ))}
               </div>
               {prodRows.map((p, i) => (
                 <div key={p.name}
-                  className={`grid grid-cols-[36px_1fr_90px_70px_110px_110px_110px_92px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors ${
+                  className={`grid grid-cols-[36px_1fr_90px_70px_110px_110px_110px_92px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-tile/40 transition-colors ${
                     i === 0 ? 'bg-accent-signature/3' : ''
                   }`}>
                   {/* Rank */}
                   <span className={`text-sm font-semibold tabular-nums ${
-                    i===0?'text-accent-signature':i===1?'text-muted-foreground':i===2?'text-accent-signature-hover':'text-ink-tertiary'
+                    i===0?'text-amber-text':i===1?'text-body':i===2?'text-amber-text':'text-ink-tertiary'
                   }`}>{p.rank}</span>
 
                   {/* Name + share bar */}
                   <div>
-                    <div className="text-sm font-semibold text-foreground truncate">{p.name}</div>
+                    <div className="text-sm font-semibold text-ink truncate">{p.name}</div>
                     <div className="flex items-center gap-2 mt-1">
-                      <div className="w-20 h-1 rounded-full bg-canvas overflow-hidden">
+                      <div className="w-20 h-1 rounded-full bg-tile overflow-hidden">
                         <div className="h-full rounded-full bg-accent-signature transition-all duration-700"
                           style={{ width: `${Math.min(100, p.share)}%` }} />
                       </div>
-                      <span className="text-[9px] font-semibold text-accent-signature">{p.share.toFixed(1)}%</span>
+                      <span className="text-[12px] font-semibold text-amber-text">{p.share.toFixed(1)}%</span>
                     </div>
                   </div>
 
-                  <span className="text-sm text-foreground tabular-nums">
-                    {p.qty}{p.unit ? <span className="text-muted-foreground text-[11px] ml-1">{p.unit}</span> : null}
+                  <span className="text-sm text-ink tabular-nums">
+                    {p.qty}{p.unit ? <span className="text-body text-[12px] ml-1">{p.unit}</span> : null}
                   </span>
-                  <span className="text-sm text-ink-secondary tabular-nums">{p.txCount}</span>
-                  <span className="text-sm text-foreground tabular-nums">{formatCurrency(p.revenue)}</span>
-                  <span className="text-sm text-ink-secondary tabular-nums">{formatCurrency(p.cost)}</span>
+                  <span className="text-sm text-ink-2 tabular-nums">{p.txCount}</span>
+                  <span className="text-sm text-ink tabular-nums">{formatCurrency(p.revenue)}</span>
+                  <span className="text-sm text-ink-2 tabular-nums">{formatCurrency(p.cost)}</span>
                   <span className={`text-sm font-semibold tabular-nums ${
                     p.profit >= 0 ? 'text-[color:var(--color-pos)]' : 'text-[color:var(--color-neg)]'}`}>
                     {formatCurrency(p.profit)}
                   </span>
                   <span className={`text-sm tabular-nums ${
-                    p.profit >= 0 ? 'text-ink-secondary' : 'text-[color:var(--color-neg)]'}`}>
+                    p.profit >= 0 ? 'text-ink-2' : 'text-[color:var(--color-neg)]'}`}>
                     {p.margin.toFixed(1)}%
                   </span>
                 </div>
@@ -572,7 +572,7 @@ const BusinessReport = () => {
         {/* Per-product cost is an allocation, not a stored figure — say so
             rather than implying these profits are exact to the paisa. */}
         {!salesLoading && prodRows.length > 0 && (
-          <div className="px-6 py-3 border-t border-border/60 text-[11px] text-muted-foreground">
+          <div className="px-6 py-3 border-t border-border/60 text-[12px] text-body">
             Cost per product uses FIFO batch cost where recorded, otherwise the product&apos;s cost
             price. Allocated COGS {formatCurrency(salesMetrics.allocatedCogs)} vs {formatCurrency(pnl.cogs)} in the P&amp;L
             {Math.abs(salesMetrics.allocatedCogs - pnl.cogs) > 1 && !plLoading && (
@@ -590,8 +590,8 @@ const BusinessReport = () => {
           <div className="space-y-1.5 mt-1">
             {salesMetrics.lossMakers.slice(0, 6).map(p => (
               <div key={p.name} className="flex items-baseline justify-between gap-4 text-[13px]">
-                <span className="text-foreground truncate">{p.name}</span>
-                <span className="text-muted-foreground tabular-nums shrink-0">
+                <span className="text-ink truncate">{p.name}</span>
+                <span className="text-body tabular-nums shrink-0">
                   {p.qty}{p.unit ? ` ${p.unit}` : ''} · sold {formatCurrency(p.revenue)} · cost {formatCurrency(p.cost)}
                 </span>
                 <span className="text-[color:var(--color-neg)] font-semibold tabular-nums shrink-0 w-24 text-right">
@@ -600,7 +600,7 @@ const BusinessReport = () => {
               </div>
             ))}
           </div>
-          <p className="text-[11px] text-muted-foreground mt-3">
+          <p className="text-[12px] text-body mt-3">
             Either the selling price is below what the stock cost, or the recorded cost price is
             wrong. Both are worth checking before the next purchase.
           </p>
@@ -616,23 +616,23 @@ const BusinessReport = () => {
             <SectionHead title="Top Clients" sub="by revenue" />
           </div>
           {salesLoading
-            ? <div className="p-6 space-y-3">{[...Array(4)].map((_,i) => <div key={i} className="h-10 bg-canvas animate-pulse rounded-xl" />)}</div>
+            ? <div className="p-6 space-y-3">{[...Array(4)].map((_,i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}</div>
             : salesMetrics.topClients.length === 0
-            ? <div className="py-12 text-center text-sm text-muted-foreground">No client data</div>
+            ? <div className="py-12 text-center text-sm text-body">No client data</div>
             : salesMetrics.topClients.map((c, i) => (
-              <div key={c.name} className="flex items-center gap-4 px-6 py-3.5 border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 ${
-                  i===0?'bg-accent-signature/15 text-accent-signature-hover':i===1?'bg-muted text-ink-secondary':'bg-accent-signature/10 text-accent-signature'
+              <div key={c.name} className="flex items-center gap-4 px-6 py-3.5 border-b border-border/60 last:border-0 hover:bg-tile/40 transition-colors">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-semibold shrink-0 ${
+                  i===0?'bg-accent-signature/15 text-amber-text':i===1?'bg-muted text-ink-2':'bg-accent-signature/10 text-amber-text'
                 }`}>
                   {(c.name[0]||'?').toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-foreground truncate">{c.name}</div>
-                  <div className="text-[10px] text-muted-foreground font-medium">{c.orders} orders</div>
+                  <div className="text-sm font-semibold text-ink truncate">{c.name}</div>
+                  <div className="text-[11.5px] text-body font-medium">{c.orders} orders</div>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(c.revenue)}</div>
-                  <div className="text-[9px] font-semibold text-accent-signature">{c.share.toFixed(1)}%</div>
+                  <div className="text-sm font-semibold text-ink tabular-nums">{formatCurrency(c.revenue)}</div>
+                  <div className="text-[12px] font-semibold text-amber-text">{c.share.toFixed(1)}%</div>
                 </div>
               </div>
             ))
@@ -645,19 +645,19 @@ const BusinessReport = () => {
             <SectionHead title="Daily Summary" />
           </div>
           {salesLoading
-            ? <div className="p-6 space-y-3">{[...Array(4)].map((_,i) => <div key={i} className="h-10 bg-canvas animate-pulse rounded-xl" />)}</div>
+            ? <div className="p-6 space-y-3">{[...Array(4)].map((_,i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}</div>
             : salesMetrics.dailyTrend.length === 0
-            ? <div className="py-12 text-center text-sm text-muted-foreground">No data</div>
+            ? <div className="py-12 text-center text-sm text-body">No data</div>
             : [...salesMetrics.dailyTrend].reverse().slice(0, 8).map(d => (
-              <div key={d.date} className="flex items-center gap-4 px-6 py-3 border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
-                <div className="w-8 h-8 rounded-xl bg-canvas flex items-center justify-center shrink-0">
-                  <Calendar size={13} className="text-muted-foreground" />
+              <div key={d.date} className="flex items-center gap-4 px-6 py-3 border-b border-border/60 last:border-0 hover:bg-tile/40 transition-colors">
+                <div className="w-8 h-8 rounded-xl bg-tile flex items-center justify-center shrink-0">
+                  <Calendar size={13} className="text-body" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-foreground">{d.date}</div>
-                  <div className="text-[10px] text-muted-foreground font-medium">{d.orders} transactions</div>
+                  <div className="text-sm font-semibold text-ink">{d.date}</div>
+                  <div className="text-[11.5px] text-body font-medium">{d.orders} transactions</div>
                 </div>
-                <div className="text-sm font-semibold text-foreground tabular-nums shrink-0">
+                <div className="text-sm font-semibold text-ink tabular-nums shrink-0">
                   {formatCurrency(d.revenue)}
                 </div>
               </div>
@@ -673,8 +673,8 @@ const BusinessReport = () => {
           running balance as of today, so it ignores the date filter. */}
       <div className="space-y-3">
         <div>
-          <h2 className="text-sm font-semibold text-foreground">Cash &amp; Stock</h2>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
+          <h2 className="text-sm font-semibold text-ink">Cash &amp; Stock</h2>
+          <p className="text-[12px] text-body mt-0.5">
             Money out for stock this period, and what customers still owe. Not part of the profit
             calculation above — stock bought but unsold stays on the shelf, not in cost of goods.
           </p>
@@ -696,38 +696,38 @@ const BusinessReport = () => {
         <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
           <SectionHead title="Purchases" sub="by supplier" />
           <div className="text-right">
-            <div className="text-[11px] font-medium text-muted-foreground">Total Spend</div>
-            <div className="text-base font-semibold text-foreground tabular-nums">{formatCurrency(purchMetrics.total)}</div>
+            <div className="text-[12px] font-medium text-body">Total Spend</div>
+            <div className="text-base font-semibold text-ink tabular-nums">{formatCurrency(purchMetrics.total)}</div>
           </div>
         </div>
         {purchLoading
-          ? <div className="p-6 space-y-3">{[...Array(3)].map((_,i) => <div key={i} className="h-10 bg-canvas animate-pulse rounded-xl" />)}</div>
+          ? <div className="p-6 space-y-3">{[...Array(3)].map((_,i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}</div>
           : purchMetrics.topSuppliers.length === 0
-          ? <div className="py-16 text-center text-sm text-muted-foreground">No purchases for selected period</div>
+          ? <div className="py-16 text-center text-sm text-body">No purchases for selected period</div>
           : (
             <div>
-              <div className="grid grid-cols-[36px_1fr_80px_140px_120px] gap-4 px-6 py-2 bg-canvas/50 border-b border-border/60">
+              <div className="grid grid-cols-[36px_1fr_80px_140px_120px] gap-4 px-6 py-2 bg-tile/50 border-b border-border/60">
                 {['#','Supplier','Orders','Share','Amount'].map(h => (
-                  <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
+                  <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
                 ))}
               </div>
               {purchMetrics.topSuppliers.map((s, i) => (
-                <div key={s.name} className="grid grid-cols-[36px_1fr_80px_140px_120px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
-                  <span className={`text-sm font-semibold ${i===0?'text-accent-signature':'text-ink-tertiary'}`}>{s.rank}</span>
+                <div key={s.name} className="grid grid-cols-[36px_1fr_80px_140px_120px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-tile/40 transition-colors">
+                  <span className={`text-sm font-semibold ${i===0?'text-amber-text':'text-ink-tertiary'}`}>{s.rank}</span>
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-                      <span className="text-[10px] font-semibold text-blue-600">{s.name[0]?.toUpperCase()}</span>
+                    <div className="w-7 h-7 rounded-full bg-info-soft flex items-center justify-center shrink-0">
+                      <span className="text-[11.5px] font-semibold text-info-text">{s.name[0]?.toUpperCase()}</span>
                     </div>
-                    <span className="text-sm font-semibold text-foreground truncate">{s.name}</span>
+                    <span className="text-sm font-semibold text-ink truncate">{s.name}</span>
                   </div>
-                  <span className="tabular-nums text-ink-secondary text-sm">{s.orders}</span>
+                  <span className="tabular-nums text-ink-2 text-sm">{s.orders}</span>
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1.5 rounded-full bg-canvas overflow-hidden">
+                    <div className="flex-1 h-1.5 rounded-full bg-tile overflow-hidden">
                       <div className="h-full rounded-full bg-accent-signature" style={{ width: `${Math.min(100, s.share)}%` }} />
                     </div>
-                    <span className="text-[9px] font-semibold text-accent-signature w-8 text-right">{s.share.toFixed(0)}%</span>
+                    <span className="text-[12px] font-semibold text-amber-text w-8 text-right">{s.share.toFixed(0)}%</span>
                   </div>
-                  <span className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(s.amount)}</span>
+                  <span className="text-sm font-semibold text-ink tabular-nums">{formatCurrency(s.amount)}</span>
                 </div>
               ))}
             </div>

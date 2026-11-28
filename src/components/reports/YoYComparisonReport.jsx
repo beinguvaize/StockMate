@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { isCountableSale } from './reportUtils';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import PremiumReportView from './PremiumReportView';
 import {
   TrendingUp, TrendingDown, Calendar, BarChart3,
@@ -37,10 +38,10 @@ const deltaBadge = (delta, inverted = false) => {
   // inverted=true → lower is better (expenses). Green = decrease, red = increase.
   const positive = delta > 0;
   const good = inverted ? !positive : positive;
-  if (delta === 0) return { cls: 'text-muted-foreground', icon: <Minus size={10} /> };
+  if (delta === 0) return { cls: 'text-body', icon: <Minus size={10} /> };
   return good
-    ? { cls: 'text-emerald-600', icon: <ArrowUpRight size={10} /> }
-    : { cls: 'text-rose-500', icon: <ArrowDownRight size={10} /> };
+    ? { cls: 'text-good-text', icon: <ArrowUpRight size={10} /> }
+    : { cls: 'text-bad-text', icon: <ArrowDownRight size={10} /> };
 };
 
 const YoYComparisonReport = () => {
@@ -65,12 +66,12 @@ const YoYComparisonReport = () => {
   );
   const yoyFilters = useMemo(() => ({ dateRange: yoyRange }), [yoyRange]);
 
-  const { data: salesRaw,    loading: l1 } = useReportData({ table: 'sales',    select: 'totalAmount, date, voided_at, status, paymentStatus',      dateColumn: 'date',         filters: yoyFilters });
+  const { data: salesRaw,    loading: l1, error: rdErr1, refetch: rdRe1 } = useReportData({ table: 'sales',    select: 'totalAmount, date, voided_at, status, paymentStatus',      dateColumn: 'date',         filters: yoyFilters });
   // Voided and cancelled sales are not revenue and were being counted here.
   const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
-  const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: 'amount, category, date', dateColumn: 'date',         filters: yoyFilters });
-  const { data: payroll,  loading: l3 } = useReportData({ table: 'payroll',  select: 'amount, processed_at',   dateColumn: 'processed_at', filters: yoyFilters });
-  const { data: purchases,loading: l4 } = useReportData({ table: 'purchases',select: 'total_amount, date',     dateColumn: 'date',         filters: yoyFilters });
+  const { data: expenses, loading: l2, error: rdErr2, refetch: rdRe2 } = useReportData({ table: 'expenses', select: 'amount, category, date', dateColumn: 'date',         filters: yoyFilters });
+  const { data: payroll,  loading: l3, error: rdErr3, refetch: rdRe3 } = useReportData({ table: 'payroll',  select: 'amount, processed_at',   dateColumn: 'processed_at', filters: yoyFilters });
+  const { data: purchases,loading: l4, error: rdErr4, refetch: rdRe4 } = useReportData({ table: 'purchases',select: 'total_amount, date',     dateColumn: 'date',         filters: yoyFilters });
   const loading = l1 || l2 || l3 || l4;
 
   /* ------------------------------------------------------------------ *
@@ -251,18 +252,18 @@ const YoYComparisonReport = () => {
     {
       key: 'month', label: 'Month', width: 110, sortable: true,
       render: (val) => (
-        <span className="font-semibold text-foreground uppercase tracking-widest text-[11px]">
+        <span className="font-semibold text-ink uppercase tracking-[0.07em] text-[12px]">
           {val}
         </span>
       ),
     },
     {
       key: 'lastYear', label: `${lyYear}`, type: 'currency', align: 'right', sortable: true, width: 160,
-      render: (val) => <span className="font-semibold text-muted-foreground">{formatINR(val)}</span>,
+      render: (val) => <span className="font-semibold text-body">{formatINR(val)}</span>,
     },
     {
       key: 'thisYear', label: `${cyYear}`, type: 'currency', align: 'right', sortable: true, width: 160,
-      render: (val) => <span className="font-semibold text-foreground">{formatINR(val)}</span>,
+      render: (val) => <span className="font-semibold text-ink">{formatINR(val)}</span>,
     },
     {
       key: 'delta', label: 'Δ Amount', type: 'currency', align: 'right', sortable: true, width: 160,
@@ -279,7 +280,7 @@ const YoYComparisonReport = () => {
     {
       key: 'pct', label: 'Δ %', align: 'right', sortable: true, width: 110,
       render: (val, row) => {
-        if (!row.lastYear && !row.thisYear) return <span className="text-muted-foreground">—</span>;
+        if (!row.lastYear && !row.thisYear) return <span className="text-body">—</span>;
         const { cls } = deltaBadge(row.delta, inverted);
         const prefix = val > 0 ? '+' : '';
         return <span className={`font-semibold ${cls}`}>{prefix}{(val ?? 0).toFixed(1)}%</span>;
@@ -319,18 +320,18 @@ const YoYComparisonReport = () => {
       {
         key: 'metric', label: 'Metric', width: 220,
         render: (val) => (
-          <span className="font-semibold text-foreground uppercase tracking-tight text-[11px]">
+          <span className="font-semibold text-ink uppercase tracking-tight text-[12px]">
             {val}
           </span>
         ),
       },
       {
         key: 'lastYear', label: `${lyYear} FY`, type: 'currency', align: 'right', sortable: true, width: 180,
-        render: (val) => <span className="font-semibold text-muted-foreground">{formatINR(val)}</span>,
+        render: (val) => <span className="font-semibold text-body">{formatINR(val)}</span>,
       },
       {
         key: 'thisYear', label: `${cyYear} FY`, type: 'currency', align: 'right', sortable: true, width: 180,
-        render: (val) => <span className="font-semibold text-foreground">{formatINR(val)}</span>,
+        render: (val) => <span className="font-semibold text-ink">{formatINR(val)}</span>,
       },
       {
         key: 'delta', label: 'Δ Amount', type: 'currency', align: 'right', width: 180,
@@ -349,7 +350,7 @@ const YoYComparisonReport = () => {
         render: (val, row) => {
           const { cls } = deltaBadge(row.delta, row.inverted);
           const prefix = val > 0 ? '+' : '';
-          if (val == null) return <span className="text-muted-foreground">—</span>;
+          if (val == null) return <span className="text-body">—</span>;
           return <span className={`font-semibold text-[13px] ${cls}`}>{prefix}{(val ?? 0).toFixed(1)}%</span>;
         },
       },
@@ -459,18 +460,18 @@ const YoYComparisonReport = () => {
       {
         key: 'category', label: 'Category', width: 240, sortable: true,
         render: (val) => (
-          <span className="font-semibold text-foreground uppercase tracking-tight text-[11px]">
+          <span className="font-semibold text-ink uppercase tracking-tight text-[12px]">
             {val}
           </span>
         ),
       },
       {
         key: 'lastYear', label: `${lyYear}`, type: 'currency', align: 'right', sortable: true, width: 170,
-        render: (val) => <span className="font-semibold text-muted-foreground">{formatINR(val)}</span>,
+        render: (val) => <span className="font-semibold text-body">{formatINR(val)}</span>,
       },
       {
         key: 'thisYear', label: `${cyYear}`, type: 'currency', align: 'right', sortable: true, width: 170,
-        render: (val) => <span className="font-semibold text-foreground">{formatINR(val)}</span>,
+        render: (val) => <span className="font-semibold text-ink">{formatINR(val)}</span>,
       },
       {
         key: 'delta', label: 'Δ Amount', type: 'currency', align: 'right', sortable: true, width: 170,
@@ -487,8 +488,8 @@ const YoYComparisonReport = () => {
       {
         key: 'pct', label: 'Δ %', align: 'right', sortable: true, width: 110,
         render: (val, row) => {
-          if (!row.lastYear && !row.thisYear) return <span className="text-muted-foreground">—</span>;
-          if (val == null) return <span className="text-muted-foreground">—</span>;
+          if (!row.lastYear && !row.thisYear) return <span className="text-body">—</span>;
+          if (val == null) return <span className="text-body">—</span>;
           const { cls } = deltaBadge(row.delta, true);
           const prefix = val > 0 ? '+' : '';
           return <span className={`font-semibold ${cls}`}>{prefix}{(val ?? 0).toFixed(1)}%</span>;
@@ -526,13 +527,13 @@ const YoYComparisonReport = () => {
       {/* Year switcher + headline strip */}
       <div className="no-print flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-card/60 backdrop-blur-md border border-border/60">
         <div className="flex items-center gap-2">
-          <Calendar size={14} className="text-accent-signature" />
-          <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Compare</span>
+          <Calendar size={14} className="text-amber-text" />
+          <span className="text-[12px] font-semibold uppercase tracking-[0.07em] text-body">Compare</span>
         </div>
         <select
           value={cyYear}
           onChange={(e) => setCyYear(Number(e.target.value))}
-          className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-foreground bg-card border border-black/10 rounded-md focus:outline-none focus:border-accent-signature"
+          className="px-3 py-1.5 text-[12px] font-semibold uppercase tracking-[0.07em] text-ink bg-card border border-black/10 rounded-md focus:outline-none focus:border-accent-signature"
         >
           {yearOptions.map((y) => (
             <option key={y} value={y}>{y} vs {y - 1}</option>
@@ -544,22 +545,22 @@ const YoYComparisonReport = () => {
         {/* Headline deltas */}
         <div className="flex items-center gap-5">
           <div className="text-right">
-            <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Revenue</div>
-            <div className={`inline-flex items-center gap-1 text-sm font-semibold ${derived.revDelta >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+            <div className="text-[12px] font-semibold uppercase tracking-[0.07em] text-body">Revenue</div>
+            <div className={`inline-flex items-center gap-1 text-sm font-semibold ${derived.revDelta >= 0 ? 'text-good-text' : 'text-bad-text'}`}>
               {derived.revDelta >= 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
               {derived.revPct >= 0 ? '+' : ''}{derived.revPct.toFixed(1)}%
             </div>
           </div>
           <div className="text-right">
-            <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Expense</div>
-            <div className={`inline-flex items-center gap-1 text-sm font-semibold ${derived.expDelta <= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+            <div className="text-[12px] font-semibold uppercase tracking-[0.07em] text-body">Expense</div>
+            <div className={`inline-flex items-center gap-1 text-sm font-semibold ${derived.expDelta <= 0 ? 'text-good-text' : 'text-bad-text'}`}>
               {derived.expDelta >= 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
               {derived.expPct >= 0 ? '+' : ''}{derived.expPct.toFixed(1)}%
             </div>
           </div>
           <div className="text-right">
-            <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Net Profit</div>
-            <div className={`inline-flex items-center gap-1 text-sm font-semibold ${derived.netDelta >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+            <div className="text-[12px] font-semibold uppercase tracking-[0.07em] text-body">Net Profit</div>
+            <div className={`inline-flex items-center gap-1 text-sm font-semibold ${derived.netDelta >= 0 ? 'text-good-text' : 'text-bad-text'}`}>
               {derived.netDelta >= 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
               {derived.netPct >= 0 ? '+' : ''}{derived.netPct.toFixed(1)}%
             </div>
@@ -567,7 +568,7 @@ const YoYComparisonReport = () => {
         </div>
       </div>
 
-      <PremiumReportView title="Year-over-Year" tabs={[overviewTab, revenueTab, expenseTab, categoryTab]} />
+      <PremiumReportView error={loadError(rdErr1, rdErr2, rdErr3, rdErr4)} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); rdRe4(); }} title="Year-over-Year" tabs={[overviewTab, revenueTab, expenseTab, categoryTab]} />
     </div>
   );
 };

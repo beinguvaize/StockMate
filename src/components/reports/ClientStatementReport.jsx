@@ -14,9 +14,9 @@ import { isCountableSale, presetRange } from './reportUtils';
 import { formatCurrency } from '../../lib/utils';
 
 const TYPE_STYLE = {
-  SALE:    { bg: 'bg-emerald-50', text: 'text-emerald-700', label: 'Sale' },
-  INVOICE: { bg: 'bg-blue-50',    text: 'text-blue-700',    label: 'Invoice' },
-  PAYMENT: { bg: 'bg-accent-signature/10',  text: 'text-accent-signature-hover',  label: 'Payment' },
+  SALE:    { bg: 'bg-good-soft', text: 'text-good-text', label: 'Sale' },
+  INVOICE: { bg: 'bg-info-soft',    text: 'text-info-text',    label: 'Invoice' },
+  PAYMENT: { bg: 'bg-accent-signature/10',  text: 'text-amber-text',  label: 'Payment' },
 };
 
 const ClientStatementReport = () => {
@@ -170,7 +170,7 @@ const ClientStatementReport = () => {
       <div className="bg-card rounded-[10px] border border-border/60 shadow-sm p-6">
         <SectionHead title="Select Client" sub="search by name" />
         <div className="relative max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-body" />
           <input
             type="text"
             placeholder="Search clients..."
@@ -182,22 +182,22 @@ const ClientStatementReport = () => {
         {!selectedClient && (
           <div className="mt-2 bg-card border border-border shadow-sm rounded-xl max-h-64 overflow-y-auto">
             {cLoading
-              ? <div className="p-4 text-xs text-muted-foreground">Loading...</div>
+              ? <div className="p-4 text-xs text-body">Loading...</div>
               : clients.length === 0
-              ? <div className="p-4 text-xs text-muted-foreground">No clients yet</div>
+              ? <div className="p-4 text-xs text-body">No clients yet</div>
               : filteredClients.length === 0
-              ? <div className="p-4 text-xs text-muted-foreground">No clients match "{search}"</div>
+              ? <div className="p-4 text-xs text-body">No clients match "{search}"</div>
               : filteredClients.map(c => (
                 <button key={c.id} onClick={() => { setClientId(c.id); setSearch(''); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-canvas/60 transition-colors text-left border-b border-border/60 last:border-0 ${clientId === c.id ? 'bg-accent-signature/5' : ''}`}>
+                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-tile/60 transition-colors text-left border-b border-border/60 last:border-0 ${clientId === c.id ? 'bg-accent-signature/5' : ''}`}>
                   <div className="w-8 h-8 rounded-full bg-accent-signature/10 flex items-center justify-center shrink-0">
-                    <span className="text-[10px] font-semibold text-accent-signature">{(c.name?.[0] || '?').toUpperCase()}</span>
+                    <span className="text-[11.5px] font-semibold text-amber-text">{(c.name?.[0] || '?').toUpperCase()}</span>
                   </div>
                   <div>
-                    <div className="text-sm font-semibold text-foreground">{c.name}</div>
-                    {c.phone && <div className="text-[10px] text-muted-foreground">{c.phone}</div>}
+                    <div className="text-sm font-semibold text-ink">{c.name}</div>
+                    {c.phone && <div className="text-[11.5px] text-body">{c.phone}</div>}
                   </div>
-                  <div className="ml-auto text-xs font-semibold text-red-500 tabular-nums">
+                  <div className="ml-auto text-xs font-semibold text-bad-text tabular-nums">
                     {formatCurrency(c.outstanding_balance || 0)}
                   </div>
                 </button>
@@ -208,14 +208,14 @@ const ClientStatementReport = () => {
         {selectedClient && !search && (
           <div className="mt-3 flex items-center gap-3 p-3 bg-accent-signature/5 rounded-xl border border-accent-signature/10">
             <div className="w-9 h-9 rounded-full bg-accent-signature/15 flex items-center justify-center shrink-0">
-              <span className="text-[11px] font-semibold text-accent-signature">{(selectedClient.name?.[0] || '?').toUpperCase()}</span>
+              <span className="text-[12px] font-semibold text-amber-text">{(selectedClient.name?.[0] || '?').toUpperCase()}</span>
             </div>
             <div className="flex-1">
-              <div className="text-sm font-semibold text-foreground">{selectedClient.name}</div>
-              {selectedClient.phone && <div className="text-[10px] text-muted-foreground">{selectedClient.phone}</div>}
+              <div className="text-sm font-semibold text-ink">{selectedClient.name}</div>
+              {selectedClient.phone && <div className="text-[11.5px] text-body">{selectedClient.phone}</div>}
             </div>
             <button onClick={() => setClientId('')}
-              className="text-[10px] font-semibold text-muted-foreground hover:text-red-500 transition-colors px-2 py-1 rounded-pill hover:bg-red-50">
+              className="text-[11.5px] font-semibold text-body hover:text-bad-text transition-colors px-2 py-1 rounded-pill hover:bg-bad-soft">
               Change
             </button>
           </div>
@@ -239,42 +239,42 @@ const ClientStatementReport = () => {
 
             {loading ? (
               <div className="p-6 space-y-3">
-                {[...Array(6)].map((_, i) => <div key={i} className="h-10 bg-canvas animate-pulse rounded-xl" />)}
+                {[...Array(6)].map((_, i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}
               </div>
             ) : ledgerRows.length === 0 ? (
-              <div className="py-16 text-center text-sm text-muted-foreground">No data for selected period</div>
+              <div className="py-16 text-center text-sm text-body">No data for selected period</div>
             ) : (
               <div>
                 {/* Table header */}
-                <div className="grid grid-cols-[90px_80px_1fr_110px_110px_120px] gap-4 px-6 py-2 bg-canvas/50 border-b border-border/60">
+                <div className="grid grid-cols-[90px_80px_1fr_110px_110px_120px] gap-4 px-6 py-2 bg-tile/50 border-b border-border/60">
                   {['Date','Type','Reference','Debit','Credit','Balance'].map(h => (
-                    <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
+                    <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
                   ))}
                 </div>
                 {ledgerRows.map((row, i) => {
                   const ts = TYPE_STYLE[row.type] || TYPE_STYLE.SALE;
                   return (
-                    <div key={i} className="grid grid-cols-[90px_80px_1fr_110px_110px_120px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
-                      <span className="text-xs font-semibold text-ink-secondary tabular-nums">{row.date}</span>
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-semibold w-fit ${ts.bg} ${ts.text}`}>{ts.label}</span>
-                      <span className="text-xs font-semibold text-foreground truncate tabular-nums">{row.ref}</span>
-                      <span className={`text-xs font-semibold tabular-nums ${row.debit > 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                    <div key={i} className="grid grid-cols-[90px_80px_1fr_110px_110px_120px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-tile/40 transition-colors">
+                      <span className="text-xs font-semibold text-ink-2 tabular-nums">{row.date}</span>
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[12px] font-semibold w-fit ${ts.bg} ${ts.text}`}>{ts.label}</span>
+                      <span className="text-xs font-semibold text-ink truncate tabular-nums">{row.ref}</span>
+                      <span className={`text-xs font-semibold tabular-nums ${row.debit > 0 ? 'text-bad-text' : 'text-body'}`}>
                         {row.debit > 0 ? formatCurrency(row.debit) : '—'}
                       </span>
-                      <span className={`text-xs font-semibold tabular-nums ${row.credit > 0 ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                      <span className={`text-xs font-semibold tabular-nums ${row.credit > 0 ? 'text-good-text' : 'text-body'}`}>
                         {row.credit > 0 ? formatCurrency(row.credit) : '—'}
                       </span>
-                      <span className={`text-xs font-semibold tabular-nums ${row.balance > 0 ? 'text-red-500' : row.balance < 0 ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                      <span className={`text-xs font-semibold tabular-nums ${row.balance > 0 ? 'text-bad-text' : row.balance < 0 ? 'text-good-text' : 'text-body'}`}>
                         {formatCurrency(Math.abs(row.balance))}{row.balance < 0 ? ' Cr' : row.balance > 0 ? ' Dr' : ''}
                       </span>
                     </div>
                   );
                 })}
                 {/* Closing balance */}
-                <div className="flex justify-end gap-8 px-6 py-3.5 border-t border-border/60 bg-canvas/30">
-                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Closing Balance</span>
+                <div className="flex justify-end gap-8 px-6 py-3.5 border-t border-border/60 bg-tile/30">
+                  <span className="text-[11.5px] font-semibold text-body uppercase tracking-[0.07em]">Closing Balance</span>
                   {ledgerRows.length > 0 && (
-                    <span className={`text-sm font-semibold tabular-nums ${ledgerRows[ledgerRows.length-1].balance > 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                    <span className={`text-sm font-semibold tabular-nums ${ledgerRows[ledgerRows.length-1].balance > 0 ? 'text-bad-text' : 'text-good-text'}`}>
                       {formatCurrency(Math.abs(ledgerRows[ledgerRows.length-1].balance))}
                       {ledgerRows[ledgerRows.length-1].balance > 0 ? ' Dr' : ' Cr'}
                     </span>
@@ -287,8 +287,8 @@ const ClientStatementReport = () => {
       )}
 
       {!selectedClient && !cLoading && (
-        <div className="py-20 text-center text-sm text-muted-foreground bg-card rounded-[10px] border border-border/60 shadow-sm">
-          <UserCircle size={32} className="mx-auto mb-3 text-muted-foreground" />
+        <div className="py-20 text-center text-sm text-body bg-card rounded-[10px] border border-border/60 shadow-sm">
+          <UserCircle size={32} className="mx-auto mb-3 text-body" />
           Select a client above to view their statement
         </div>
       )}

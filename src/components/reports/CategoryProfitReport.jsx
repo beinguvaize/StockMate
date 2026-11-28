@@ -167,7 +167,7 @@ const CategoryProfitReport = () => {
         <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
           <SectionHead title="Category Breakdown" sub="ranked by revenue" />
           {!loading && (
-            <span className="text-[10px] font-semibold text-muted-foreground bg-canvas px-2 py-1 rounded-full">
+            <span className="text-[11.5px] font-semibold text-body bg-tile px-2 py-1 rounded-full">
               {rows.length} categories
             </span>
           )}
@@ -175,41 +175,41 @@ const CategoryProfitReport = () => {
 
         {loading ? (
           <div className="p-6 space-y-3">
-            {[...Array(5)].map((_, i) => <div key={i} className="h-10 bg-canvas animate-pulse rounded-xl" />)}
+            {[...Array(5)].map((_, i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}
           </div>
         ) : rows.length === 0 ? (
-          <div className="py-16 text-center text-sm text-muted-foreground">No sales data for selected period</div>
+          <div className="py-16 text-center text-sm text-body">No sales data for selected period</div>
         ) : (
           <div>
-            <div className="grid grid-cols-[36px_1fr_80px_120px_120px_120px_90px_140px] gap-4 px-6 py-2 bg-canvas/50 border-b border-border/60">
+            <div className="grid grid-cols-[36px_1fr_80px_120px_120px_120px_90px_140px] gap-4 px-6 py-2 bg-tile/50 border-b border-border/60">
               {['#', 'Category', 'Units', 'Revenue', 'Cost', 'Profit', 'Margin', 'Share'].map(h => (
-                <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
+                <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
               ))}
             </div>
             {rows.map((row, i) => (
               <div key={row.category}
-                className="grid grid-cols-[36px_1fr_80px_120px_120px_120px_90px_140px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
-                <span className={`text-sm font-semibold tabular-nums ${i===0?'text-accent-signature':i===1?'text-muted-foreground':i===2?'text-accent-signature-hover':'text-ink-tertiary'}`}>
+                className="grid grid-cols-[36px_1fr_80px_120px_120px_120px_90px_140px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-tile/40 transition-colors">
+                <span className={`text-sm font-semibold tabular-nums ${i===0?'text-amber-text':i===1?'text-body':i===2?'text-amber-text':'text-ink-tertiary'}`}>
                   {i + 1}
                 </span>
                 <div>
-                  <div className="text-sm font-semibold text-foreground truncate">{row.category}</div>
+                  <div className="text-sm font-semibold text-ink truncate">{row.category}</div>
                 </div>
-                <span className="text-sm font-semibold text-ink-secondary tabular-nums">{row.units}</span>
-                <span className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(row.revenue)}</span>
-                <span className="text-sm font-semibold text-ink-secondary tabular-nums">{formatCurrency(row.cost)}</span>
-                <span className={`text-sm font-semibold tabular-nums ${row.profit < 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                <span className="text-sm font-semibold text-ink-2 tabular-nums">{row.units}</span>
+                <span className="text-sm font-semibold text-ink tabular-nums">{formatCurrency(row.revenue)}</span>
+                <span className="text-sm font-semibold text-ink-2 tabular-nums">{formatCurrency(row.cost)}</span>
+                <span className={`text-sm font-semibold tabular-nums ${row.profit < 0 ? 'text-bad-text' : 'text-good-text'}`}>
                   {formatCurrency(row.profit)}
                 </span>
-                <span className={`text-sm font-semibold tabular-nums ${row.margin < 0 ? 'text-red-500' : row.margin < 10 ? 'text-accent-signature' : 'text-emerald-600'}`}>
+                <span className={`text-sm font-semibold tabular-nums ${row.margin < 0 ? 'text-bad-text' : row.margin < 10 ? 'text-amber-text' : 'text-good-text'}`}>
                   {row.margin.toFixed(1)}%
                 </span>
                 {/* Share bar */}
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 h-1.5 rounded-full bg-canvas overflow-hidden">
+                  <div className="flex-1 h-1.5 rounded-full bg-tile overflow-hidden">
                     <div className="h-full rounded-full bg-accent-signature" style={{ width: `${Math.min(100, row.share)}%` }} />
                   </div>
-                  <span className="text-[9px] font-semibold text-accent-signature w-8 text-right">{row.share.toFixed(0)}%</span>
+                  <span className="text-[12px] font-semibold text-amber-text w-8 text-right">{row.share.toFixed(0)}%</span>
                 </div>
               </div>
             ))}

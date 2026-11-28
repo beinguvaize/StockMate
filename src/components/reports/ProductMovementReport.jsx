@@ -34,11 +34,11 @@ const KPI = ({ label, value, sub, icon: Icon, color = 'var(--color-accent-signat
       <Icon size={16} style={{ color }} />
     </div>
     {loading
-      ? <div className="h-7 w-24 bg-canvas animate-pulse rounded-lg" />
-      : <div className="text-2xl font-semibold text-foreground tabular-nums leading-none">{value}</div>
+      ? <div className="h-7 w-24 bg-tile animate-pulse rounded-lg" />
+      : <div className="text-2xl font-semibold text-ink tabular-nums leading-none">{value}</div>
     }
-    <div className="text-[11px] font-medium text-muted-foreground">
-      {label}{sub && <span className="block normal-case tracking-normal font-semibold text-muted-foreground mt-0.5">{sub}</span>}
+    <div className="text-[12px] font-medium text-body">
+      {label}{sub && <span className="block normal-case tracking-normal font-semibold text-body mt-0.5">{sub}</span>}
     </div>
   </div>
 );
@@ -170,10 +170,10 @@ const ProductMovementReport = () => {
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-base font-semibold text-foreground tracking-tight">
+          <h1 className="text-base font-semibold text-ink tracking-tight">
             Product Movement
           </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Fast &amp; slow moving analysis · last {windowDays} days</p>
+          <p className="text-xs text-body mt-0.5">Fast &amp; slow moving analysis · last {windowDays} days</p>
         </div>
         <div className="flex items-center gap-2">
           {WINDOWS.map(w => (
@@ -181,13 +181,13 @@ const ProductMovementReport = () => {
               className={`px-3 py-1.5 rounded-pill text-xs font-semibold transition-colors ${
                 windowDays === w.key
                   ? 'bg-accent-signature text-button-text'
-                  : 'bg-card text-ink-secondary hover:text-foreground border border-border/60'
+                  : 'bg-card text-ink-2 hover:text-ink border border-border/60'
               }`}>
               {w.label}
             </button>
           ))}
           <button onClick={exportCSV} disabled={loading || (!fast.length && !slow.length)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-xs font-semibold bg-card border border-border/60 text-ink-secondary hover:text-foreground hover:border-black/20 disabled:opacity-40 transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-xs font-semibold bg-card border border-border/60 text-ink-2 hover:text-ink hover:border-black/20 disabled:opacity-40 transition-colors">
             <Download size={13} /> Export
           </button>
         </div>
@@ -205,7 +205,7 @@ const ProductMovementReport = () => {
       <MovementTable
         title="Fast Moving Products"
         sub="highest units sold first"
-        icon={<TrendingUp size={15} className="text-emerald-500" />}
+        icon={<TrendingUp size={15} className="text-good-text" />}
         rows={fast}
         loading={loading}
         tone="fast"
@@ -216,7 +216,7 @@ const ProductMovementReport = () => {
       <MovementTable
         title="Slow Moving Products"
         sub="most money stuck first · includes never-sold stock"
-        icon={<TrendingDown size={15} className="text-red-500" />}
+        icon={<TrendingDown size={15} className="text-bad-text" />}
         rows={slow}
         loading={loading}
         tone="slow"
@@ -233,61 +233,61 @@ const MovementTable = ({ title, sub, icon, rows, loading, tone, emptyText }) => 
     <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
       <div className="flex items-center gap-2">
         {icon}
-        <h2 className="text-base font-semibold text-foreground">{title}</h2>
-        <span className="text-[11px] font-medium text-muted-foreground">{sub}</span>
+        <h2 className="text-base font-semibold text-ink">{title}</h2>
+        <span className="text-[12px] font-medium text-body">{sub}</span>
       </div>
       {!loading && (
-        <span className="text-[10px] font-semibold text-muted-foreground bg-canvas px-2 py-1 rounded-full">{rows.length} products</span>
+        <span className="text-[11.5px] font-semibold text-body bg-tile px-2 py-1 rounded-full">{rows.length} products</span>
       )}
     </div>
 
     {loading ? (
       <div className="p-6 space-y-3">
-        {[...Array(5)].map((_, i) => <div key={i} className="h-10 bg-canvas animate-pulse rounded-xl" />)}
+        {[...Array(5)].map((_, i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}
       </div>
     ) : rows.length === 0 ? (
       <div className="py-14 text-center">
         <Package size={30} className="mx-auto mb-3 text-gray-200" />
-        <p className="text-sm font-semibold text-muted-foreground">{emptyText}</p>
+        <p className="text-sm font-semibold text-body">{emptyText}</p>
       </div>
     ) : (
       <div>
-        <div className={`${GRID} py-2 bg-canvas/50 border-b border-border/60`}>
+        <div className={`${GRID} py-2 bg-tile/50 border-b border-border/60`}>
           {['Product', 'Category', 'Units Sold', 'Sales', 'Revenue', 'Stock', 'Days Cover', 'Stock Value'].map(h => (
-            <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
+            <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
           ))}
         </div>
         {rows.map((p, i) => {
           const dead = p.units === 0;
           return (
             <div key={p.id || i}
-              className={`${GRID} py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors ${dead ? 'bg-red-50/40' : ''}`}>
+              className={`${GRID} py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-tile/40 transition-colors ${dead ? 'bg-bad-soft/40' : ''}`}>
               <div className="flex items-center gap-2 min-w-0">
                 {tone === 'fast' && i < 3 && (
-                  <span className="shrink-0 w-5 h-5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-semibold grid place-items-center">{i + 1}</span>
+                  <span className="shrink-0 w-5 h-5 rounded-full bg-good-soft text-good-text text-[11.5px] font-semibold grid place-items-center">{i + 1}</span>
                 )}
                 {tone === 'slow' && (
                   <span className={`w-2 h-2 rounded-full shrink-0 ${dead ? 'bg-red-500' : 'bg-accent-signature/70'}`} />
                 )}
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-foreground truncate">{p.name || '—'}</div>
-                  {p.sku && <div className="text-[10px] tabular-nums text-muted-foreground truncate">{p.sku}</div>}
+                  <div className="text-sm font-semibold text-ink truncate">{p.name || '—'}</div>
+                  {p.sku && <div className="text-[11.5px] tabular-nums text-body truncate">{p.sku}</div>}
                 </div>
               </div>
-              <span className="text-xs font-semibold text-ink-secondary truncate">{p.category || '—'}</span>
-              <span className={`text-sm font-semibold tabular-nums ${dead ? 'text-red-500' : 'text-foreground'}`}>
-                {p.units}{dead && <span className="block text-[9px] font-semibold text-red-400 uppercase">never sold</span>}
+              <span className="text-xs font-semibold text-ink-2 truncate">{p.category || '—'}</span>
+              <span className={`text-sm font-semibold tabular-nums ${dead ? 'text-bad-text' : 'text-ink'}`}>
+                {p.units}{dead && <span className="block text-[12px] font-semibold text-bad-text uppercase">never sold</span>}
               </span>
-              <span className="text-sm font-semibold text-ink-secondary tabular-nums">{p.txns}</span>
-              <span className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(p.revenue)}</span>
-              <span className="text-sm font-semibold text-ink-secondary tabular-nums">{p.stock}</span>
+              <span className="text-sm font-semibold text-ink-2 tabular-nums">{p.txns}</span>
+              <span className="text-sm font-semibold text-ink tabular-nums">{formatCurrency(p.revenue)}</span>
+              <span className="text-sm font-semibold text-ink-2 tabular-nums">{p.stock}</span>
               <span className="text-sm font-semibold tabular-nums">
                 {p.daysCover == null
-                  ? <span className="text-muted-foreground">∞</span>
-                  : <span className={p.daysCover > 90 ? 'text-red-500' : p.daysCover > 45 ? 'text-accent-signature' : 'text-emerald-600'}>{Math.round(p.daysCover)}d</span>
+                  ? <span className="text-body">∞</span>
+                  : <span className={p.daysCover > 90 ? 'text-bad-text' : p.daysCover > 45 ? 'text-amber-text' : 'text-good-text'}>{Math.round(p.daysCover)}d</span>
                 }
               </span>
-              <span className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(p.stockValue)}</span>
+              <span className="text-sm font-semibold text-ink tabular-nums">{formatCurrency(p.stockValue)}</span>
             </div>
           );
         })}

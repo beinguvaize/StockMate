@@ -156,16 +156,16 @@ const FinancialReport = () => {
     <div className="flex flex-col gap-3">
       {/* Date range bar */}
       <div className="flex flex-wrap items-center gap-2 no-print">
-        <div className="flex gap-1 bg-canvas p-1 rounded-pill">
+        <div className="flex gap-1 bg-tile p-1 rounded-pill">
           {presets.map(pr => (
             <button key={pr.id} onClick={() => applyPreset(pr.id)}
-              className={`px-3 py-1.5 rounded-pill text-[11px] font-semibold transition-colors ${
-                preset === pr.id ? 'bg-accent-signature text-button-text shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              className={`px-3 py-1.5 rounded-pill text-[12px] font-semibold transition-colors ${
+                preset === pr.id ? 'bg-accent-signature text-button-text shadow-sm' : 'text-body hover:text-ink'
               }`}>{pr.label}</button>
           ))}
         </div>
         <div className="flex items-center gap-1.5 ml-auto">
-          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Compare to</label>
+          <label className="text-[11.5px] font-semibold text-body uppercase tracking-[0.07em]">Compare to</label>
           <select value={basis} onChange={e => setBasis(e.target.value)}
             className="bg-card border border-black/10 rounded-lg px-2 py-1.5 text-xs font-semibold outline-none focus:border-accent-signature/40">
             {COMPARE.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
@@ -173,7 +173,7 @@ const FinancialReport = () => {
           <span className="w-px h-5 bg-black/10 mx-1" />
           <input type="date" value={range.from} onChange={e => { setPreset(''); setRange(r => ({ ...r, from: e.target.value })); }}
             className="bg-card border border-black/10 rounded-lg px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-accent-signature/40" />
-          <span className="text-xs text-muted-foreground">→</span>
+          <span className="text-xs text-body">→</span>
           <input type="date" value={range.to} onChange={e => { setPreset(''); setRange(r => ({ ...r, to: e.target.value })); }}
             className="bg-card border border-black/10 rounded-lg px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-accent-signature/40" />
         </div>
@@ -183,8 +183,8 @@ const FinancialReport = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {ratioCards.map(c => (
           <div key={c.label} className="bg-card rounded-[10px] border border-border/60 p-4">
-            <div className="text-[11px] font-medium text-muted-foreground">{c.label}</div>
-            <div className={`text-2xl font-semibold tabular-nums mt-1 ${c.good === false ? 'text-rose-600' : c.good ? 'text-emerald-600' : 'text-foreground'}`}>{c.value}</div>
+            <div className="text-[12px] font-medium text-body">{c.label}</div>
+            <div className={`text-2xl font-semibold tabular-nums mt-1 ${c.good === false ? 'text-bad-text' : c.good ? 'text-good-text' : 'text-ink'}`}>{c.value}</div>
           </div>
         ))}
       </div>
@@ -192,90 +192,90 @@ const FinancialReport = () => {
       {/* Statement */}
       <div className="bg-card rounded-[10px] border border-border/60 overflow-hidden">
         <div className="px-4 py-3 border-b border-black/[0.05] flex items-center justify-between">
-          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Profit &amp; Loss</span>
-          {loading && <span className="text-[10px] font-semibold text-muted-foreground">Loading…</span>}
+          <span className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">Profit &amp; Loss</span>
+          {loading && <span className="text-[11.5px] font-semibold text-body">Loading…</span>}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-[13px]" style={{ borderCollapse: 'collapse' }}>
             <thead>
-              <tr className="text-[10px] text-muted-foreground uppercase tracking-wider">
+              <tr className="text-[11.5px] text-body uppercase tracking-[0.07em]">
                 <th style={{ textAlign: 'left', padding: '10px 16px', fontWeight: 700 }}>Line item</th>
                 <th style={{ textAlign: 'right', padding: '10px 16px', fontWeight: 700 }}>Amount</th>
                 <th style={{ textAlign: 'right', padding: '10px 16px', fontWeight: 700 }}>% of rev</th>
                 <th style={{ textAlign: 'right', padding: '10px 16px', fontWeight: 700 }}>
                   Prior
-                  <span className="block normal-case tracking-normal font-medium text-[9px] opacity-70">{cmpLabel}</span>
+                  <span className="block normal-case tracking-normal font-medium text-[12px] opacity-70">{cmpLabel}</span>
                 </th>
                 <th style={{ textAlign: 'right', padding: '10px 16px', fontWeight: 700 }}>Δ</th>
               </tr>
             </thead>
             <tbody>
               <tr className="border-t border-black/[0.05]">
-                <Cell align="left" cls="font-semibold text-foreground">{m.gst > 0 ? 'Sales revenue (net of GST)' : 'Sales revenue (gross)'}</Cell>
+                <Cell align="left" cls="font-semibold text-ink">{m.gst > 0 ? 'Sales revenue (net of GST)' : 'Sales revenue (gross)'}</Cell>
                 <Cell cls="font-semibold tabular-nums">{formatCurrency(m.revenue, cur)}</Cell>
-                <Cell cls="text-muted-foreground">100.0%</Cell>
-                <Cell cls="text-muted-foreground">{formatCurrency(p.revenue, cur)}</Cell>
+                <Cell cls="text-body">100.0%</Cell>
+                <Cell cls="text-body">{formatCurrency(p.revenue, cur)}</Cell>
                 <Cell><Delta cur={m.revenue} prior={p.revenue} /></Cell>
               </tr>
               <tr className="border-t border-black/[0.05]">
-                <Cell align="left" cls="text-ink-secondary">Cost of goods sold</Cell>
-                <Cell cls="text-rose-600 tabular-nums">({formatCurrency(m.cogs, cur).replace(cur, '')})</Cell>
-                <Cell cls="text-muted-foreground">{pct(m.cogs)}</Cell>
-                <Cell cls="text-muted-foreground">({formatCurrency(p.cogs, cur).replace(cur, '')})</Cell>
+                <Cell align="left" cls="text-ink-2">Cost of goods sold</Cell>
+                <Cell cls="text-bad-text tabular-nums">({formatCurrency(m.cogs, cur).replace(cur, '')})</Cell>
+                <Cell cls="text-body">{pct(m.cogs)}</Cell>
+                <Cell cls="text-body">({formatCurrency(p.cogs, cur).replace(cur, '')})</Cell>
                 <Cell><Delta cur={m.cogs} prior={p.cogs} expense /></Cell>
               </tr>
-              <tr className="border-t border-black/10 bg-canvas/50">
-                <Cell align="left" cls="font-semibold text-foreground">Gross profit</Cell>
-                <Cell cls="font-semibold text-emerald-600 tabular-nums">{formatCurrency(m.gross, cur)}</Cell>
+              <tr className="border-t border-black/10 bg-tile/50">
+                <Cell align="left" cls="font-semibold text-ink">Gross profit</Cell>
+                <Cell cls="font-semibold text-good-text tabular-nums">{formatCurrency(m.gross, cur)}</Cell>
                 <Cell cls="font-semibold">{pct(m.gross)}</Cell>
-                <Cell cls="text-muted-foreground">{formatCurrency(p.gross, cur)}</Cell>
+                <Cell cls="text-body">{formatCurrency(p.gross, cur)}</Cell>
                 <Cell><Delta cur={m.gross} prior={p.gross} /></Cell>
               </tr>
 
               <tr className="border-t border-black/[0.05]">
-                <td colSpan={5} style={{ padding: '7px 16px 3px' }} className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Operating expenses</td>
+                <td colSpan={5} style={{ padding: '7px 16px 3px' }} className="text-[11.5px] font-semibold text-body uppercase tracking-[0.07em]">Operating expenses</td>
               </tr>
               {expCats.length === 0 && !loading && (
-                <tr><td colSpan={5} style={{ padding: '6px 28px' }} className="text-xs text-muted-foreground">No expenses in this period</td></tr>
+                <tr><td colSpan={5} style={{ padding: '6px 28px' }} className="text-xs text-body">No expenses in this period</td></tr>
               )}
               {expCats.map(c => (
                 <tr key={c.name}>
-                  <td style={{ padding: '6px 16px 6px 28px' }} className="text-ink-secondary">{c.name}</td>
+                  <td style={{ padding: '6px 16px 6px 28px' }} className="text-ink-2">{c.name}</td>
                   <Cell cls="tabular-nums">{formatCurrency(c.amount, cur).replace(cur, '')}</Cell>
-                  <Cell cls="text-muted-foreground">{pct(c.amount)}</Cell>
-                  <Cell cls="text-muted-foreground">—</Cell>
-                  <Cell cls="text-muted-foreground">—</Cell>
+                  <Cell cls="text-body">{pct(c.amount)}</Cell>
+                  <Cell cls="text-body">—</Cell>
+                  <Cell cls="text-body">—</Cell>
                 </tr>
               ))}
               <tr className="border-t border-black/[0.05]">
-                <Cell align="left" cls="text-ink-secondary">Total operating expenses</Cell>
-                <Cell cls="text-rose-600 tabular-nums">({formatCurrency(m.expenses, cur).replace(cur, '')})</Cell>
-                <Cell cls="text-muted-foreground">{pct(m.expenses)}</Cell>
-                <Cell cls="text-muted-foreground">({formatCurrency(p.expenses, cur).replace(cur, '')})</Cell>
+                <Cell align="left" cls="text-ink-2">Total operating expenses</Cell>
+                <Cell cls="text-bad-text tabular-nums">({formatCurrency(m.expenses, cur).replace(cur, '')})</Cell>
+                <Cell cls="text-body">{pct(m.expenses)}</Cell>
+                <Cell cls="text-body">({formatCurrency(p.expenses, cur).replace(cur, '')})</Cell>
                 <Cell><Delta cur={m.expenses} prior={p.expenses} expense /></Cell>
               </tr>
 
-              <tr className="border-t-2 border-black/20 bg-canvas/50">
-                <Cell align="left" cls="font-semibold text-foreground">Net profit</Cell>
-                <Cell cls={`font-semibold text-[15px] tabular-nums ${m.net >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(m.net, cur)}</Cell>
+              <tr className="border-t-2 border-black/20 bg-tile/50">
+                <Cell align="left" cls="font-semibold text-ink">Net profit</Cell>
+                <Cell cls={`font-semibold text-[15px] tabular-nums ${m.net >= 0 ? 'text-good-text' : 'text-bad-text'}`}>{formatCurrency(m.net, cur)}</Cell>
                 <Cell cls="font-semibold">{pct(m.net)}</Cell>
-                <Cell cls="text-muted-foreground">{formatCurrency(p.net, cur)}</Cell>
+                <Cell cls="text-body">{formatCurrency(p.net, cur)}</Cell>
                 <Cell><Delta cur={m.net} prior={p.net} /></Cell>
               </tr>
             </tbody>
           </table>
         </div>
-        <div className="px-4 py-2.5 border-t border-black/[0.05] flex items-center justify-between text-[11px]">
-          <span className="font-semibold text-muted-foreground uppercase tracking-wider">GST Payable (memo)</span>
-          <span className="font-semibold text-accent-signature tabular-nums">{formatCurrency(m.gst, cur)}</span>
+        <div className="px-4 py-2.5 border-t border-black/[0.05] flex items-center justify-between text-[12px]">
+          <span className="font-semibold text-body uppercase tracking-[0.07em]">GST Payable (memo)</span>
+          <span className="font-semibold text-amber-text tabular-nums">{formatCurrency(m.gst, cur)}</span>
         </div>
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <div className="bg-card rounded-[10px] border border-border/60 p-4">
-          <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Margin trend · 6 months</div>
-          <div className="flex gap-4 text-[11px] font-semibold text-muted-foreground mb-2">
+          <div className="text-[12px] font-semibold text-body uppercase tracking-[0.07em] mb-1">Margin trend · 6 months</div>
+          <div className="flex gap-4 text-[12px] font-semibold text-body mb-2">
             <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#1D9E75' }} />Gross %</span>
             <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#378ADD' }} />Net %</span>
           </div>
@@ -294,9 +294,9 @@ const FinancialReport = () => {
         </div>
 
         <div className="bg-card rounded-[10px] border border-border/60 p-4">
-          <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Expense composition</div>
+          <div className="text-[12px] font-semibold text-body uppercase tracking-[0.07em] mb-2">Expense composition</div>
           {expCats.length === 0 ? (
-            <div className="h-[220px] flex items-center justify-center text-xs font-semibold text-muted-foreground">No expenses in this period</div>
+            <div className="h-[220px] flex items-center justify-center text-xs font-semibold text-body">No expenses in this period</div>
           ) : (
             <div className="flex items-center gap-3">
               <div style={{ width: 150, height: 200 }}>
@@ -311,10 +311,10 @@ const FinancialReport = () => {
               </div>
               <div className="flex-1 min-w-0 space-y-1.5">
                 {expCats.slice(0, 6).map((c, i) => (
-                  <div key={c.name} className="flex items-center gap-2 text-[11px]">
+                  <div key={c.name} className="flex items-center gap-2 text-[12px]">
                     <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: EXP_COLORS[i % EXP_COLORS.length] }} />
-                    <span className="font-semibold text-ink-secondary truncate flex-1">{c.name}</span>
-                    <span className="font-semibold text-foreground tabular-nums">{pct(c.amount)}</span>
+                    <span className="font-semibold text-ink-2 truncate flex-1">{c.name}</span>
+                    <span className="font-semibold text-ink tabular-nums">{pct(c.amount)}</span>
                   </div>
                 ))}
               </div>
@@ -323,7 +323,7 @@ const FinancialReport = () => {
         </div>
       </div>
 
-      <p className="text-[10px] text-muted-foreground px-1">Prior column = {COMPARE.find(c => c.id === basis)?.shortLabel} ({cmpLabel}), always the same number of days as the selected range. Δ green = favourable, amber/red = watch. Ties to the ledger.</p>
+      <p className="text-[11.5px] text-body px-1">Prior column = {COMPARE.find(c => c.id === basis)?.shortLabel} ({cmpLabel}), always the same number of days as the selected range. Δ green = favourable, amber/red = watch. Ties to the ledger.</p>
     </div>
   );
 };

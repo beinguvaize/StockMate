@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import { presetRange } from './reportUtils';
 import PremiumReportView from './PremiumReportView';
 import { Truck, Package, User, Calendar, Info, BarChart2 } from 'lucide-react';
@@ -13,13 +14,13 @@ const PERIODS = [['TODAY', 'Today'], ['WEEK', 'This Week'], ['MONTH', 'This Mont
 const payBadge = (method) => {
   const m = (method || 'CASH').toUpperCase();
   const colors = {
-    CASH:   'bg-emerald-50 text-emerald-700 border-emerald-100',
-    CREDIT: 'bg-accent-signature/10   text-accent-signature-hover   border-accent-signature/15',
-    BANK:   'bg-blue-50    text-blue-700    border-blue-100',
+    CASH:   'bg-good-soft text-good-text border-good-soft',
+    CREDIT: 'bg-accent-signature/10   text-amber-text   border-accent-signature/15',
+    BANK:   'bg-info-soft    text-info-text    border-info-soft',
   };
-  const cls = colors[m] || 'bg-muted text-muted-foreground border-border';
+  const cls = colors[m] || 'bg-muted text-body border-border';
   return (
-    <span className={`inline-block text-[9px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full border ${cls}`}>
+    <span className={`inline-block text-[12px] font-semibold uppercase tracking-[0.07em] px-2 py-0.5 rounded-full border ${cls}`}>
       {m}
     </span>
   );
@@ -28,12 +29,12 @@ const payBadge = (method) => {
 const statusBadge = (status) => {
   const s = (status || 'RECEIVED').toUpperCase();
   const cls = s === 'RECEIVED' || s === 'COMPLETED'
-    ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+    ? 'bg-good-soft text-good-text border-good-soft'
     : s === 'PENDING'
-    ? 'bg-accent-signature/10 text-accent-signature-hover border-accent-signature/15'
-    : 'bg-muted text-muted-foreground border-border';
+    ? 'bg-accent-signature/10 text-amber-text border-accent-signature/15'
+    : 'bg-muted text-body border-border';
   return (
-    <span className={`inline-block text-[9px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full border ${cls}`}>
+    <span className={`inline-block text-[12px] font-semibold uppercase tracking-[0.07em] px-2 py-0.5 rounded-full border ${cls}`}>
       {s}
     </span>
   );
@@ -57,14 +58,14 @@ const PurchasesReport = () => {
   };
   const applyCustom = () => { if (customStart && customEnd) { setRange({ start: customStart, end: customEnd }); setShowCustom(false); } };
 
-  const { data: purchases, loading } = useReportData({
+  const { data: purchases, loading, error: rdErr1, refetch: rdRe1 } = useReportData({
     table: 'purchases',
     select: '*',
     dateColumn: 'date',
     filters,
   });
 
-  const { data: products } = useReportData({
+  const { data: products, error: rdErr2, refetch: rdRe2 } = useReportData({
     table: 'products',
     select: 'id, name',
   });
@@ -185,10 +186,10 @@ const PurchasesReport = () => {
         key: 'supplier_name', label: 'Supplier', sortable: true, width: 200,
         render: (val) => (
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+            <div className="w-6 h-6 rounded-full bg-info-soft flex items-center justify-center shrink-0">
               <User size={10} className="text-blue-500" />
             </div>
-            <span className="font-semibold text-foreground">{val || 'Direct'}</span>
+            <span className="font-semibold text-ink">{val || 'Direct'}</span>
           </div>
         ),
       },
@@ -199,16 +200,16 @@ const PurchasesReport = () => {
           return (
             <div className="flex items-center gap-2">
               <div className="w-5 h-5 rounded-md bg-accent-signature/10 flex items-center justify-center shrink-0">
-                <Package size={9} className="text-accent-signature" />
+                <Package size={9} className="text-amber-text" />
               </div>
-              <span className="font-semibold text-foreground">{name}</span>
+              <span className="font-semibold text-ink">{name}</span>
             </div>
           );
         },
       },
       {
         key: 'quantity', label: 'Units', align: 'right', sortable: true, width: 90,
-        render: (val) => <span className="tabular-nums font-semibold text-foreground">{val}</span>,
+        render: (val) => <span className="tabular-nums font-semibold text-ink">{val}</span>,
       },
       { key: 'total_amount', label: 'Amount', type: 'currency', align: 'right', sortable: true, width: 140 },
       {
@@ -261,7 +262,7 @@ const PurchasesReport = () => {
       {
         key: '_rank', label: '#', width: 50, align: 'center',
         render: (val) => (
-          <span className={`font-semibold text-sm ${val === 1 ? 'text-accent-signature' : 'text-ink-tertiary'}`}>
+          <span className={`font-semibold text-sm ${val === 1 ? 'text-amber-text' : 'text-ink-tertiary'}`}>
             {val}
           </span>
         ),
@@ -270,22 +271,22 @@ const PurchasesReport = () => {
         key: 'supplierName', label: 'Supplier', sortable: true, width: 240,
         render: (val, row) => (
           <div className="flex items-center gap-3">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-[11px] shrink-0 ${
-              row._rank === 1 ? 'bg-accent-signature/15 text-accent-signature-hover' : 'bg-blue-50 text-blue-600'
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-[12px] shrink-0 ${
+              row._rank === 1 ? 'bg-accent-signature/15 text-amber-text' : 'bg-info-soft text-info-text'
             }`}>
               {(val || 'D')[0].toUpperCase()}
             </div>
-            <span className="font-semibold text-foreground">{val}</span>
+            <span className="font-semibold text-ink">{val}</span>
           </div>
         ),
       },
       {
         key: 'orderCount', label: 'Orders', align: 'right', sortable: true, width: 110,
-        render: (val) => <span className="tabular-nums font-semibold text-ink-secondary">{val}</span>,
+        render: (val) => <span className="tabular-nums font-semibold text-ink-2">{val}</span>,
       },
       {
         key: 'totalUnits', label: 'Units Received', align: 'right', sortable: true, width: 140,
-        render: (val) => <span className="tabular-nums font-semibold text-foreground">{val}</span>,
+        render: (val) => <span className="tabular-nums font-semibold text-ink">{val}</span>,
       },
       { key: 'totalAmount', label: 'Total Spend', type: 'currency', align: 'right', sortable: true, width: 150 },
       {
@@ -294,13 +295,13 @@ const PurchasesReport = () => {
           const pct = totalProcForShare > 0 ? (row.totalAmount / totalProcForShare) * 100 : 0;
           return (
             <div className="flex items-center gap-2 justify-end">
-              <div className="w-16 h-1.5 rounded-full bg-canvas overflow-hidden">
+              <div className="w-16 h-1.5 rounded-full bg-tile overflow-hidden">
                 <div
                   className="h-full rounded-full bg-accent-signature"
                   style={{ width: `${Math.min(100, pct)}%` }}
                 />
               </div>
-              <span className="text-[10px] font-semibold text-accent-signature tabular-nums w-10 text-right">
+              <span className="text-[11.5px] font-semibold text-amber-text tabular-nums w-10 text-right">
                 {pct.toFixed(1)}%
               </span>
             </div>
@@ -340,7 +341,7 @@ const PurchasesReport = () => {
       {
         key: '_rank', label: '#', width: 50, align: 'center',
         render: (val) => (
-          <span className={`font-semibold text-sm ${val === 1 ? 'text-accent-signature' : 'text-ink-tertiary'}`}>
+          <span className={`font-semibold text-sm ${val === 1 ? 'text-amber-text' : 'text-ink-tertiary'}`}>
             {val}
           </span>
         ),
@@ -350,21 +351,21 @@ const PurchasesReport = () => {
         render: (val, row) => (
           <div className="flex items-center gap-3">
             <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-              row._rank <= 3 ? 'bg-emerald-50' : 'bg-canvas'
+              row._rank <= 3 ? 'bg-good-soft' : 'bg-tile'
             }`}>
-              <Package size={12} className={row._rank <= 3 ? 'text-emerald-600' : 'text-ink-tertiary'} />
+              <Package size={12} className={row._rank <= 3 ? 'text-good-text' : 'text-ink-tertiary'} />
             </div>
-            <span className="font-semibold text-foreground">{val}</span>
+            <span className="font-semibold text-ink">{val}</span>
           </div>
         ),
       },
       {
         key: 'orderCount', label: 'Orders', align: 'right', sortable: true, width: 110,
-        render: (val) => <span className="tabular-nums font-semibold text-ink-secondary">{val}</span>,
+        render: (val) => <span className="tabular-nums font-semibold text-ink-2">{val}</span>,
       },
       {
         key: 'totalUnits', label: 'Units Procured', align: 'right', sortable: true, width: 140,
-        render: (val) => <span className="tabular-nums font-semibold text-foreground">{val}</span>,
+        render: (val) => <span className="tabular-nums font-semibold text-ink">{val}</span>,
       },
       { key: 'avgUnit',    label: 'Avg. Unit Cost', type: 'currency', align: 'right', width: 140 },
       { key: 'totalAmount', label: 'Total Spend',   type: 'currency', align: 'right', sortable: true, width: 150 },
@@ -374,13 +375,13 @@ const PurchasesReport = () => {
           const pct = totalProcForShare > 0 ? (row.totalAmount / totalProcForShare) * 100 : 0;
           return (
             <div className="flex items-center gap-2 justify-end">
-              <div className="w-14 h-1.5 rounded-full bg-canvas overflow-hidden">
+              <div className="w-14 h-1.5 rounded-full bg-tile overflow-hidden">
                 <div
                   className="h-full rounded-full bg-emerald-500"
                   style={{ width: `${Math.min(100, pct)}%` }}
                 />
               </div>
-              <span className="text-[10px] font-semibold text-emerald-600 tabular-nums w-9 text-right">
+              <span className="text-[11.5px] font-semibold text-good-text tabular-nums w-9 text-right">
                 {pct.toFixed(1)}%
               </span>
             </div>
@@ -397,29 +398,29 @@ const PurchasesReport = () => {
         <div className="flex items-center bg-muted rounded-lg p-0.5">
           {PERIODS.map(([id, label]) => (
             <button key={id} onClick={() => applyPreset(id)}
-              className={`px-3 py-1.5 rounded-pill text-[11px] whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-pill text-[12px] whitespace-nowrap transition-colors flex items-center gap-1.5 ${
                 preset === id
-                  ? 'bg-card text-foreground font-semibold shadow-sm'
-                  : 'text-muted-foreground font-medium hover:text-foreground'
+                  ? 'bg-card text-ink font-semibold shadow-sm'
+                  : 'text-body font-medium hover:text-ink'
               }`}>
               {id === 'CUSTOM' && <Calendar size={12} />}{label}
             </button>
           ))}
         </div>
-        <span className="text-[11px] tabular-nums font-semibold text-muted-foreground">{range.start} → {range.end}</span>
+        <span className="text-[12px] tabular-nums font-semibold text-body">{range.start} → {range.end}</span>
         {showCustom && (
           <div className="flex items-center gap-2">
             <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
               className="bg-card border border-black/10 rounded-lg px-3 py-1.5 text-xs tabular-nums outline-none focus:border-accent-signature/70" />
-            <span className="text-muted-foreground">–</span>
+            <span className="text-body">–</span>
             <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
               className="bg-card border border-black/10 rounded-lg px-3 py-1.5 text-xs tabular-nums outline-none focus:border-accent-signature/70" />
-            <button onClick={applyCustom} className="px-3 py-1.5 rounded-pill bg-accent-signature text-white text-[11px] font-semibold">Apply</button>
+            <button onClick={applyCustom} className="px-3 py-1.5 rounded-pill bg-accent-signature text-white text-[12px] font-semibold">Apply</button>
           </div>
         )}
       </div>
 
-      <PremiumReportView title="Purchases" subtitle={`${range.start} → ${range.end}`} tabs={[allTab, supplierTab, productTab]} />
+      <PremiumReportView error={loadError(rdErr1, rdErr2)} onRetry={() => { rdRe1(); rdRe2(); }} title="Purchases" subtitle={`${range.start} → ${range.end}`} tabs={[allTab, supplierTab, productTab]} />
     </div>
   );
 };

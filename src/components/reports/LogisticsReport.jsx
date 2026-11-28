@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { isCountableSale } from './reportUtils';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import useDateWindow from './useDateWindow';
 import PremiumReportView from './PremiumReportView';
 import { 
@@ -13,7 +14,7 @@ const LogisticsReport = () => {
   // unfiltered and read the whole table on every load.
   const win = useDateWindow('YEAR');
   // 1. Fetch Logistics Master Data
-  const { data: salesRaw, loading: salesLoading } = useReportData({
+  const { data: salesRaw, loading: salesLoading, error: rdErr1, refetch: rdRe1 } = useReportData({
     table: 'sales',
     select: 'totalAmount, vehicleId, routeId, voided_at, status, paymentStatus',
     dateColumn: 'date', filters: win.filters
@@ -21,13 +22,13 @@ const LogisticsReport = () => {
   // Voided and cancelled sales are not revenue and were being counted here.
   const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
 
-  const { data: vehicles, loading: vehiclesLoading } = useReportData({
+  const { data: vehicles, loading: vehiclesLoading, error: rdErr2, refetch: rdRe2 } = useReportData({
     table: 'vehicles',
     select: '*',
     dateColumn: 'created_at', filters: win.filters
   });
 
-  const { data: routes, loading: routesLoading } = useReportData({
+  const { data: routes, loading: routesLoading, error: rdErr3, refetch: rdRe3 } = useReportData({
     table: 'routes',
     select: '*'
   });
@@ -92,15 +93,15 @@ const LogisticsReport = () => {
     columns: [
       { key: 'name', label: 'Authorized Unit', sortable: true, width: 220, render: (val, row) => (
         <div className="flex flex-col">
-          <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>
-          <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">{row.model}</span>
+          <span className="font-semibold text-ink uppercase tracking-tight">{val}</span>
+          <span className="text-[11.5px] font-semibold text-body tabular-nums">{row.model}</span>
         </div>
       )},
-      { key: 'deliveries', label: 'Service Events', align: 'right', sortable: true, width: 150, render: (val) => <span className="tabular-nums font-semibold text-muted-foreground">{val} Drops</span> },
+      { key: 'deliveries', label: 'Service Events', align: 'right', sortable: true, width: 150, render: (val) => <span className="tabular-nums font-semibold text-body">{val} Drops</span> },
       { key: 'revenue', label: 'Revenue Magnitude', type: 'currency', align: 'right', sortable: true, width: 180 },
       { key: 'efficiency', label: 'Load Factor', align: 'right', width: 120, render: (_, row) => (
         <div className="flex flex-col items-end">
-          <span className="text-[10px] font-semibold text-emerald-500">{(row.revenue / (row.deliveries || 1)).toFixed(0)} / DROP</span>
+          <span className="text-[11.5px] font-semibold text-good-text">{(row.revenue / (row.deliveries || 1)).toFixed(0)} / DROP</span>
         </div>
       )}
     ],
@@ -119,11 +120,11 @@ const LogisticsReport = () => {
     loading: loading,
     totals: { revenue: routeMetrics.routeStats.reduce((acc, r) => acc + r.revenue, 0) },
     columns: [
-      { key: 'name', label: 'Territory Domain', sortable: true, width: 250, render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span> },
+      { key: 'name', label: 'Territory Domain', sortable: true, width: 250, render: (val) => <span className="font-semibold text-ink uppercase tracking-tight">{val}</span> },
       { key: 'deliveries', label: 'Volume', align: 'right', sortable: true, width: 150 },
       { key: 'revenue', label: 'Account Yield', type: 'currency', align: 'right', sortable: true, width: 180 },
       { key: 'density', label: 'Territory Density', align: 'right', width: 120, render: (_, row) => (
-        <div className="w-16 h-1 bg-canvas rounded-full overflow-hidden">
+        <div className="w-16 h-1 bg-tile rounded-full overflow-hidden">
           <div className="h-full bg-accent-signature" style={{ width: `${Math.min((row.deliveries / 20) * 100, 100)}%` }} />
         </div>
       )}
@@ -134,7 +135,7 @@ const LogisticsReport = () => {
     }
   };
 
-  return <PremiumReportView dateWindow={win} title="Logistics Report" tabs={[fleetTab, routeTab]} />;
+  return <PremiumReportView error={loadError(rdErr1, rdErr2, rdErr3)} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); }} dateWindow={win} title="Logistics Report" tabs={[fleetTab, routeTab]} />;
 };
 
 export default LogisticsReport;

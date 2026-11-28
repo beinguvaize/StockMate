@@ -18,10 +18,10 @@ import { formatCurrency } from '../../lib/utils';
 const TYPE_FILTERS = ['ALL', 'Sale', 'Payment', 'Purchase', 'Expense'];
 
 const TYPE_STYLE = {
-  Sale:     { bg: 'bg-emerald-50', text: 'text-emerald-700' },
-  Payment:  { bg: 'bg-accent-signature/10',  text: 'text-accent-signature-hover' },
-  Purchase: { bg: 'bg-blue-50',    text: 'text-blue-700' },
-  Expense:  { bg: 'bg-red-50',     text: 'text-red-600' },
+  Sale:     { bg: 'bg-good-soft', text: 'text-good-text' },
+  Payment:  { bg: 'bg-accent-signature/10',  text: 'text-amber-text' },
+  Purchase: { bg: 'bg-info-soft',    text: 'text-info-text' },
+  Expense:  { bg: 'bg-bad-soft',     text: 'text-bad-text' },
 };
 
 const AllTransactionsReport = () => {
@@ -206,35 +206,35 @@ const AllTransactionsReport = () => {
 
         {loading ? (
           <div className="p-6 space-y-3">
-            {[...Array(8)].map((_, i) => <div key={i} className="h-10 bg-canvas animate-pulse rounded-xl" />)}
+            {[...Array(8)].map((_, i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}
           </div>
         ) : filteredRows.length === 0 ? (
-          <div className="py-16 text-center text-sm text-muted-foreground">No transactions for selected period</div>
+          <div className="py-16 text-center text-sm text-body">No transactions for selected period</div>
         ) : (
           <div>
-            <div className="grid grid-cols-[90px_90px_1fr_90px_130px] gap-4 px-6 py-2 bg-canvas/50 border-b border-border/60">
+            <div className="grid grid-cols-[90px_90px_1fr_90px_130px] gap-4 px-6 py-2 bg-tile/50 border-b border-border/60">
               {['Date', 'Type', 'Party / Description', 'Flow', 'Amount'].map(h => (
-                <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
+                <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
               ))}
             </div>
             {filteredRows.map((row, i) => {
-              const ts = TYPE_STYLE[row.type] || { bg: 'bg-muted', text: 'text-ink-secondary' };
+              const ts = TYPE_STYLE[row.type] || { bg: 'bg-muted', text: 'text-ink-2' };
               return (
                 <div key={`${row.ref}-${i}`}
-                  className="grid grid-cols-[90px_90px_1fr_90px_130px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
-                  <span className="text-xs font-semibold text-ink-secondary tabular-nums">{row.date}</span>
-                  <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-semibold w-fit ${ts.bg} ${ts.text}`}>
+                  className="grid grid-cols-[90px_90px_1fr_90px_130px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-tile/40 transition-colors">
+                  <span className="text-xs font-semibold text-ink-2 tabular-nums">{row.date}</span>
+                  <span className={`inline-flex px-2 py-0.5 rounded-full text-[12px] font-semibold w-fit ${ts.bg} ${ts.text}`}>
                     {row.type}
                   </span>
-                  <span className="text-xs font-semibold text-foreground truncate">{row.party}</span>
-                  <div className={`flex items-center gap-1 text-[10px] font-semibold ${row.dir === 'in' ? 'text-emerald-600' : 'text-red-500'}`}>
+                  <span className="text-xs font-semibold text-ink truncate">{row.party}</span>
+                  <div className={`flex items-center gap-1 text-[11.5px] font-semibold ${row.dir === 'in' ? 'text-good-text' : 'text-bad-text'}`}>
                     {row.dir === 'in'
                       ? <ArrowDownLeft size={12} />
                       : <ArrowUpRight size={12} />
                     }
                     {row.dir === 'in' ? 'In' : 'Out'}
                   </div>
-                  <span className={`text-sm font-semibold tabular-nums ${row.dir === 'in' ? 'text-emerald-600' : 'text-red-500'}`}>
+                  <span className={`text-sm font-semibold tabular-nums ${row.dir === 'in' ? 'text-good-text' : 'text-bad-text'}`}>
                     {row.dir === 'in' ? '+' : '-'}{formatCurrency(row.amount)}
                   </span>
                 </div>

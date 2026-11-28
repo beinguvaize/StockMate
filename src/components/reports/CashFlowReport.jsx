@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { isCountableSale } from './reportUtils';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import useDateWindow from './useDateWindow';
 import PremiumReportView from './PremiumReportView';
 import {
@@ -21,13 +22,13 @@ const CashFlowReport = () => {
   // Financial year to date by default. These queries were previously
   // unfiltered and read the whole table on every load.
   const win = useDateWindow('YEAR');
-  const { data: salesRaw, loading: l1 } = useReportData({ table: 'sales', select: 'totalAmount, paymentMethod, date, voided_at, status, paymentStatus', dateColumn: 'date', filters: win.filters });
+  const { data: salesRaw, loading: l1, error: rdErr1, refetch: rdRe1 } = useReportData({ table: 'sales', select: 'totalAmount, paymentMethod, date, voided_at, status, paymentStatus', dateColumn: 'date', filters: win.filters });
   // Voided and cancelled sales are not revenue and were being counted here.
   const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
-  const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: 'amount, category, date', dateColumn: 'date', filters: win.filters });
-  const { data: payroll, loading: l3 } = useReportData({ table: 'payroll', select: 'amount, processed_at', dateColumn: 'processed_at', filters: win.filters });
-  const { data: purchases, loading: l4 } = useReportData({ table: 'purchases', select: 'id, date, total_amount, paid_amount, payment_type', dateColumn: 'date', filters: win.filters });
-  const { data: vehicles, loading: l5 } = useReportData({ table: 'vehicles', select: '*' });
+  const { data: expenses, loading: l2, error: rdErr2, refetch: rdRe2 } = useReportData({ table: 'expenses', select: 'amount, category, date', dateColumn: 'date', filters: win.filters });
+  const { data: payroll, loading: l3, error: rdErr3, refetch: rdRe3 } = useReportData({ table: 'payroll', select: 'amount, processed_at', dateColumn: 'processed_at', filters: win.filters });
+  const { data: purchases, loading: l4, error: rdErr4, refetch: rdRe4 } = useReportData({ table: 'purchases', select: 'id, date, total_amount, paid_amount, payment_type', dateColumn: 'date', filters: win.filters });
+  const { data: vehicles, loading: l5, error: rdErr5, refetch: rdRe5 } = useReportData({ table: 'vehicles', select: '*' });
 
   const loading = l1 || l2 || l3 || l4 || l5;
 
@@ -163,13 +164,13 @@ const CashFlowReport = () => {
 
   const renderSectionBadge = (val) => {
     const colors = {
-      OPERATING: 'bg-emerald-50 text-emerald-600',
-      INVESTING: 'bg-accent-signature/10 text-accent-signature',
-      FINANCING: 'bg-accent-signature/10 text-accent-signature',
+      OPERATING: 'bg-good-soft text-good-text',
+      INVESTING: 'bg-accent-signature/10 text-amber-text',
+      FINANCING: 'bg-accent-signature/10 text-amber-text',
       SUMMARY: 'bg-ink-primary text-white',
     };
     return (
-      <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-semibold uppercase ${colors[val] || 'bg-muted text-ink-secondary'}`}>
+      <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[12px] font-semibold uppercase ${colors[val] || 'bg-muted text-ink-2'}`}>
         {val}
       </span>
     );
@@ -187,7 +188,7 @@ const CashFlowReport = () => {
       {
         key: 'label', label: 'Line Item', sortable: false, width: 420,
         render: (val, row) => (
-          <span className={`${row.isSubtotal ? 'font-semibold text-foreground uppercase tracking-tight' : 'font-semibold text-ink-secondary'} ${row.isTotal ? 'text-[13px]' : 'text-[11px]'}`}>
+          <span className={`${row.isSubtotal ? 'font-semibold text-ink uppercase tracking-tight' : 'font-semibold text-ink-2'} ${row.isTotal ? 'text-[13px]' : 'text-[12px]'}`}>
             {val}
           </span>
         ),
@@ -195,7 +196,7 @@ const CashFlowReport = () => {
       {
         key: 'amount', label: 'Amount', type: 'currency', align: 'right', sortable: false, width: 200,
         render: (val, row) => {
-          const cls = val > 0 ? 'text-emerald-600' : val < 0 ? 'text-rose-500' : 'text-muted-foreground';
+          const cls = val > 0 ? 'text-good-text' : val < 0 ? 'text-bad-text' : 'text-body';
           return (
             <span className={`${row.isSubtotal ? 'font-semibold' : 'font-semibold'} ${cls} ${row.isTotal ? 'text-[14px]' : ''}`}>
               {formatINR(val)}
@@ -206,8 +207,8 @@ const CashFlowReport = () => {
       { key: 'direction', label: 'Flow', width: 100, render: (val, row) => {
         if (row.isSubtotal) return null;
         return val === 'IN'
-          ? <ArrowDownCircle size={16} className="text-emerald-500" />
-          : <ArrowUpCircle size={16} className="text-rose-500" />;
+          ? <ArrowDownCircle size={16} className="text-good-text" />
+          : <ArrowUpCircle size={16} className="text-bad-text" />;
       }},
     ],
     kpis: kpis,
@@ -229,7 +230,7 @@ const CashFlowReport = () => {
     ],
   };
 
-  return <PremiumReportView dateWindow={win} title="Cash Flow" tabs={[cashTab]} />;
+  return <PremiumReportView error={loadError(rdErr1, rdErr2, rdErr3, rdErr4, rdErr5)} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); rdRe4(); rdRe5(); }} dateWindow={win} title="Cash Flow" tabs={[cashTab]} />;
 };
 
 export default CashFlowReport;

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { isCountableSale } from './reportUtils';
 import { useTenant } from '../../context/TenantContext';
 import useReportData from './useReportData';
+import { loadError } from '../../lib/reportsView';
 import PremiumReportView from './PremiumReportView';
 import ReportPeriodBar, { useReportPeriod } from './ReportPeriodBar';
 import {
@@ -57,7 +58,7 @@ const ExportMenu = ({ gstr1, gstin }) => {
     <div className="relative no-print">
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white text-[11px] font-semibold transition-colors"
+        className="flex items-center gap-1.5 px-3 py-2 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white text-[12px] font-semibold transition-colors"
       >
         <Download size={13} /> Export <ChevronDown size={11} className={open ? 'rotate-180' : ''} />
       </button>
@@ -65,19 +66,19 @@ const ExportMenu = ({ gstr1, gstin }) => {
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div className="absolute right-0 top-10 z-20 w-56 bg-card rounded-[10px] border border-black/8 shadow-xl py-1.5 overflow-hidden">
-            <div className="px-3 py-1.5 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
+            <div className="px-3 py-1.5 text-[12px] font-semibold uppercase tracking-[0.07em] text-body">
               Portal Upload
             </div>
             <button
               onClick={() => { downloadGSTR1Excel(gstr1, { gstin: gstin || 'export', fp: currentFP() }); setOpen(false); }}
               className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-accent-signature/10 text-left transition-colors"
             >
-              <span className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600">
+              <span className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center text-good-text">
                 <Download size={12} />
               </span>
               <div>
-                <div className="text-[11px] font-semibold text-foreground">Excel Workbook (Offline Tool)</div>
-                <div className="text-[9px] text-muted-foreground">b2b · b2cl · b2cs · hsn · docs sheets</div>
+                <div className="text-[12px] font-semibold text-ink">Excel Workbook (Offline Tool)</div>
+                <div className="text-[12px] text-body">b2b · b2cl · b2cs · hsn · docs sheets</div>
               </div>
             </button>
             <button
@@ -88,24 +89,24 @@ const ExportMenu = ({ gstr1, gstin }) => {
                 <Download size={12} />
               </span>
               <div>
-                <div className="text-[11px] font-semibold text-foreground">Share with CA (WhatsApp)</div>
-                <div className="text-[9px] text-muted-foreground">Summary message — attach files after</div>
+                <div className="text-[12px] font-semibold text-ink">Share with CA (WhatsApp)</div>
+                <div className="text-[12px] text-body">Summary message — attach files after</div>
               </div>
             </button>
             <button
               onClick={handlePortalJSON}
               className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-accent-signature/10 text-left transition-colors"
             >
-              <span className="w-6 h-6 rounded-lg bg-accent-signature/15 flex items-center justify-center text-accent-signature">
+              <span className="w-6 h-6 rounded-lg bg-accent-signature/15 flex items-center justify-center text-amber-text">
                 <Download size={12} />
               </span>
               <div>
-                <div className="text-[11px] font-semibold text-foreground">Download Portal JSON</div>
-                <div className="text-[9px] text-muted-foreground">Upload directly to GST Portal</div>
+                <div className="text-[12px] font-semibold text-ink">Download Portal JSON</div>
+                <div className="text-[12px] text-body">Upload directly to GST Portal</div>
               </div>
             </button>
             <div className="border-t border-border/60 mt-1 pt-1">
-              <div className="px-3 py-1.5 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
+              <div className="px-3 py-1.5 text-[12px] font-semibold uppercase tracking-[0.07em] text-body">
                 CSV Downloads
               </div>
               {[
@@ -119,10 +120,10 @@ const ExportMenu = ({ gstr1, gstin }) => {
                   onClick={() => handleCSV(s.key, s.key.toUpperCase())}
                   className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted text-left transition-colors"
                 >
-                  <span className="w-6 h-6 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
+                  <span className="w-6 h-6 rounded-lg bg-muted flex items-center justify-center text-body">
                     <FileText size={11} />
                   </span>
-                  <span className="text-[11px] font-semibold text-foreground">{s.label}</span>
+                  <span className="text-[12px] font-semibold text-ink">{s.label}</span>
                 </button>
               ))}
             </div>
@@ -150,12 +151,12 @@ const GSTR1Report = () => {
   const period = useReportPeriod('THIS_MONTH');
   const dateRange = { start: period.range.from, end: period.range.to };
 
-  const { data: salesRaw,    loading: l1 } = useReportData({ table: 'sales',    select: '*', dateColumn: 'date', filters: { dateRange } });
+  const { data: salesRaw,    loading: l1, error: rdErr1, refetch: rdRe1 } = useReportData({ table: 'sales',    select: '*', dateColumn: 'date', filters: { dateRange } });
   // Voided and cancelled sales are not revenue and were being counted here.
   const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
-  const { data: clients,  loading: l2 } = useReportData({ table: 'clients',  select: '*', nullFilters: { deleted_at: null } });
+  const { data: clients,  loading: l2, error: rdErr2, refetch: rdRe2 } = useReportData({ table: 'clients',  select: '*', nullFilters: { deleted_at: null } });
   // Invoices have pre-computed cgst_amount/sgst_amount/igst_amount — use as primary source
-  const { data: invoices, loading: l3 } = useReportData({
+  const { data: invoices, loading: l3, error: rdErr3, refetch: rdRe3 } = useReportData({
     table: 'invoices',
     select: 'id, sale_id, client_id, client_name, invoice_number, invoice_date, date, taxable_amount, cgst_amount, sgst_amount, igst_amount, grand_total, is_interstate, items',
     dateColumn: 'date',
@@ -198,20 +199,20 @@ const GSTR1Report = () => {
     },
     columns: [
       { key: 'gstin', label: 'Recipient GSTIN', sortable: true, width: 170,
-        render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 font-semibold">{val || '—'}</span> },
+        render: (val) => <span className="tabular-nums text-[11.5px] bg-tile px-2 py-0.5 rounded border border-border/60 font-semibold">{val || '—'}</span> },
       { key: 'invoiceNo', label: 'Invoice #', sortable: true, width: 130,
-        render: (val) => <span className="tabular-nums text-[10px] font-semibold text-foreground">{val}</span> },
+        render: (val) => <span className="tabular-nums text-[11.5px] font-semibold text-ink">{val}</span> },
       { key: 'date', label: 'Invoice Date', type: 'date', sortable: true, width: 130 },
       { key: 'invoiceValue', label: 'Invoice Value', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => formatINR(val) },
       { key: 'placeOfSupply', label: 'Place of Supply', width: 180,
-        render: (val) => <span className="text-[10px] font-semibold text-muted-foreground">{val || '—'}</span> },
-      { key: 'reverseCharge', label: 'RCM', width: 80, render: (val) => <span className="tabular-nums text-[10px]">{val}</span> },
-      { key: 'invoiceType', label: 'Type', width: 110, render: (val) => <span className="text-[10px] font-semibold text-muted-foreground">{val}</span> },
+        render: (val) => <span className="text-[11.5px] font-semibold text-body">{val || '—'}</span> },
+      { key: 'reverseCharge', label: 'RCM', width: 80, render: (val) => <span className="tabular-nums text-[11.5px]">{val}</span> },
+      { key: 'invoiceType', label: 'Type', width: 110, render: (val) => <span className="text-[11.5px] font-semibold text-body">{val}</span> },
       { key: 'taxRate', label: 'Rate %', align: 'right', width: 90, render: (val) => <span className="tabular-nums font-semibold">{val}%</span> },
       { key: 'taxable', label: 'Taxable', type: 'currency', align: 'right', sortable: true, width: 140, render: (val) => formatINR(val) },
-      { key: 'cgst', label: 'CGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-semibold text-accent-signature">{formatINR(val)}</span> : '—' },
-      { key: 'sgst', label: 'SGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-semibold text-sky-600">{formatINR(val)}</span> : '—' },
-      { key: 'igst', label: 'IGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-semibold text-rose-500">{formatINR(val)}</span> : '—' },
+      { key: 'cgst', label: 'CGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-semibold text-amber-text">{formatINR(val)}</span> : '—' },
+      { key: 'sgst', label: 'SGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-semibold text-info-text">{formatINR(val)}</span> : '—' },
+      { key: 'igst', label: 'IGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-semibold text-bad-text">{formatINR(val)}</span> : '—' },
     ],
     kpis,
     detailFields: [
@@ -246,7 +247,7 @@ const GSTR1Report = () => {
       { key: 'placeOfSupply', label: 'Place of Supply', width: 180 },
       { key: 'taxRate', label: 'Rate %', align: 'right', width: 90, render: (val) => `${val}%` },
       { key: 'taxable', label: 'Taxable', type: 'currency', align: 'right', width: 140, render: (val) => formatINR(val) },
-      { key: 'igst', label: 'IGST', type: 'currency', align: 'right', width: 130, render: (val) => <span className="font-semibold text-rose-500">{formatINR(val)}</span> },
+      { key: 'igst', label: 'IGST', type: 'currency', align: 'right', width: 130, render: (val) => <span className="font-semibold text-bad-text">{formatINR(val)}</span> },
       { key: 'cess', label: 'Cess', type: 'currency', align: 'right', width: 100 },
     ],
     kpis,
@@ -276,18 +277,18 @@ const GSTR1Report = () => {
     columns: [
       { key: 'type', label: 'Type', sortable: true, width: 140,
         render: (val) => (
-          <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-semibold uppercase ${
-            val === 'Inter-State' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
+          <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[12px] font-semibold uppercase ${
+            val === 'Inter-State' ? 'bg-bad-soft text-bad-text' : 'bg-good-soft text-good-text'
           }`}>{val}</span>
         ) },
       { key: 'state', label: 'State', sortable: true, width: 180,
-        render: (val, row) => <span className="font-semibold text-foreground">{row.stateCode ? `${row.stateCode} - ` : ''}{val}</span> },
+        render: (val, row) => <span className="font-semibold text-ink">{row.stateCode ? `${row.stateCode} - ` : ''}{val}</span> },
       { key: 'taxRate', label: 'Rate %', align: 'right', sortable: true, width: 100, render: (val) => <span className="tabular-nums font-semibold">{val}%</span> },
       { key: 'invoices', label: 'Invoices', align: 'right', sortable: true, width: 110 },
       { key: 'taxable', label: 'Taxable', type: 'currency', align: 'right', sortable: true, width: 140, render: (val) => formatINR(val) },
-      { key: 'cgst', label: 'CGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-semibold text-accent-signature">{formatINR(val)}</span> : '—' },
-      { key: 'sgst', label: 'SGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-semibold text-sky-600">{formatINR(val)}</span> : '—' },
-      { key: 'igst', label: 'IGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-semibold text-rose-500">{formatINR(val)}</span> : '—' },
+      { key: 'cgst', label: 'CGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-semibold text-amber-text">{formatINR(val)}</span> : '—' },
+      { key: 'sgst', label: 'SGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-semibold text-info-text">{formatINR(val)}</span> : '—' },
+      { key: 'igst', label: 'IGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-semibold text-bad-text">{formatINR(val)}</span> : '—' },
     ],
     kpis,
     detailFields: [
@@ -319,16 +320,16 @@ const GSTR1Report = () => {
     },
     columns: [
       { key: 'hsn', label: 'HSN / SAC', sortable: true, width: 130,
-        render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 font-semibold">{val}</span> },
+        render: (val) => <span className="tabular-nums text-[11.5px] bg-tile px-2 py-0.5 rounded border border-border/60 font-semibold">{val}</span> },
       { key: 'description', label: 'Description', width: 220,
-        render: (val) => <span className="text-[10px] font-semibold text-muted-foreground">{val || '—'}</span> },
-      { key: 'uqc', label: 'UQC', width: 80, render: (val) => <span className="tabular-nums text-[10px] font-semibold">{val}</span> },
+        render: (val) => <span className="text-[11.5px] font-semibold text-body">{val || '—'}</span> },
+      { key: 'uqc', label: 'UQC', width: 80, render: (val) => <span className="tabular-nums text-[11.5px] font-semibold">{val}</span> },
       { key: 'qty', label: 'Qty', align: 'right', sortable: true, width: 100, render: (val) => <span className="tabular-nums">{val}</span> },
       { key: 'taxRate', label: 'Rate %', align: 'right', sortable: true, width: 90, render: (val) => `${val}%` },
       { key: 'taxable', label: 'Taxable', type: 'currency', align: 'right', sortable: true, width: 140, render: (val) => formatINR(val) },
-      { key: 'cgst', label: 'CGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-semibold text-accent-signature">{formatINR(val)}</span> : '—' },
-      { key: 'sgst', label: 'SGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-semibold text-sky-600">{formatINR(val)}</span> : '—' },
-      { key: 'igst', label: 'IGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-semibold text-rose-500">{formatINR(val)}</span> : '—' },
+      { key: 'cgst', label: 'CGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-semibold text-amber-text">{formatINR(val)}</span> : '—' },
+      { key: 'sgst', label: 'SGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-semibold text-info-text">{formatINR(val)}</span> : '—' },
+      { key: 'igst', label: 'IGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-semibold text-bad-text">{formatINR(val)}</span> : '—' },
       { key: 'totalValue', label: 'Total Value', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => <span className="font-semibold">{formatINR(val)}</span> },
     ],
     kpis,
@@ -361,14 +362,14 @@ const GSTR1Report = () => {
     },
     columns: [
       { key: 'natureOfDoc', label: 'Nature of Document', width: 320,
-        render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span> },
+        render: (val) => <span className="font-semibold text-ink uppercase tracking-tight">{val}</span> },
       { key: 'from', label: 'Serial From', width: 180,
-        render: (val) => <span className="tabular-nums text-[10px] font-semibold">{val}</span> },
+        render: (val) => <span className="tabular-nums text-[11.5px] font-semibold">{val}</span> },
       { key: 'to', label: 'Serial To', width: 180,
-        render: (val) => <span className="tabular-nums text-[10px] font-semibold">{val}</span> },
+        render: (val) => <span className="tabular-nums text-[11.5px] font-semibold">{val}</span> },
       { key: 'total', label: 'Total Number', align: 'right', width: 130 },
       { key: 'cancelled', label: 'Cancelled', align: 'right', width: 120 },
-      { key: 'net', label: 'Net Issued', align: 'right', width: 130, render: (val) => <span className="font-semibold text-emerald-600">{val}</span> },
+      { key: 'net', label: 'Net Issued', align: 'right', width: 130, render: (val) => <span className="font-semibold text-good-text">{val}</span> },
     ],
     kpis,
     detailFields: [
@@ -388,26 +389,26 @@ const GSTR1Report = () => {
 
       {/* Compliance banner */}
       <div className="no-print flex items-center gap-3 px-4 py-3 rounded-2xl border border-border/60 shadow-sm bg-accent-signature/10">
-        <FileText className="text-accent-signature" size={20} />
+        <FileText className="text-amber-text" size={20} />
         <div className="flex-1">
-          <div className="text-[11px] font-semibold uppercase tracking-widest text-accent-signature-hover">
+          <div className="text-[12px] font-semibold uppercase tracking-[0.07em] text-amber-text">
             GSTR-1 · Outward Supplies Return · Business State: {businessState}
           </div>
-          <div className="text-[10px] font-semibold text-muted-foreground mt-0.5 tabular-nums">
-            Total Turnover: <span className="font-semibold text-foreground tabular-nums">{formatINR(gstr1.totals.taxable)}</span>
+          <div className="text-[11.5px] font-semibold text-body mt-0.5 tabular-nums">
+            Total Turnover: <span className="font-semibold text-ink tabular-nums">{formatINR(gstr1.totals.taxable)}</span>
             {' · '}
-            Tax Liability: <span className="font-semibold text-rose-600 tabular-nums">{formatINR(gstr1.totals.cgst + gstr1.totals.sgst + gstr1.totals.igst)}</span>
+            Tax Liability: <span className="font-semibold text-bad-text tabular-nums">{formatINR(gstr1.totals.cgst + gstr1.totals.sgst + gstr1.totals.igst)}</span>
             {' · '}
             <span className="tabular-nums">{gstr1.totals.invoiceCount}</span> Invoices
             {businessGSTIN && (
-              <span className="ml-2 tabular-nums text-accent-signature">· GSTIN: {businessGSTIN}</span>
+              <span className="ml-2 tabular-nums text-amber-text">· GSTIN: {businessGSTIN}</span>
             )}
           </div>
         </div>
         <ExportMenu gstr1={gstr1} gstin={businessGSTIN} />
       </div>
 
-      <PremiumReportView title="GSTR-1" tabs={[b2bTab, b2clTab, b2csTab, hsnTab, docsTab]} />
+      <PremiumReportView error={loadError(rdErr1, rdErr2, rdErr3)} onRetry={() => { rdRe1(); rdRe2(); rdRe3(); }} title="GSTR-1" tabs={[b2bTab, b2clTab, b2csTab, hsnTab, docsTab]} />
     </div>
   );
 };
