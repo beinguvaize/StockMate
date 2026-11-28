@@ -1,102 +1,72 @@
 /**
- * AuditLog Page
+ * Audit log (web redesign, approved mockups audit-01 to 08).
  *
- * Append-only activity trail viewer for Owners / Global Admins.
- * Reads from the `audit_log` table populated by the `log_audit_event` RPC.
+ * Append-only activity trail for owners and global admins, read from
+ * `audit_log` (written by the `log_audit_event` RPC). Reads only: the same
+ * tenant-scoped, filtered, paged query as before, plus head-only counts for
+ * the figure strip and the shop's login names for the "Who" column.
+ * View rules: lib/auditView.
  */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import {
+  Filter, RefreshCw, Search, X, ChevronDown, ChevronLeft, ChevronRight, ShieldCheck, User, Trash2,
+  RotateCcw, Banknote, CreditCard, Activity, Inbox, AlertTriangle, Lock,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { AUDIT_ACTIONS } from '../lib/auditLog';
-import { SkeletonRows } from '../components/ui/States';
+import { cn } from '../lib/utils';
 import {
-  Shield, Search, Calendar, ChevronDown, ChevronLeft, ChevronRight,
-  RefreshCw, Filter, X, Clock, User, Activity, FileText, AlertTriangle,
-  Info, Eye
-} from 'lucide-react';
+  PAGE_SIZE, actionMeta, actionOptions, blankFilters, activeFilterCount, applyAuditFilters, pageRange, pageNumbers,
+  whenShort, whenLong, relativeTime, entityLine, actorOf, metadataLines, noMatchWords, eventsWord, shortId,
+  weekStartDay, daysBackDay, dayWords, shopDayStartISO, MONEY_ACTIONS, LOGIN_ACTIONS,
+} from '../lib/auditView';
+import { FigureStrip, Figure, Eyebrow } from '../components/ui/FigureStrip';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 
-/* ─── constants ─── */
-const PAGE_SIZE = 25;
-
-const ACTION_META = {
-  [AUDIT_ACTIONS.ROLE_CHANGE]:       { label: 'Role Change',       color: 'purple', icon: Shield },
-  [AUDIT_ACTIONS.PERMISSION_CHANGE]: { label: 'Permission Change', color: 'indigo', icon: Shield },
-  [AUDIT_ACTIONS.USER_CREATE]:       { label: 'User Created',      color: 'emerald', icon: User },
-  [AUDIT_ACTIONS.USER_DELETE]:       { label: 'User Deleted',      color: 'red',    icon: User },
-  [AUDIT_ACTIONS.SALE_DELETE]:       { label: 'Sale Deleted',      color: 'amber',  icon: FileText },
-  [AUDIT_ACTIONS.SALE_REFUND]:       { label: 'Sale Refund',       color: 'orange', icon: FileText },
-  [AUDIT_ACTIONS.PAYROLL_PROCESS]:   { label: 'Payroll Processed', color: 'blue',   icon: Activity },
-  [AUDIT_ACTIONS.PAYROLL_DELETE]:    { label: 'Payroll Deleted',   color: 'rose',   icon: Activity },
-  [AUDIT_ACTIONS.TENANT_PLAN_CHANGE]:{ label: 'Plan Change',       color: 'teal',   icon: AlertTriangle },
+const ICONS = { refund: RotateCcw, shield: ShieldCheck, trash: Trash2, pay: Banknote, user: User, plan: CreditCard, event: Activity };
+const TONE = {
+  rd: 'bg-bad-soft text-bad-text', am: 'bg-amber-soft text-amber-text', bl: 'bg-info-soft text-info-text', gr: 'bg-good-soft text-good-text', '': 'bg-tile text-ink-2',
 };
+const GRID = 'grid grid-cols-[36px_150px_minmax(0,1fr)_210px_120px_28px] items-center gap-3.5 px-[18px]';
 
-const colorMap = {
-  purple:  'bg-purple-50  text-purple-700  border-purple-200',
-  indigo:  'bg-accent-signature/10  text-accent-signature-hover  border-accent-signature/25',
-  emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  red:     'bg-red-50     text-red-700     border-red-200',
-  amber:   'bg-accent-signature/10   text-accent-signature-hover   border-accent-signature/25',
-  orange:  'bg-orange-50  text-orange-700  border-orange-200',
-  blue:    'bg-blue-50    text-blue-700    border-blue-200',
-  rose:    'bg-rose-50    text-rose-700    border-rose-200',
-  teal:    'bg-teal-50    text-teal-700    border-teal-200',
-  gray:    'bg-muted    text-ink-secondary    border-border',
-};
+const Empty = ({ icon: Icon, title, children, action, danger, className }) => (
+  <div className={cn('px-5 pt-14 pb-[60px] text-center', className)}>
+    <div className={cn('mx-auto mb-3.5 grid h-[52px] w-[52px] place-items-center rounded-2xl', danger ? 'bg-bad-soft text-bad-text' : 'bg-tile text-body')}>
+      <Icon size={24} strokeWidth={1.7} />
+    </div>
+    <h4 className="font-tight text-[17px] font-semibold">{title}</h4>
+    <p className="mx-auto mt-1 mb-4 max-w-[440px] text-[13.5px] text-body">{children}</p>
+    {action}
+  </div>
+);
 
-/* ─── helpers ─── */
-const fmtDate = (iso) => {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-};
-
-const fmtTime = (iso) => {
-  if (!iso) return '';
-  return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-};
-
-const relativeTime = (iso) => {
-  if (!iso) return '';
-  const diff = Date.now() - new Date(iso).getTime();
-  const sec = Math.floor(diff / 1000);
-  if (sec < 60) return 'just now';
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  const days = Math.floor(hr / 24);
-  return `${days}d ago`;
-};
-
-/* ═══════════════════════════════════════════════════════════════ */
 const AuditLog = () => {
   const { currentUser } = useAuth();
-  const { currentTenantId } = useTenant();
+  const { currentTenantId, currentTenant, businessProfile } = useTenant();
 
-  /* ── access gate ── */
   const roles = currentUser?.roles || (currentUser?.role ? [currentUser.role] : []);
   const isOwner = roles.includes('OWNER') || roles.includes('GLOBAL_ADMIN');
+  const shopName = businessProfile?.name || currentTenant?.name || 'This shop';
 
-  /* ── state ── */
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(0);
-
-  // filters
-  const [search, setSearch] = useState('');
-  const [actionFilter, setActionFilter] = useState('ALL');
-  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [filters, setFilters] = useState(blankFilters);
   const [showFilters, setShowFilters] = useState(false);
-
-  // detail panel
   const [expandedId, setExpandedId] = useState(null);
+  const [strip, setStrip] = useState(null);       // { all, week, money, logins } or null while loading
+  const [names, setNames] = useState({});
 
-  /* ── fetch ── */
+  const setFilter = (k, v) => { setFilters((f) => ({ ...f, [k]: v })); setPage(0); };
+
   const fetchLogs = useCallback(async () => {
     if (!isSupabaseConfigured || !isOwner || !currentTenantId) return;
     setLoading(true);
+    setLoadError(null);
     try {
       // Filter by tenant explicitly. The audit_log RLS policy reads
       // `is_global_admin() OR tenant_id = current_tenant_id()`, so a global
@@ -107,364 +77,241 @@ const AuditLog = () => {
         .select('*', { count: 'exact' })
         .eq('tenant_id', currentTenantId)
         .order('created_at', { ascending: false });
-
-      // action filter
-      if (actionFilter !== 'ALL') {
-        query = query.eq('action', actionFilter);
-      }
-
-      // date range
-      if (dateRange.start) {
-        query = query.gte('created_at', `${dateRange.start}T00:00:00`);
-      }
-      if (dateRange.end) {
-        query = query.lte('created_at', `${dateRange.end}T23:59:59`);
-      }
-
-      // search (actor_email or summary)
-      if (search.trim()) {
-        const term = `%${search.trim()}%`;
-        query = query.or(`actor_email.ilike.${term},summary.ilike.${term}`);
-      }
-
-      // pagination
-      const from = page * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-      query = query.range(from, to);
-
-      const { data, error, count } = await query;
+      query = applyAuditFilters(query, filters);
+      const { from, to } = pageRange(page);
+      const { data, error, count } = await query.range(from, to);
       if (error) throw error;
       setRows(data || []);
       setTotalCount(count || 0);
     } catch (err) {
-      console.error('[AuditLog] fetch error', err);
+      console.error('[AuditLog] fetch error', err?.message || err);
       setRows([]);
+      setLoadError(err);
     } finally {
       setLoading(false);
     }
-  }, [currentTenantId, isOwner, actionFilter, dateRange, search, page]);
+  }, [currentTenantId, isOwner, filters, page]);
+
+  // Figure strip: head-only counts, never rows. A failed count shows a dash.
+  const fetchStrip = useCallback(async () => {
+    if (!isSupabaseConfigured || !isOwner || !currentTenantId) return;
+    setStrip(null);
+    const base = () => supabase.from('audit_log').select('id', { count: 'exact', head: true }).eq('tenant_id', currentTenantId);
+    const weekFrom = shopDayStartISO(weekStartDay());
+    const monthFrom = shopDayStartISO(daysBackDay(30));
+    const settle = async (q) => { try { const { count, error } = await q; return error ? null : (count ?? 0); } catch { return null; } };
+    const [all, week, money, logins] = await Promise.all([
+      settle(base()),
+      settle(base().gte('created_at', weekFrom)),
+      settle(base().gte('created_at', monthFrom).in('action', MONEY_ACTIONS)),
+      settle(base().gte('created_at', monthFrom).in('action', LOGIN_ACTIONS)),
+    ]);
+    setStrip({ all, week, money, logins });
+  }, [currentTenantId, isOwner]);
+
+  // Names for the "Who" column. Display only; an email shows if this fails.
+  useEffect(() => {
+    if (!isSupabaseConfigured || !isOwner || !currentTenantId) return;
+    let live = true;
+    (async () => {
+      try {
+        const { data, error } = await supabase.from('users').select('id, name').eq('tenant_id', currentTenantId);
+        if (!error && live) setNames(Object.fromEntries((data || []).filter((u) => u.name).map((u) => [u.id, u.name])));
+      } catch { /* the email is shown instead */ }
+    })();
+    return () => { live = false; };
+  }, [currentTenantId, isOwner]);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
+  useEffect(() => { fetchStrip(); }, [fetchStrip]);
 
-  // Reset page when filters change
-  useEffect(() => { setPage(0); }, [actionFilter, dateRange, search]);
-
+  const refresh = () => { fetchLogs(); fetchStrip(); };
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const options = useMemo(() => actionOptions(), []);
+  const nFilters = activeFilterCount(filters);
+  const clearFilters = () => { setFilters(blankFilters()); setPage(0); };
 
-  const actionOptions = useMemo(() =>
-    Object.entries(ACTION_META).map(([value, { label }]) => ({ value, label })),
-  []);
-
-  const activeFilterCount = [
-    actionFilter !== 'ALL',
-    !!dateRange.start,
-    !!dateRange.end,
-    !!search.trim(),
-  ].filter(Boolean).length;
-
-  const clearFilters = () => {
-    setSearch('');
-    setActionFilter('ALL');
-    setDateRange({ start: '', end: '' });
-  };
-
-  /* ── access denied ── */
   if (!isOwner) {
     return (
-      <div className="flex flex-col items-center justify-center py-32 opacity-20">
-        <Shield size={64} strokeWidth={1} />
-        <p className="text-sm font-black uppercase mt-6 tracking-widest text-center">
-          Access Denied<br />Owner Clearance Required
-        </p>
-      </div>
+      <Empty icon={Lock} title="The audit log is for the owner" className="pt-[120px]"
+        action={<Button variant="secondary" onClick={() => window.history.back()}>Go back</Button>}>
+        It lists who changed what in the shop. Ask the owner if you need something checked.
+      </Empty>
     );
   }
 
-  /* ── render ── */
+  const neverAny = !loading && !loadError && rows.length === 0 && nFilters === 0 && page === 0;
+  const showStrip = !loadError && !neverAny;
+  const dash = (v) => (strip === null || v === null || v === undefined ? '—' : v.toLocaleString('en-IN'));
+  const weekDay = weekStartDay();
+
   return (
-    <div className="animate-fade-in flex flex-col gap-6 pb-20">
+    <div className="flex flex-col pb-16">
+      {showStrip && (
+        <FigureStrip cols={4} className="m-rise mb-5">
+          <Figure label="Events" value={dash(strip?.all)} sub="all time" />
+          <Figure label="This week" value={dash(strip?.week)} sub={`since ${dayWords(weekDay, { weekday: true })}`} />
+          <Figure label="Money changes" value={dash(strip?.money)} sub="refunds, voids, payroll, last 30 days" />
+          <Figure label="Logins and roles" value={dash(strip?.logins)} sub="created, role, permission, last 30 days" />
+        </FigureStrip>
+      )}
 
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-2 uppercase">
-            AUDIT LOG<span className="text-accent-signature">.</span>
-          </h1>
-          <div className="flex items-center gap-3">
-            <div className="w-1.5 h-4 bg-accent-signature rounded-full animate-pulse" />
-            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
-              Immutable Activity Trail — {totalCount} Event{totalCount !== 1 ? 's' : ''}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Filter toggle */}
-          <button
-            onClick={() => setShowFilters(s => !s)}
-            className={`
-              flex items-center gap-2 px-5 py-2.5 rounded-pill border text-[10px] font-black uppercase tracking-widest transition-all
-              ${showFilters || activeFilterCount > 0
-                ? 'bg-ink-primary text-white border-ink-primary shadow-lg'
-                : 'bg-white border-black/5 text-muted-foreground hover:border-black/10 hover:shadow-premium'}
-            `}
-          >
-            <Filter size={14} />
-            Filters
-            {activeFilterCount > 0 && (
-              <span className="ml-1 w-5 h-5 rounded-full bg-accent-signature text-button-text flex items-center justify-center text-[9px] font-black">
-                {activeFilterCount}
-              </span>
-            )}
-          </button>
-
-          {/* Refresh */}
-          <button
-            onClick={fetchLogs}
-            disabled={loading}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-pill bg-white border border-black/5 text-[10px] font-black text-muted-foreground uppercase tracking-widest hover:shadow-premium transition-all disabled:opacity-40"
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            Refresh
-          </button>
-        </div>
+      <div className="m-rise mb-3 flex flex-wrap items-center gap-2.5" style={{ '--i': 1 }}>
+        <span className="text-[13px] text-mute">Owners only. Kept for every change listed below; nothing here can be edited or deleted.</span>
+        <div className="flex-1" />
+        <Button variant={showFilters || nFilters > 0 ? 'dark' : 'secondary'} size="sm" aria-expanded={showFilters}
+          onClick={() => setShowFilters((s) => !s)}>
+          <Filter /> Filters
+          {nFilters > 0 && <span className="ml-0.5 inline-grid h-[18px] min-w-[18px] place-items-center rounded-pill bg-amber px-[5px] font-tight text-[11px] font-semibold text-white">{nFilters}</span>}
+        </Button>
+        <Button variant="secondary" size="sm" onClick={refresh} disabled={loading}>
+          <RefreshCw className={loading ? 'animate-spin' : ''} /> Refresh
+        </Button>
       </div>
 
-      {/* Filter Bar */}
       {showFilters && (
-        <div className="flex flex-wrap items-center gap-4 bg-white/60 backdrop-blur-xl p-4 rounded-[2rem] border border-black/5 shadow-glass animate-in slide-in-from-top-4 duration-300">
-
-          {/* Search */}
-          <div className="flex items-center gap-2 bg-white border border-border shadow-sm px-4 py-2.5 rounded-pill flex-1 min-w-[220px]">
-            <Search size={14} className="text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search by email or summary…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="bg-transparent border-none text-sm font-medium text-ink-primary outline-none w-full placeholder:text-muted-foreground"
-            />
-            {search && (
-              <button onClick={() => setSearch('')} className="text-muted-foreground hover:text-ink-primary">
-                <X size={14} />
-              </button>
+        <div className="m-rise mb-3 flex flex-wrap items-center gap-2.5 rounded-[14px] border border-line bg-tile p-3">
+          <div className="relative w-full sm:w-[300px]">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-mute" size={16} />
+            <input type="text" aria-label="Search by email or summary" placeholder="Search by email or summary" value={filters.search}
+              onChange={(e) => setFilter('search', e.target.value)}
+              className="h-9 w-full rounded-pill bg-surface pl-10 pr-9 text-[13px] text-ink shadow-[inset_0_0_0_1px_var(--color-line)] outline-none placeholder:text-mute transition-shadow duration-(--dur-press) focus:shadow-[inset_0_0_0_2px_var(--color-ink)]" />
+            {filters.search && (
+              <button type="button" aria-label="Clear search" onClick={() => setFilter('search', '')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-mute hover:text-ink"><X size={14} /></button>
             )}
           </div>
-
-          {/* Action dropdown */}
-          <div className="relative group">
-            <select
-              value={actionFilter}
-              onChange={e => setActionFilter(e.target.value)}
-              className="appearance-none bg-white border border-black/5 px-5 py-2.5 pr-10 rounded-pill text-[10px] font-black uppercase tracking-widest text-ink-primary cursor-pointer hover:shadow-premium transition-all outline-none"
-            >
-              <option value="ALL">All Actions</option>
-              {actionOptions.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
+          <label className="relative inline-flex h-9 items-center gap-1.5 rounded-pill bg-surface pl-3.5 pr-8 font-tight text-[13px] font-semibold text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)]">
+            <em className="not-italic font-medium text-mute">Action</em>
+            <select value={filters.action} onChange={(e) => setFilter('action', e.target.value)} aria-label="Action"
+              className="appearance-none bg-transparent outline-none [field-sizing:content]">
+              <option value="ALL">All</option>
+              {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
-            <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <ChevronDown size={14} className="pointer-events-none absolute right-3 text-mute" />
+          </label>
+          <div className="flex items-center gap-1.5 text-[12.5px] text-mute">
+            <Input type="date" aria-label="From" value={filters.start} onChange={(e) => setFilter('start', e.target.value)} className="h-9 w-auto text-[13px]" />
+            to
+            <Input type="date" aria-label="To" value={filters.end} onChange={(e) => setFilter('end', e.target.value)} className="h-9 w-auto text-[13px]" />
           </div>
-
-          {/* Date range */}
-          <div className="flex items-center gap-2 bg-white border border-black/5 px-4 py-2.5 rounded-pill">
-            <Calendar size={14} className="text-accent-signature" />
-            <input
-              type="date"
-              value={dateRange.start}
-              onChange={e => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-              className="bg-transparent border-none text-[10px] font-black text-ink-primary outline-none uppercase tabular-nums"
-            />
-            <span className="text-muted-foreground font-black px-1">/</span>
-            <input
-              type="date"
-              value={dateRange.end}
-              onChange={e => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-              className="bg-transparent border-none text-[10px] font-black text-ink-primary outline-none uppercase tabular-nums"
-            />
-          </div>
-
-          {/* Clear */}
-          {activeFilterCount > 0 && (
-            <button
-              onClick={clearFilters}
-              className="flex items-center gap-2 text-[10px] font-black text-muted-foreground hover:text-red-500 transition-colors uppercase tracking-widest"
-            >
-              <X size={12} />
-              Clear All
-            </button>
+          <div className="flex-1" />
+          {nFilters > 0 && (
+            <button type="button" onClick={clearFilters} className="font-tight text-[13px] font-semibold text-amber-text hover:underline underline-offset-2">Clear all</button>
           )}
         </div>
       )}
 
-      {/* Table */}
-      <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium">
-        {/* Table header */}
-        <div className="bg-ink-primary px-6 py-4 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-            <Activity size={20} className="text-accent-signature" />
-          </div>
-          <div>
-            <h3 className="text-white font-black text-sm uppercase tracking-widest">Activity Timeline</h3>
-            <p className="text-white/50 text-[10px] font-bold">
-              {totalCount} record{totalCount !== 1 ? 's' : ''} • Page {page + 1} of {Math.max(totalPages, 1)}
-            </p>
-          </div>
-        </div>
-
-        {/* Loading state */}
-        {loading && <SkeletonRows rows={8} />}
-
-        {/* Empty state */}
-        {!loading && rows.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 opacity-40">
-            <Info size={40} strokeWidth={1} />
-            <p className="text-sm font-black uppercase mt-4 tracking-widest">No Events Found</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {activeFilterCount > 0 ? 'Try adjusting your filters' : 'Audit events will appear here as actions occur'}
-            </p>
-          </div>
-        )}
-
-        {/* Rows */}
-        {!loading && rows.length > 0 && (
-          <div className="divide-y divide-black/5">
-            {rows.map(row => {
-              const meta = ACTION_META[row.action] || { label: row.action, color: 'gray', icon: Activity };
-              const IconComponent = meta.icon;
-              const isExpanded = expandedId === row.id;
-              const colors = colorMap[meta.color] || colorMap.gray;
-
+      <div className="m-rise overflow-x-auto rounded-[14px] border border-line bg-surface" style={{ '--i': 2 }}>
+        {loadError ? (
+          <Empty icon={AlertTriangle} danger title="The audit log could not be loaded"
+            action={<Button variant="secondary" onClick={refresh}><RefreshCw /> Try again</Button>}>
+            The server did not answer: {String(loadError?.message || loadError || 'no reason given')}. Nothing is wrong with your records.
+          </Empty>
+        ) : neverAny ? (
+          <Empty icon={Inbox} title="No events yet">
+            Role changes, new logins, refunds, voided bills and payroll runs appear here as they happen.
+          </Empty>
+        ) : !loading && rows.length === 0 ? (
+          <Empty icon={Search} title="Nothing matches these filters"
+            action={<Button variant="secondary" onClick={clearFilters}>Clear filters</Button>}>
+            {noMatchWords(filters)}
+          </Empty>
+        ) : (
+          <div className="min-w-[760px]">
+            <div className={cn(GRID, 'py-2.5 font-tight text-[12px] font-semibold text-mute')}>
+              <span /><span>Action</span><span>What happened</span><span>Who</span><span>When</span><span />
+            </div>
+            {loading ? Array.from({ length: 8 }, (_, i) => (
+              <div key={i} className={cn(GRID, 'border-t border-sep py-3')} aria-hidden="true">
+                <span className="h-8 w-8 rounded-[10px] bg-tile" />
+                <span className="h-3 w-[110px] animate-pulse rounded-md bg-well" />
+                <span className="h-3 animate-pulse rounded-md bg-well" style={{ width: `${[80, 62, 74, 55, 70, 66, 58, 77][i]}%` }} />
+                <span className="h-3 w-[130px] animate-pulse rounded-md bg-well" />
+                <span className="h-3 w-20 animate-pulse rounded-md bg-well" />
+                <span />
+              </div>
+            )) : rows.map((row) => {
+              const meta = actionMeta(row.action);
+              const Icon = ICONS[meta.icon] || Activity;
+              const open = expandedId === row.id;
+              const who = actorOf(row, names);
+              const long = whenLong(row.created_at);
+              const details = metadataLines(row.metadata);
               return (
-                <div key={row.id} className="group">
-                  <button
-                    onClick={() => setExpandedId(isExpanded ? null : row.id)}
-                    className="w-full text-left px-6 py-4 flex items-center gap-4 hover:bg-canvas/50 transition-all"
-                  >
-                    {/* Icon */}
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${colors}`}>
-                      <IconComponent size={18} />
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-pill border ${colors}`}>
-                          {meta.label}
-                        </span>
-                        {row.entity_type && (
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase">
-                            {row.entity_type}
-                            {row.entity_id ? ` #${row.entity_id.slice(0, 8)}` : ''}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm font-medium text-ink-primary mt-1 truncate">{row.summary || '—'}</p>
-                    </div>
-
-                    {/* Actor */}
-                    <div className="hidden md:flex flex-col items-end shrink-0">
-                      <span className="text-[11px] font-bold text-ink-primary">{row.actor_email || 'System'}</span>
-                      <span className="text-[10px] text-muted-foreground">{relativeTime(row.created_at)}</span>
-                    </div>
-
-                    {/* Expand */}
-                    <div className="shrink-0 text-muted-foreground group-hover:text-muted-foreground transition-colors">
-                      <Eye size={16} />
-                    </div>
+                <React.Fragment key={row.id}>
+                  <button type="button" aria-expanded={open} onClick={() => setExpandedId(open ? null : row.id)}
+                    className={cn(GRID, 'w-full border-t border-sep py-3 text-left transition-colors duration-(--dur-press) hover:bg-tile', open && 'bg-tile')}>
+                    <span className={cn('grid h-8 w-8 place-items-center rounded-[10px]', TONE[meta.tone])}><Icon size={15} strokeWidth={1.9} /></span>
+                    <span className="justify-self-start whitespace-nowrap rounded-pill bg-well px-[9px] py-[3px] font-tight text-[11.5px] font-semibold text-body">{meta.label}</span>
+                    <span className="min-w-0">
+                      <b className="block truncate text-[13.5px] font-medium text-ink">{row.summary || '—'}</b>
+                      {entityLine(row) && <small className="text-[12px] text-mute">{entityLine(row)}</small>}
+                    </span>
+                    <span className="min-w-0">
+                      <b className="block truncate font-tight text-[13px] font-semibold text-ink">{who.name}</b>
+                      {who.sub && <small className="block truncate text-[12px] text-mute">{who.sub}</small>}
+                    </span>
+                    <span className="font-tight text-[12.5px] font-medium tabular-nums text-ink-2">
+                      {whenShort(row.created_at)}
+                      <small className="block font-medium text-mute">{relativeTime(row.created_at)}</small>
+                    </span>
+                    <ChevronDown size={15} aria-hidden="true" className={cn('chevron-turn text-mute', open && 'rotate-180')} />
                   </button>
-
-                  {/* Expanded Detail */}
-                  {isExpanded && (
-                    <div className="px-6 pb-5 animate-in slide-in-from-top-2 duration-200">
-                      <div className="bg-canvas rounded-2xl p-5 ml-14 border border-black/5">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                          <div>
-                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Actor</p>
-                            <p className="text-sm font-bold text-ink-primary">{row.actor_email || '—'}</p>
-                            <p className="text-[10px] text-muted-foreground tabular-nums">{row.actor_id || '—'}</p>
-                          </div>
-                          <div>
-                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Timestamp</p>
-                            <p className="text-sm font-bold text-ink-primary">{fmtDate(row.created_at)}</p>
-                            <p className="text-[10px] text-muted-foreground">{fmtTime(row.created_at)}</p>
-                          </div>
-                          <div>
-                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Tenant</p>
-                            <p className="text-[10px] text-muted-foreground tabular-nums">{row.tenant_id || '—'}</p>
-                          </div>
+                  {open && (
+                    <div className="bg-tile px-[18px] pt-1 pb-[18px] pl-[68px]">
+                      <div className="mb-3 grid grid-cols-3 gap-3">
+                        <div className="rounded-xl border border-line bg-surface px-3 py-2.5">
+                          <Eyebrow>Done by</Eyebrow>
+                          <b className="mt-0.5 block font-tight text-[13.5px] font-semibold">{who.name}</b>
+                          <small className="block text-[12px] tabular-nums text-mute" title={row.actor_id || undefined}>
+                            {[row.actor_email && who.name !== row.actor_email ? row.actor_email : null, row.actor_id ? `id ${shortId(row.actor_id)}` : null].filter(Boolean).join(' · ') || '—'}
+                          </small>
                         </div>
-
-                        {/* Metadata JSON */}
-                        {row.metadata && Object.keys(row.metadata).length > 0 && (
-                          <div>
-                            <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-2">Metadata</p>
-                            <div className="bg-ink-primary rounded-xl p-4 overflow-x-auto">
-                              <pre className="text-[11px] text-accent-signature tabular-nums whitespace-pre-wrap break-all leading-relaxed">
-                                {JSON.stringify(row.metadata, null, 2)}
-                              </pre>
-                            </div>
-                          </div>
-                        )}
+                        <div className="rounded-xl border border-line bg-surface px-3 py-2.5">
+                          <Eyebrow>When</Eyebrow>
+                          <b className="mt-0.5 block font-tight text-[13.5px] font-semibold">{long.date}</b>
+                          <small className="block text-[12px] tabular-nums text-mute">{long.time}</small>
+                        </div>
+                        <div className="rounded-xl border border-line bg-surface px-3 py-2.5">
+                          <Eyebrow>Shop</Eyebrow>
+                          <b className="mt-0.5 block font-tight text-[13.5px] font-semibold">{row.tenant_id === currentTenantId ? shopName : 'Shop'}</b>
+                          <small className="block text-[12px] tabular-nums text-mute" title={row.tenant_id || undefined}>{row.tenant_id ? `id ${shortId(row.tenant_id)}` : '—'}</small>
+                        </div>
                       </div>
+                      {details && (
+                        <>
+                          <Eyebrow className="mb-1.5 block">Details</Eyebrow>
+                          <pre className="m-0 whitespace-pre-wrap break-all rounded-xl border border-line bg-surface px-3.5 py-3 font-mono text-[12.5px] leading-[1.55] text-ink-2">{details}</pre>
+                        </>
+                      )}
                     </div>
                   )}
-                </div>
+                </React.Fragment>
               );
             })}
-          </div>
-        )}
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-black/5 bg-canvas/30">
-            <p className="text-[10px] font-bold text-muted-foreground">
-              Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalCount)} of {totalCount}
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPage(p => Math.max(0, p - 1))}
-                disabled={page === 0}
-                className="w-9 h-9 rounded-xl bg-white border border-black/5 flex items-center justify-center text-ink-primary hover:shadow-premium transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft size={16} />
-              </button>
-
-              {/* Page numbers */}
-              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i;
-                } else if (page < 3) {
-                  pageNum = i;
-                } else if (page > totalPages - 4) {
-                  pageNum = totalPages - 5 + i;
-                } else {
-                  pageNum = page - 2 + i;
-                }
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setPage(pageNum)}
-                    className={`w-9 h-9 rounded-xl text-[11px] font-black transition-all ${
-                      page === pageNum
-                        ? 'bg-ink-primary text-white shadow-lg'
-                        : 'bg-white border border-black/5 text-muted-foreground hover:shadow-premium'
-                    }`}
-                  >
-                    {pageNum + 1}
-                  </button>
-                );
-              })}
-
-              <button
-                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                disabled={page >= totalPages - 1}
-                className="w-9 h-9 rounded-xl bg-white border border-black/5 flex items-center justify-center text-ink-primary hover:shadow-premium transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
+            {!loading && (
+              <div className="flex items-center justify-between gap-3 border-t border-sep px-[18px] py-3 text-[13px] text-body">
+                <span>
+                  {totalPages > 1
+                    ? `Showing ${page * PAGE_SIZE + 1}–${Math.min((page + 1) * PAGE_SIZE, totalCount)} of ${totalCount.toLocaleString('en-IN')} · newest first`
+                    : nFilters > 0 ? `${eventsWord(totalCount)} ${totalCount === 1 ? 'matches' : 'match'}` : `${eventsWord(totalCount)} · newest first`}
+                </span>
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon-sm" aria-label="Previous page" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}><ChevronLeft /></Button>
+                    {pageNumbers(page, totalPages).map((n) => (
+                      <button key={n} type="button" onClick={() => setPage(n)} aria-current={page === n ? 'page' : undefined}
+                        className={cn('m-press grid h-8 min-w-8 place-items-center rounded-pill px-2 font-tight text-[13px] font-semibold',
+                          page === n ? 'bg-ink text-white' : 'text-ink-2 hover:bg-tile')}>
+                        {n + 1}
+                      </button>
+                    ))}
+                    <Button variant="ghost" size="icon-sm" aria-label="Next page" disabled={page >= totalPages - 1} onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}><ChevronRight /></Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
