@@ -4,10 +4,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import {
+  AuthShell, AuthTitle, AuthMark, AuthField, PasswordInput, AuthNote, AuthButton, Hint, Icon,
+} from '../components/auth/AuthParts';
 
 export default function ResetPassword() {
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);   // recovery session present?
+  const [email, setEmail] = useState('');      // whose password, shown under the heading
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
   const [busy, setBusy] = useState(false);
@@ -16,9 +20,13 @@ export default function ResetPassword() {
 
   useEffect(() => {
     // The recovery link establishes a session; confirm one exists.
-    supabase.auth.getSession().then(({ data }) => setReady(!!data?.session));
+    supabase.auth.getSession().then(({ data }) => {
+      setReady(!!data?.session);
+      if (data?.session?.user?.email) setEmail(data.session.user.email);
+    });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY' || session) setReady(true);
+      if (session?.user?.email) setEmail(session.user.email);
     });
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -38,34 +46,37 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-canvas p-6">
-      <div className="w-full max-w-sm bg-white border border-black/5 rounded-2xl shadow-sm p-7">
-        <h1 className="text-xl font-extrabold text-ink-primary">Reset password<span className="text-accent-signature">.</span></h1>
-        {!ready ? (
-          <p className="mt-4 text-[13px] text-muted-foreground font-medium">
-            Open the reset link from your email to set a new password. If you arrived here directly,
-            request a fresh link from the <button onClick={() => navigate('/login')} className="text-accent-signature underline">sign-in page</button>.
-          </p>
-        ) : (
-          <form onSubmit={submit} className="mt-5 space-y-3">
-            <label className="block">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">New password</span>
-              <input type="password" value={pw} onChange={e => setPw(e.target.value)} minLength={8} required autoFocus
-                className="mt-1 w-full h-11 px-3 border border-black/10 rounded-xl text-[14px] outline-none focus:border-accent-signature/70 focus:ring-2 focus:ring-accent-signature/20" />
-            </label>
-            <label className="block">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Confirm password</span>
-              <input type="password" value={pw2} onChange={e => setPw2(e.target.value)} minLength={8} required
-                className="mt-1 w-full h-11 px-3 border border-black/10 rounded-xl text-[14px] outline-none focus:border-accent-signature/70 focus:ring-2 focus:ring-accent-signature/20" />
-            </label>
-            {err && <p className="text-[12px] font-semibold text-red-600">{err}</p>}
-            {msg && <p className="text-[12px] font-semibold text-emerald-600">{msg}</p>}
-            <button type="submit" disabled={busy} className="w-full h-11 rounded-pill bg-accent-signature text-white text-[13px] font-bold disabled:opacity-50 hover:bg-accent-signature-hover">
+    <AuthShell>
+      {!ready ? (
+        // auth-13
+        <>
+          <AuthMark tone="rd"><Icon.warn size={24} /></AuthMark>
+          <AuthTitle title="Open the link from your email"
+            sub="This page sets a new password only when it is opened from the reset email. If you came here directly, or the link has expired, ask for a fresh one." />
+          <AuthButton onClick={() => navigate('/login')}>Go to sign in for a new link</AuthButton>
+        </>
+      ) : (
+        // auth-12
+        <>
+          <AuthTitle title="Set a new password" sub={email ? `For ${email}` : 'Choose a new password for your account.'} />
+          <form onSubmit={submit}>
+            <AuthField label="New password" htmlFor="reset-pw">
+              <PasswordInput id="reset-pw" value={pw} onChange={e => setPw(e.target.value)} minLength={8} required autoFocus
+                autoComplete="new-password" bad={!!err} />
+            </AuthField>
+            <AuthField label="Confirm password" htmlFor="reset-pw2">
+              <PasswordInput id="reset-pw2" value={pw2} onChange={e => setPw2(e.target.value)} minLength={8} required
+                autoComplete="new-password" bad={!!err} />
+            </AuthField>
+            {err && <AuthNote tone="rd">{err}</AuthNote>}
+            {msg && <AuthNote tone="gr">{msg}</AuthNote>}
+            {!err && !msg && <Hint className="-mt-1.5 mb-3">At least 8 characters. After saving you go back to sign in.</Hint>}
+            <AuthButton type="submit" disabled={busy} busy={busy}>
               {busy ? 'Updating…' : 'Update password'}
-            </button>
+            </AuthButton>
           </form>
-        )}
-      </div>
-    </div>
+        </>
+      )}
+    </AuthShell>
   );
 }
