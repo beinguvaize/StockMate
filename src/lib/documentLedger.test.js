@@ -2,7 +2,10 @@ import { fileURLToPath } from 'node:url';
 import { readFileSync, readdirSync, statSync, existsSync } from 'fs';
 import { join, relative, sep } from 'path';
 import { describe, it, expect } from 'vitest';
-import { isCreditSale, collectionGoesToClientSettlement, creditInvoiceTakesMoney } from './documentLedger';
+import {
+  isCreditSale, collectionGoesToClientSettlement, creditInvoiceTakesMoney,
+  clientSettlementBlocker, CLIENT_SETTLEMENT_NO_CLIENT_MSG, CLIENT_SETTLEMENT_MISMATCH_MSG,
+} from './documentLedger';
 
 /**
  * The document builder and the invoice screens must not post a sale or a
@@ -70,6 +73,8 @@ describe('no browser ledger write for a sale or a payment in', () => {
     expect(DOC).not.toMatch(/restRpc|supabase\.rpc/);
     // A failure goes to fail(), which classifies transport vs refusal.
     expect(DOC).toMatch(/r\.success === false\) return fail\(r\?\.error/);
+    // The id check runs before the call, and refuses with fail().
+    expect(DOC).toMatch(/const blocked = clientSettlementBlocker\(party, open\[0\]\);\s*if \(blocked\) return fail\(blocked\);\s*const r = await recordClientPayment\(/);
   });
 });
 
@@ -88,5 +93,27 @@ describe('documentLedger rules', () => {
     expect(creditInvoiceTakesMoney({ payMethod: 'CREDIT', paidNow: 100 })).toBe(true);
     expect(creditInvoiceTakesMoney({ payMethod: 'CREDIT', paidNow: 0 })).toBe(false);
     expect(creditInvoiceTakesMoney({ payMethod: 'CASH', paidNow: 100 })).toBe(false);
+  });
+});
+
+describe('clientSettlementBlocker', () => {
+  const sale = { id: 'S1', shopId: 'C-1', paymentMethod: 'CREDIT' };
+  it('lets a saved client through when the sale is filed under that id', () => {
+    expect(clientSettlementBlocker({ id: 'C-1', name: 'A' }, sale)).toBeNull();
+    expect(clientSettlementBlocker({ id: 'C-1' }, { shop_id: 'C-1' })).toBeNull();
+  });
+  it('refuses a party with no id, a blank id, or a typed-in party', () => {
+    expect(clientSettlementBlocker({ name: 'A' }, sale)).toBe(CLIENT_SETTLEMENT_NO_CLIENT_MSG);
+    expect(clientSettlementBlocker({ id: '  ', name: 'A' }, sale)).toBe(CLIENT_SETTLEMENT_NO_CLIENT_MSG);
+    expect(clientSettlementBlocker({ id: 'C-1', manual: true }, sale)).toBe(CLIENT_SETTLEMENT_NO_CLIENT_MSG);
+    expect(clientSettlementBlocker(null, sale)).toBe(CLIENT_SETTLEMENT_NO_CLIENT_MSG);
+  });
+  it('refuses a sale with no shopId (old van or walk-in) or another client', () => {
+    expect(clientSettlementBlocker({ id: 'C-1' }, { clientId: 'C-1' })).toBe(CLIENT_SETTLEMENT_MISMATCH_MSG);
+    expect(clientSettlementBlocker({ id: 'C-1' }, { shopId: null })).toBe(CLIENT_SETTLEMENT_MISMATCH_MSG);
+    expect(clientSettlementBlocker({ id: 'C-1' }, { shopId: 'C-2' })).toBe(CLIENT_SETTLEMENT_MISMATCH_MSG);
+  });
+  it('compares ids as text', () => {
+    expect(clientSettlementBlocker({ id: 7 }, { shopId: '7' })).toBeNull();
   });
 });

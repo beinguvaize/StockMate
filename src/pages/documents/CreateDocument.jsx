@@ -19,7 +19,7 @@ import { useEstimates } from '../../hooks/useEstimates';
 import { usePeople } from '../../hooks/usePeople';
 import { calculateGST, shareToWhatsApp } from '../../lib/gstEngine';
 import { tierPrice } from '../../lib/priceResolver';
-import { collectionGoesToClientSettlement, creditInvoiceTakesMoney, CREDIT_INVOICE_PAID_MSG } from '../../lib/documentLedger';
+import { collectionGoesToClientSettlement, clientSettlementBlocker, creditInvoiceTakesMoney, CREDIT_INVOICE_PAID_MSG } from '../../lib/documentLedger';
 import { PartyPicker, DocItemGrid, TotalsPanel, Field, inr } from '../../components/documents/DocParts';
 
 const genId = (p) => `${p}-${Date.now().toString(36).toUpperCase()}`;
@@ -242,6 +242,8 @@ const CreateDocument = () => {
           // settle_client_payment spreads the amount over the client's open
           // bills, oldest first, and its client_payments row is posted to the
           // ledger by the database.
+          const blocked = clientSettlementBlocker(party, open[0]);
+          if (blocked) return fail(blocked);
           const r = await recordClientPayment(party.id, Number(payAmount), date, notes, [], payMethod);
           if (!r || r.success === false) return fail(r?.error || 'The server gave no reason.');
           addNotification(r.queued
