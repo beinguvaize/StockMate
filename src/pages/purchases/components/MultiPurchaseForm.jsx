@@ -2,7 +2,11 @@ import SaveButton, { useSaveStatus } from '../../../components/motion/SaveButton
 import RollingNumber from '../../../components/motion/RollingNumber';
 import React, { useState, useMemo, useRef, useLayoutEffect, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Trash2, CheckCircle2, Barcode, AlertCircle, Search, X, TrendingUp, TrendingDown, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, Search, X, TrendingUp, TrendingDown, ArrowLeft, Banknote, Landmark, Clock } from 'lucide-react';
+import Dialog from '../../../components/ui/Dialog';
+import { Button } from '../../../components/ui/button';
+import { Eyebrow } from '../../../components/ui/FigureStrip';
+import { lbl, hint, field, fieldSm } from '../lib/ui';
 import { todayISOInAppTZ } from '../../../lib/utils';
 import QuickCreateProductModal from './QuickCreateProductModal';
 import { lineUnitCost, priceChanges, priceKeepingMargin } from '../lib/priceChange';
@@ -17,33 +21,33 @@ const inr = (n) => `₹${Number(n).toLocaleString('en-IN', { minimumFractionDigi
  * an item costs. Each changed item can get a new selling price here; leaving
  * the field as it is keeps the current one.
  */
-const PriceChangeReview = ({ changes, prices, setPrice, onBack, onConfirm, loading }) => {
+const PriceChangeReview = ({ changes, prices, setPrice, onBack, onConfirm, loading, total }) => {
   const ups = changes.filter((c) => c.direction === 'UP').length;
   const downs = changes.length - ups;
   return (
-    <div className="flex flex-col gap-4" data-testid="price-change-review">
-      <div>
-        <h3 className="text-[15px] font-semibold text-foreground">
-          {changes.length === 1 ? 'This bill changes an item’s cost' : `This bill changes the cost of ${changes.length} items`}
-        </h3>
-        <p className="text-[12px] text-muted-foreground mt-1">
-          {[ups && `${ups} went up`, downs && `${downs} came down`].filter(Boolean).join(' · ')}.
-          {' '}Check the selling prices before saving. Leave a price as it is to keep it.
-        </p>
-      </div>
-
-      <div className="rounded-2xl border border-border/60 overflow-x-auto">
-        <table className="w-full text-[12px] tabular-nums">
-          <thead className="bg-canvas text-ink-secondary">
-            <tr className="text-left">
-              <th className="px-3 py-2 font-semibold">Item</th>
-              <th className="px-3 py-2 font-semibold text-right">Cost was</th>
-              <th className="px-3 py-2 font-semibold text-right">Cost now</th>
-              <th className="px-3 py-2 font-semibold text-right">Margin now</th>
-              <th className="px-3 py-2 font-semibold">Selling price</th>
+    <Dialog open onClose={onBack} width={740} label="New selling prices"
+      title={changes.length === 1 ? 'This bill changes an item’s cost' : `This bill changes the cost of ${changes.length} items`}
+      subtitle={`${[ups && `${ups} went up`, downs && `${downs} came down`].filter(Boolean).join(', ')}. Check the selling prices before saving. Leave a price as it is to keep it.`}
+      footer={(
+        <>
+          <Button variant="secondary" className="!flex-none px-5" onClick={onBack}><ArrowLeft /> Back to bill</Button>
+          <Button onClick={onConfirm} disabled={loading} data-testid="price-change-confirm">
+            {loading ? 'Saving…' : `Save purchase${total > 0 ? ` · ₹${Math.round(total).toLocaleString('en-IN')}` : ''}`}
+          </Button>
+        </>
+      )}>
+      <div className="overflow-x-auto rounded-xl shadow-[inset_0_0_0_1px_var(--color-line)]" data-testid="price-change-review">
+        <table className="w-full border-collapse text-[13px] tabular-nums">
+          <thead className="bg-tile">
+            <tr className="text-left font-tight text-[11.5px] text-mute">
+              <th className="px-3 py-[9px] font-semibold">Item</th>
+              <th className="px-3 py-[9px] text-right font-semibold">Cost was</th>
+              <th className="px-3 py-[9px] text-right font-semibold">Cost now</th>
+              <th className="px-3 py-[9px] text-right font-semibold">Margin now</th>
+              <th className="px-3 py-[9px] font-semibold">Selling price</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-black/[0.04]">
+          <tbody>
             {changes.map((c) => {
               const typed = parseFloat(prices[c.productId]);
               const sell = typed > 0 ? typed : c.sellingPrice;
@@ -51,19 +55,19 @@ const PriceChangeReview = ({ changes, prices, setPrice, onBack, onConfirm, loadi
               const keep = priceKeepingMargin(c);
               const up = c.direction === 'UP';
               return (
-                <tr key={c.productId} data-testid="price-change-row" data-direction={c.direction}>
+                <tr key={c.productId} data-testid="price-change-row" data-direction={c.direction} className="border-t border-sep">
                   <td className="px-3 py-2.5">
-                    <div className="font-semibold text-foreground">{c.name}</div>
-                    <div className={`mt-0.5 inline-flex items-center gap-1 text-[11px] font-semibold ${up ? 'text-[color:var(--color-neg)]' : 'text-[color:var(--color-pos)]'}`}>
+                    <b className="block whitespace-nowrap font-tight text-[13.5px] font-semibold">{c.name}</b>
+                    <span className={`mt-0.5 inline-flex items-center gap-1 font-tight text-[12px] font-semibold ${up ? 'text-bad-text' : 'text-good-text'}`}>
                       {up ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                       {up ? 'Up' : 'Down'} {Math.abs(c.pct).toFixed(1)}%
-                    </div>
+                    </span>
                   </td>
-                  <td className="px-3 py-2.5 text-right text-muted-foreground">{inr(c.oldCost)}</td>
-                  <td className="px-3 py-2.5 text-right font-semibold">{inr(c.newCost)}{c.unit && <span className="text-muted-foreground font-normal"> /{c.unit}</span>}</td>
-                  <td className={`px-3 py-2.5 text-right font-semibold ${margin !== null && margin <= 0 ? 'text-[color:var(--color-neg)]' : ''}`}>
+                  <td className="px-3 py-2.5 text-right font-tight text-mute">{inr(c.oldCost)}</td>
+                  <td className="px-3 py-2.5 text-right font-tight">{inr(c.newCost)}{c.unit && <small className="text-mute"> /{c.unit}</small>}</td>
+                  <td className={`px-3 py-2.5 text-right font-tight ${margin !== null && margin <= 0 ? 'text-bad-text' : ''}`}>
                     {margin === null ? '—' : `${margin.toFixed(1)}%`}
-                    {margin !== null && margin <= 0 && <div className="text-[10px] font-semibold">Sells at a loss</div>}
+                    {margin !== null && margin <= 0 && <small className="block whitespace-nowrap font-semibold">Sells at a loss</small>}
                   </td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-2">
@@ -72,10 +76,10 @@ const PriceChangeReview = ({ changes, prices, setPrice, onBack, onConfirm, loadi
                         placeholder={c.sellingPrice > 0 ? c.sellingPrice.toFixed(2) : 'Set price'}
                         value={prices[c.productId] ?? ''}
                         onChange={(e) => setPrice(c.productId, e.target.value)}
-                        className="w-24 bg-card border border-border rounded-lg px-2 py-1.5 text-[12px] font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20" />
+                        className={`${fieldSm} !h-8 !w-[104px] text-right`} />
                       {keep !== null && Math.abs(keep - c.sellingPrice) >= 0.005 && (
                         <button type="button" onClick={() => setPrice(c.productId, keep.toFixed(2))}
-                          className="text-[11px] font-semibold text-accent-signature hover:underline whitespace-nowrap">
+                          className="whitespace-nowrap font-tight text-[11.5px] font-semibold text-amber-text hover:underline underline-offset-2">
                           {inr(keep)} keeps {c.marginBefore.toFixed(0)}%
                         </button>
                       )}
@@ -87,18 +91,7 @@ const PriceChangeReview = ({ changes, prices, setPrice, onBack, onConfirm, loadi
           </tbody>
         </table>
       </div>
-
-      <div className="flex gap-3">
-        <button type="button" onClick={onBack}
-          className="h-12 px-5 flex items-center gap-2 rounded-pill border border-border text-[12px] font-semibold text-foreground hover:bg-canvas transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.98]">
-          <ArrowLeft size={14} /> Back to bill
-        </button>
-        <button type="button" onClick={onConfirm} disabled={loading} data-testid="price-change-confirm"
-          className="flex-1 h-12 flex items-center justify-center gap-2 bg-primary text-primary-foreground font-semibold text-[12px] rounded-pill hover:bg-black transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.98] disabled:opacity-40">
-          {loading ? <span className="animate-pulse">Saving…</span> : <><CheckCircle2 size={14} /> Save purchase</>}
-        </button>
-      </div>
-    </div>
+    </Dialog>
   );
 };
 
@@ -142,10 +135,10 @@ const ProductPicker = ({ products, value, onSelect, onCreateNew }) => {
   return (
     <div className="relative">
       <div ref={inputWrapRef} className="relative">
-        <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+        {!selected && <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-mute pointer-events-none" />}
         <input
           type="text"
-          className={`w-full bg-card border border-border shadow-sm rounded-lg pl-6 pr-6 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 ${selected ? '' : 'text-muted-foreground'}`}
+          className={`${fieldSm} ${selected ? 'pr-7' : 'pl-8 pr-7'} truncate`}
           placeholder="Search product…" aria-label="Product"
           value={open ? query : (selected?.name || '')}
           // Seed the query with the current product and select it, instead of
@@ -161,9 +154,10 @@ const ProductPicker = ({ products, value, onSelect, onCreateNew }) => {
             type="button"
             tabIndex={-1}
             onMouseDown={e => { e.preventDefault(); onSelect(''); setQuery(''); }}
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground"
+            aria-label="Clear product"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-mute hover:text-ink"
           >
-            <X size={11} />
+            <X size={13} />
           </button>
         )}
       </div>
@@ -172,21 +166,22 @@ const ProductPicker = ({ products, value, onSelect, onCreateNew }) => {
           // Anchored under the field's left edge, so that is the corner it
           // grows from. It appeared with no transition at all before, which on
           // a list that covers what you were reading reads as a glitch.
-          className="menu-pop fixed z-[100] bg-card border border-border rounded-xl shadow-xl max-h-64 overflow-y-auto"
-          style={{ left: rect.left, top: rect.bottom + 4, width: rect.width, '--menu-origin': 'top left' }}
+          className="menu-pop fixed z-[175] max-h-64 overflow-y-auto rounded-[14px] bg-surface p-1.5 shadow-[0_0_0_1px_rgba(17,20,24,0.06),0_18px_44px_-14px_rgba(17,20,24,0.4)]"
+          style={{ left: rect.left, top: rect.bottom + 4, width: Math.max(rect.width, 260), '--menu-origin': 'top left' }}
         >
           {filtered.length === 0 && (
-            <div className="px-3 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">No matches</div>
+            <div className="px-2.5 py-2.5 text-[12.5px] text-mute">No matches</div>
           )}
           {filtered.map(p => (
             <button
               key={p.id}
               type="button"
               onMouseDown={e => { e.preventDefault(); onSelect(p.id); setQuery(''); setOpen(false); }}
-              className={`w-full text-left px-3 py-2 text-xs font-semibold hover:bg-canvas transition-colors border-b border-black/[0.03] last:border-0 ${p.id === value ? 'text-accent-signature bg-accent-signature/5' : 'text-foreground'}`}
+              data-card
+              className={`block w-full rounded-lg px-2.5 py-2 text-left text-[13.5px] font-medium transition-colors hover:bg-tile ${p.id === value ? 'bg-amber-soft text-amber-text' : 'text-ink'}`}
             >
               {p.name}
-              <span className="block text-[9px] font-medium text-muted-foreground mt-0.5">Stock: {p.stock ?? 0}{p.sku ? ` · ${p.sku}` : ''}</span>
+              <span className="mt-0.5 block text-[12px] font-normal text-mute">Stock {p.stock ?? 0}{p.sku ? ` · ${p.sku}` : ''}</span>
             </button>
           ))}
           {/* Add a brand-new product without leaving the purchase form. */}
@@ -194,7 +189,7 @@ const ProductPicker = ({ products, value, onSelect, onCreateNew }) => {
             <button
               type="button"
               onMouseDown={e => { e.preventDefault(); const q = query.trim(); setOpen(false); setQuery(''); onCreateNew(q); }}
-              className="w-full text-left px-3 py-2.5 text-xs font-semibold text-accent-signature hover:bg-accent-signature/5 transition-[background-color,transform] duration-(--dur-hover) ease-(--ease-out) active:scale-[0.98] border-t border-border/60 flex items-center gap-1.5 sticky bottom-0 bg-card"
+              className="sticky bottom-0 mt-1 flex w-full items-center gap-1.5 rounded-pill border-t border-sep bg-surface px-2.5 py-2 text-left font-tight text-[13px] font-semibold text-amber-text hover:bg-tile"
             >
               <Plus size={13} /> Create new product{query.trim() ? ` “${query.trim()}”` : ''}
             </button>
@@ -217,7 +212,7 @@ const emptyLine = () => ({
   barcodeStatus:     null, // null | 'found' | 'not_found'
 });
 
-const MultiPurchaseForm = ({ products, suppliers, warehouses = [], purchases = [], onSave, loading, onCreateProduct, initialProductId = null }) => {
+const MultiPurchaseForm = ({ products, suppliers, warehouses = [], purchases = [], onSave, loading, onCreateProduct, initialProductId = null, onBack }) => {
   const [header, setHeader] = useState({
     supplier_id:  '',
     location_id:  '',   // target warehouse
@@ -415,302 +410,355 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], purchases = [
     if (res && res.ok === false) saveState.fail(); else if (res && res.ok) saveState.ok(); else saveState.fail();
   };
 
-  const inp = 'w-full bg-card border border-border shadow-sm rounded-lg p-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums';
+  // "+ Expiry" opens a line's date field; a set date shows as a chip.
+  const [expiryOpen, setExpiryOpen] = useState(() => new Set());
+  const openExpiry = (key) => setExpiryOpen((s0) => new Set(s0).add(key));
+  const closeExpiry = (key) => setExpiryOpen((s0) => { const n = new Set(s0); n.delete(key); return n; });
+  const fmtDay = (d) => {
+    const [y, m, dd] = String(d || '').split('-').map(Number);
+    if (!y) return d;
+    return new Date(Date.UTC(y, m - 1, dd)).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  };
 
-  if (review) {
-    return (
-      <PriceChangeReview
-        changes={review}
-        prices={newPrices}
-        setPrice={(id, v) => setNewPrices(p => ({ ...p, [id]: v }))}
-        onBack={() => setReview(null)}
-        onConfirm={confirmReview}
-        loading={loading}
-      />
-    );
-  }
+  const supplierName = suppliers.find((x) => x.id === header.supplier_id)?.name || '';
+  const productCount = lines.filter(l => l.linked_product_id).length;
+  const paidTyped = parseFloat(header.paid_now);
+  const PAY_OPTIONS = [
+    { value: 'CASH', title: 'Cash', hint: 'Paid now, from the cash drawer', icon: Banknote },
+    { value: 'CREDIT', title: 'Credit', hint: 'Pay the supplier later', icon: Clock },
+    { value: 'BANK', title: 'Bank or UPI', hint: 'Transfer, UPI or cheque', icon: Landmark },
+  ];
+  const card = 'rounded-[14px] border border-line bg-surface px-5 py-[18px]';
+  const stepNo = (n, small) => (
+    <span className={`mr-2 inline-grid shrink-0 place-items-center rounded-full bg-ink font-tight font-semibold text-white ${small ? 'h-5 w-5 text-[11px]' : 'h-[22px] w-[22px] text-[12px]'}`}>{n}</span>
+  );
+  const sub = 'mt-1 block pl-0.5 text-[11.5px] leading-[1.35] text-mute';
+  const GRID = 'grid grid-cols-[118px_minmax(0,1fr)_74px_106px_94px_22px] gap-1.5';
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <div className="m-rise mb-[18px] flex flex-wrap items-center gap-3.5" style={{ '--i': 0 }}>
+        {onBack && (
+          <button type="button" onClick={onBack}
+            className="m-press inline-flex items-center gap-1.5 font-tight text-[13px] font-semibold text-body hover:text-ink">
+            <ArrowLeft size={15} /> Bills
+          </button>
+        )}
+        <h3 className="font-tight text-[20px] font-semibold tracking-[-0.02em]">New Purchase</h3>
+        <span className="text-[12px] text-mute">One supplier, many products, saved together</span>
+      </div>
 
-        {/* ── Header ──────────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-canvas rounded-2xl border border-border/60">
-          <div>
-            <label htmlFor="pf-supplier" className="block text-[11px] font-semibold text-ink-secondary mb-2">Supplier <span className="text-red-400" aria-hidden="true">*</span></label>
-            <select id="pf-supplier" required aria-required="true" className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
-              value={header.supplier_id} onChange={e => setHeader(h => ({ ...h, supplier_id: e.target.value }))}>
-              <option value="">Select supplier...</option>
-              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
+      <form onSubmit={handleSubmit} className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_284px]">
+        <div className="min-w-0">
+          {/* ── 1 Details ───────────────────────────────────────────────── */}
+          <div className={`${card} m-rise`} style={{ '--i': 1 }}>
+            <h3 className="flex items-center font-tight text-[15px] font-semibold">{stepNo(1)}Details</h3>
+            <div className="mt-3.5 grid grid-cols-1 gap-3 sm:grid-cols-[1.3fr_1fr_1fr]">
+              <div>
+                <label htmlFor="pf-supplier" className={lbl}>Supplier <span aria-hidden="true">*</span></label>
+                <select id="pf-supplier" required aria-required="true" className={field}
+                  value={header.supplier_id} onChange={e => setHeader(h => ({ ...h, supplier_id: e.target.value }))}>
+                  <option value="">Select supplier...</option>
+                  {suppliers.map(s0 => <option key={s0.id} value={s0.id}>{s0.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="pf-billno" className={lbl}>Supplier bill no.</label>
+                <input id="pf-billno" type="text" className={field}
+                  placeholder="Supplier's invoice no." value={header.bill_no}
+                  onChange={e => setHeader(h => ({ ...h, bill_no: e.target.value }))} />
+                <span className={hint}>For GSTR-2B matching</span>
+              </div>
+              <div>
+                <label htmlFor="pf-date" className={lbl}>Date <span aria-hidden="true">*</span></label>
+                <input id="pf-date" required type="date" className={field}
+                  value={header.date} onChange={e => setHeader(h => ({ ...h, date: e.target.value }))} />
+              </div>
+              <div>
+                <label htmlFor="pf-warehouse" className={lbl}>Receive into</label>
+                <select id="pf-warehouse" className={field}
+                  value={header.location_id}
+                  onChange={e => setHeader(h => ({ ...h, location_id: e.target.value }))}>
+                  <option value="">Auto, main warehouse</option>
+                  {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label htmlFor="pf-notes" className={lbl}>Notes</label>
+                <input id="pf-notes" type="text" className={field}
+                  placeholder="Remarks" aria-label="Notes" value={header.notes}
+                  onChange={e => setHeader(h => ({ ...h, notes: e.target.value }))} />
+              </div>
+            </div>
           </div>
-          <div>
-            <label htmlFor="pf-warehouse" className="block text-[11px] font-semibold text-ink-secondary mb-2">
-              Receive Into Warehouse
-              {warehouses.length === 0 && <span className="ml-1 text-muted-foreground">(auto)</span>}
-            </label>
-            <select
-              id="pf-warehouse"
-              className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
-              value={header.location_id}
-              onChange={e => setHeader(h => ({ ...h, location_id: e.target.value }))}
-            >
-              <option value="">Auto (main warehouse)</option>
-              {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="pf-paytype" className="block text-[11px] font-semibold text-ink-secondary mb-2">Payment Type</label>
-            <select id="pf-paytype" className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
-              value={header.payment_type} onChange={e => setHeader(h => ({ ...h, payment_type: e.target.value }))}>
-              <option value="CASH">Cash (paid now)</option>
-              <option value="CREDIT">Credit (pay later)</option>
-              <option value="BANK">Bank / UPI</option>
-            </select>
-          </div>
-          {/* Part payment. A bill is often settled with some cash now and the
-              rest on credit, which the two payment types alone cannot say. */}
-          <div>
-            <label htmlFor="pf-paidnow" className="block text-[11px] font-semibold text-ink-secondary mb-2">
-              Paid now
-            </label>
-            <input id="pf-paidnow" aria-label="Amount paid now" type="number" step="0.01" min="0"
-              className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
-              placeholder={header.payment_type === 'CREDIT'
-                ? 'Nothing paid yet'
-                : grandTotal.toFixed(2)}
-              value={header.paid_now}
-              onChange={e => setHeader(h => ({ ...h, paid_now: e.target.value }))} />
-            {(() => {
-              const paid = parseFloat(header.paid_now);
-              if (!(paid > 0) || grandTotal <= 0) return null;
-              const due = Math.max(0, grandTotal - paid);
-              return (
-                <div className="text-[10px] font-semibold mt-1.5 tabular-nums">
-                  {due > 0.005
-                    ? <span className="text-[color:var(--color-neg)]">₹{due.toLocaleString('en-IN', { minimumFractionDigits: 2 })} on credit</span>
-                    : <span className="text-[color:var(--color-pos)]">Paid in full</span>}
+
+          {/* ── 2 Items ─────────────────────────────────────────────────── */}
+          <div className={`${card} m-rise mt-4`} style={{ '--i': 2 }}>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <h3 className="flex items-center font-tight text-[15px] font-semibold">{stepNo(2)}Items</h3>
+              {/* Price each and Line total fill each other in. Watching a field
+                  you did not touch change its own value is alarming if nobody
+                  said it would. */}
+              <span className="text-[12px] text-mute">Enter either price each or line total; the other is worked out from the quantity.</span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <div className="min-w-[620px]">
+                <div className={`${GRID} mt-1.5 border-b border-line pb-2 pt-3`}>
+                  {LINE_COLUMNS.filter(c => c.key !== 'expiry').map(c => (
+                    <span key={c.key} className={`font-tight text-[12px] font-semibold text-mute ${['qty', 'price', 'total'].includes(c.key) ? 'text-right' : ''}`}>{c.label}</span>
+                  ))}
                 </div>
-              );
-            })()}
-          </div>
-          <div>
-            <label htmlFor="pf-date" className="block text-[11px] font-semibold text-ink-secondary mb-2">Date</label>
-            <input id="pf-date" required type="date" className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
-              value={header.date} onChange={e => setHeader(h => ({ ...h, date: e.target.value }))} />
-          </div>
-          <div>
-            <label htmlFor="pf-billno" className="block text-[11px] font-semibold text-ink-secondary mb-2">Supplier Bill No</label>
-            <input id="pf-billno" type="text" className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
-              placeholder="Supplier's invoice no. (for GSTR-2B)" value={header.bill_no}
-              onChange={e => setHeader(h => ({ ...h, bill_no: e.target.value }))} />
-          </div>
-          <div>
-            <label htmlFor="pf-notes" className="block text-[11px] font-semibold text-ink-secondary mb-2">Notes</label>
-            <input id="pf-notes" type="text" className="w-full bg-card border border-border/60 rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
-              placeholder="Remarks…" aria-label="Notes" value={header.notes}
-              onChange={e => setHeader(h => ({ ...h, notes: e.target.value }))} />
-          </div>
-        </div>
 
-        {/* ── Line Items ───────────────────────────────────────────────────────── */}
-        <div className="rounded-2xl border border-border/60 overflow-hidden">
+                <div ref={rowsRef}>
+                  {lines.map((line, idx) => {
+                    const product = products.find(p => p.id === line.linked_product_id);
+                    // Per base unit, so a packet price is not compared with a piece cost.
+                    const unitCost = product ? lineUnitCost(line, product) : null;
+                    const costPct = unitCost !== null && product?.costPrice > 0
+                      ? ((unitCost - product.costPrice) / product.costPrice) * 100 : null;
+                    const alt = line.buyUnit === 'ALT';
+                    const hasAlt = product?.secondary_unit && Number(product.conversion_factor) > 0;
+                    const showExpiry = expiryOpen.has(line._key);
+                    const last = idx === lines.length - 1;
 
-          {/* Column headers.
-              They were 9px, uppercase, letter-spaced -- the least readable
-              setting available, on the only thing naming five unlabelled
-              inputs. 11px sentence case reads at a glance, and the two
-              optional columns now say so instead of leaving someone to guess
-              which fields block the save. */}
-          <div className="grid grid-cols-[140px_1fr_72px_92px_92px_112px_32px] gap-2 bg-canvas px-4 py-2.5 border-b border-border/60">
-            {LINE_COLUMNS.map(c => (
-              <span key={c.key} className="text-[11px] font-semibold text-ink-secondary">
-                {c.label}
-                {c.optional && <span className="font-normal text-muted-foreground"> · optional</span>}
-              </span>
-            ))}
-          </div>
+                    return (
+                      <div key={line._key} className={`${GRID} items-start py-2.5 ${last ? '' : 'border-b border-sep'}`}>
 
-          {/* The one rule of this grid that is not visible in it.
-              Price each and Line total fill each other in: type a price and
-              the total appears, type a total and the price is worked back from
-              the quantity. That is genuinely useful -- a supplier's bill often
-              states one and not the other -- but watching a field you did not
-              touch change its own value is alarming if nobody said it would. */}
-          <p className="px-4 py-2 text-[11px] text-muted-foreground bg-canvas/60 border-b border-border/60">
-            Enter either <span className="font-semibold text-ink-secondary">price each</span> or{' '}
-            <span className="font-semibold text-ink-secondary">line total</span> — the other is worked out from the quantity.
-          </p>
-
-          {/* Rows */}
-          <div ref={rowsRef} className="divide-y divide-black/[0.04]">
-            {lines.map((line) => {
-              const product = products.find(p => p.id === line.linked_product_id);
-              // Per base unit, so a packet price is not compared with a piece cost.
-              const unitCost = product ? lineUnitCost(line, product) : null;
-              const costPct = unitCost !== null && product?.costPrice > 0
-                ? ((unitCost - product.costPrice) / product.costPrice) * 100 : null;
-
-              return (
-                <div key={line._key} className="grid grid-cols-[140px_1fr_72px_92px_92px_112px_32px] gap-2 items-start px-4 py-3">
-
-                  {/* Barcode input */}
-                  <div>
-                    <div className="relative">
-                      <Barcode size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                      <input
-                        type="text"
-                        className={`w-full bg-canvas border rounded-lg pl-6 pr-2 py-2 text-xs tabular-nums outline-none focus:ring-2 focus:ring-accent-signature/20 ${
-                          line.barcodeStatus === 'found'     ? 'border-emerald-300 bg-emerald-50' :
-                          line.barcodeStatus === 'not_found' ? 'border-red-200 bg-red-50' :
-                          'border-border/60'
-                        }`}
-                        placeholder="Scan / type…"
-                        aria-label="Barcode"
-                        value={line.barcodeInput}
-                        onChange={e => patchLine(line._key, { barcodeInput: e.target.value, barcodeStatus: null })}
-                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleBarcodeSearch(line._key, line.barcodeInput); } }}
-                        onBlur={e => handleBarcodeSearch(line._key, e.target.value)}
-                      />
-                    </div>
-                    {line.barcodeStatus === 'not_found' && (
-                      <button
-                        type="button"
-                        onClick={() => setQuickCreate({ lineKey: line._key, barcode: line.barcodeInput })}
-                        className="mt-1 flex items-center gap-1 text-[8px] font-semibold text-red-500 hover:text-red-700 transition-colors duration-(--dur-hover) uppercase tracking-widest"
-                      >
-                        <AlertCircle size={9} /> Create product
-                      </button>
-                    )}
-                    {line.barcodeStatus === 'found' && (
-                      <p className="mt-1 text-[8px] font-semibold text-emerald-600 uppercase tracking-widest">✓ Matched</p>
-                    )}
-                  </div>
-
-                  {/* Product picker — searchable */}
-                  <div>
-                    <ProductPicker
-                      products={products}
-                      value={line.linked_product_id}
-                      onSelect={(id) => {
-                        const prod = products.find(p => p.id === id);
-                        updateLine(line._key, {
-                          linked_product_id: id,
-                          barcodeInput:      prod?.barcode || prod?.sku || line.barcodeInput,
-                          barcodeStatus:     id ? 'found' : null,
-                        });
-                      }}
-                      onCreateNew={(name) => setQuickCreate({ lineKey: line._key, barcode: '', name })}
-                    />
-                    {product && (
-                      <p className="text-[8px] font-semibold text-muted-foreground mt-1 ml-1">
-                        Stock: {product.stock ?? 0}
-                        {product.costPrice > 0 && ` · Last ₹${product.costPrice}`}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Qty + optional buy-by-alternate-unit toggle */}
-                  <div>
-                    <input required type="number" min="0" placeholder="0" className={inp}
-                      aria-label="Quantity"
-                      value={line.quantity}
-                      onChange={e => updateLine(line._key, { quantity: e.target.value })} />
-                    {product?.secondary_unit && Number(product.conversion_factor) > 0 && (() => {
-                      const conv = Number(product.conversion_factor);
-                      const alt = line.buyUnit === 'ALT';
-                      const q = parseFloat(line.quantity);
-                      return (
-                        <div className="mt-1 ml-0.5">
-                          <button type="button"
-                            onClick={() => updateLine(line._key, { buyUnit: alt ? 'BASE' : 'ALT' })}
-                            className={`text-[8px] font-semibold px-1.5 py-0.5 rounded ${alt ? 'bg-accent-signature/15 text-accent-signature-hover' : 'bg-muted text-muted-foreground'}`}>
-                            {alt ? product.secondary_unit : product.unit}
-                          </button>
-                          {alt && q > 0 && (
-                            <span className="text-[8px] text-muted-foreground ml-1 tabular-nums">= {(q * conv).toLocaleString()} {product.unit}</span>
+                        {/* Barcode */}
+                        <div>
+                          <input
+                            type="text"
+                            className={`${fieldSm} !px-2 text-[12px] tracking-[-0.01em] ${
+                              line.barcodeStatus === 'found' ? '!bg-[#F3FBF6] !shadow-[inset_0_0_0_1px_#A7DDB9]'
+                                : line.barcodeStatus === 'not_found' ? '!bg-[#FEF6F6] !shadow-[inset_0_0_0_1px_#F5C2C2]' : ''}`}
+                            placeholder="Scan or type"
+                            aria-label="Barcode"
+                            value={line.barcodeInput}
+                            onChange={e => patchLine(line._key, { barcodeInput: e.target.value, barcodeStatus: null })}
+                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleBarcodeSearch(line._key, line.barcodeInput); } }}
+                            onBlur={e => handleBarcodeSearch(line._key, e.target.value)}
+                          />
+                          {line.barcodeStatus === 'found' && <span className={`${sub} font-semibold !text-good-text`}>Matched</span>}
+                          {line.barcodeStatus === 'not_found' && (
+                            <>
+                              <span className={`${sub} font-semibold !text-bad-text`}>Not found</span>
+                              <button type="button" onClick={() => setQuickCreate({ lineKey: line._key, barcode: line.barcodeInput })}
+                                className="pl-0.5 font-tight text-[11.5px] font-semibold text-amber-text hover:underline underline-offset-2">
+                                Create product
+                              </button>
+                            </>
                           )}
                         </div>
-                      );
-                    })()}
-                  </div>
 
-                  {/* Unit Price */}
-                  <div>
-                    <input type="number" min="0" step="0.01" placeholder="0.00" className={inp}
-                      aria-label="Price each"
-                      title="Type this or the line total — the other is worked out for you"
-                      value={line.unit_price}
-                      onChange={e => updateLine(line._key, { unit_price: e.target.value })} />
-                    {product?.secondary_unit && line.buyUnit === 'ALT' && (
-                      <p className="text-[8px] text-muted-foreground mt-1 ml-1">per {product.secondary_unit}</p>
-                    )}
-                    {costPct !== null && Math.abs(unitCost - product.costPrice) >= 0.005 && (
-                      <p data-testid="line-cost-change"
-                        className={`text-[10px] font-semibold mt-1 ml-1 tabular-nums ${costPct > 0 ? 'text-[color:var(--color-neg)]' : 'text-[color:var(--color-pos)]'}`}>
-                        {costPct > 0 ? '▲' : '▼'} {Math.abs(costPct).toFixed(1)}% vs ₹{product.costPrice}
-                      </p>
-                    )}
-                    {unitCost !== null && product?.sellingPrice > 0 && unitCost > product.sellingPrice && (
-                      <p className="text-[8px] font-semibold mt-1 ml-1 text-red-600">
-                        ⚠ Above sell price ₹{product.sellingPrice}
-                      </p>
-                    )}
-                  </div>
+                        {/* Product */}
+                        <div className="min-w-0">
+                          <ProductPicker
+                            products={products}
+                            value={line.linked_product_id}
+                            onSelect={(id) => {
+                              const prod = products.find(p => p.id === id);
+                              updateLine(line._key, {
+                                linked_product_id: id,
+                                barcodeInput:      prod?.barcode || prod?.sku || line.barcodeInput,
+                                barcodeStatus:     id ? 'found' : null,
+                              });
+                            }}
+                            onCreateNew={(name) => setQuickCreate({ lineKey: line._key, barcode: '', name })}
+                          />
+                          {(product || line.expiry_date || showExpiry) && (
+                            <span className={sub}>
+                              {product && <>Stock {product.stock ?? 0}{product.costPrice > 0 && ` · last ₹${product.costPrice}`}</>}
+                              {/* Expiry (optional): stamped on this line's batch after it saves. */}
+                              {line.expiry_date && !showExpiry ? (
+                                <>{product && ' · '}
+                                  <span className="inline-flex items-center gap-1 rounded-pill bg-well py-px pl-[7px] pr-1 font-tight text-[11px] font-semibold text-ink-2">
+                                    <button type="button" onClick={() => openExpiry(line._key)} title="Change the expiry date">Expires {fmtDay(line.expiry_date)}</button>
+                                    <button type="button" aria-label="Remove the expiry date" onClick={() => updateLine(line._key, { expiry_date: '' })}><X size={10} /></button>
+                                  </span>
+                                </>
+                              ) : !showExpiry && (
+                                <>{product && ' · '}<button type="button" onClick={() => openExpiry(line._key)}
+                                  className="font-tight text-[11.5px] font-semibold text-amber-text hover:underline underline-offset-2">+ Expiry</button></>
+                              )}
+                            </span>
+                          )}
+                          {!product && !line.expiry_date && !showExpiry && (
+                            <button type="button" onClick={() => openExpiry(line._key)}
+                              className="mt-1 pl-0.5 font-tight text-[11.5px] font-semibold text-amber-text hover:underline underline-offset-2">+ Expiry</button>
+                          )}
+                          {showExpiry && (
+                            <input type="date" aria-label="Expiry date (optional)" title="Leave blank unless this stock expires"
+                              className={`${fieldSm} mt-1 !h-8 !w-[150px] text-[12px]`} autoFocus
+                              value={line.expiry_date}
+                              onChange={e => updateLine(line._key, { expiry_date: e.target.value })}
+                              onBlur={() => closeExpiry(line._key)} />
+                          )}
+                          {unitCost !== null && product?.sellingPrice > 0 && unitCost > product.sellingPrice && (
+                            <span className={`${sub} !mt-px font-semibold !text-bad-text`}>Above sell price ₹{product.sellingPrice}</span>
+                          )}
+                        </div>
 
-                  {/* Total */}
-                  <input required type="number" min="0" step="0.01" placeholder="0.00" className={inp}
-                    aria-label="Line total" data-line-total={line._key}
-                    title="Type this or the price each — the other is worked out for you"
-                    value={line.total_amount}
-                    onChange={e => updateLine(line._key, { total_amount: e.target.value })} />
+                        {/* Qty + optional buy-by-alternate-unit toggle */}
+                        <div>
+                          <input required type="number" min="0" placeholder="0" className={`${fieldSm} text-right`}
+                            aria-label="Quantity"
+                            value={line.quantity}
+                            onChange={e => updateLine(line._key, { quantity: e.target.value })} />
+                          {product && (hasAlt ? (() => {
+                            const conv = Number(product.conversion_factor);
+                            const q = parseFloat(line.quantity);
+                            return (
+                              <span className={`${sub} !pr-0.5 text-right whitespace-nowrap`}>
+                                <button type="button" title={`Switch to ${alt ? product.unit : product.secondary_unit}`}
+                                  onClick={() => updateLine(line._key, { buyUnit: alt ? 'BASE' : 'ALT' })}
+                                  className={`rounded-pill px-[7px] py-px font-tight text-[11px] font-semibold ${alt ? 'bg-amber-soft text-amber-text' : 'bg-well text-ink-2'}`}>
+                                  {alt ? product.secondary_unit : product.unit}
+                                </button>
+                                {alt && q > 0 && <> = {(q * conv).toLocaleString()} {product.unit}</>}
+                              </span>
+                            );
+                          })() : (
+                            <span className={`${sub} !pr-0.5 text-right`}>{product.unit}</span>
+                          ))}
+                        </div>
 
-                  {/* Expiry (optional — creates a dated batch) */}
-                  <input type="date" aria-label="Expiry date (optional)" title="Leave blank unless this stock expires" className={inp}
-                    value={line.expiry_date}
-                    onChange={e => updateLine(line._key, { expiry_date: e.target.value })} />
+                        {/* Price each */}
+                        <div>
+                          <input type="number" min="0" step="0.01" placeholder="0.00" className={`${fieldSm} text-right`}
+                            aria-label="Price each"
+                            title="Type this or the line total — the other is worked out for you"
+                            value={line.unit_price}
+                            onChange={e => updateLine(line._key, { unit_price: e.target.value })} />
+                          {product?.secondary_unit && alt && (
+                            <span className={`${sub} !pr-0.5 text-right whitespace-nowrap`}>per {product.secondary_unit}</span>
+                          )}
+                          {costPct !== null && Math.abs(unitCost - product.costPrice) >= 0.005 && (
+                            <span data-testid="line-cost-change"
+                              className={`${sub} !pr-0.5 text-right whitespace-nowrap font-semibold ${costPct > 0 ? '!text-bad-text' : '!text-good-text'}`}>
+                              {costPct > 0 ? '▲' : '▼'} {Math.abs(costPct).toFixed(1)}% vs ₹{product.costPrice}
+                            </span>
+                          )}
+                        </div>
 
-                  {/* Remove */}
-                  <button type="button" onClick={() => removeLine(line._key)} disabled={lines.length === 1}
-                    className="mt-1 w-7 h-7 flex items-center justify-center rounded-xl text-red-400 hover:bg-red-50 hover:text-red-600 transition-[background-color,color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97] disabled:active:scale-100 disabled:opacity-20">
-                    <Trash2 size={12} />
-                  </button>
+                        {/* Line total */}
+                        <input required type="number" min="0" step="0.01" placeholder="0.00" className={`${fieldSm} text-right`}
+                          aria-label="Line total" data-line-total={line._key}
+                          title="Type this or the price each — the other is worked out for you"
+                          value={line.total_amount}
+                          onChange={e => updateLine(line._key, { total_amount: e.target.value })} />
+
+                        {/* Remove */}
+                        <button type="button" onClick={() => removeLine(line._key)} disabled={lines.length === 1}
+                          aria-label="Remove this line"
+                          className="m-press grid h-[34px] place-items-center rounded-lg text-mute hover:text-bad-text disabled:opacity-30">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            </div>
 
-          {/* Add row + grand total */}
-          <div className="px-4 py-3 border-t border-border/60 flex items-center justify-between">
-            <button type="button" onClick={addLine}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-pill text-[10px] font-semibold uppercase tracking-widest text-accent-signature bg-accent-signature/10 hover:bg-accent-signature/20 transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.97]">
-              <Plus size={12} /> Add Row
-            </button>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Grand Total</span>
-              <span className="text-lg font-semibold text-foreground tabular-nums">
-                <RollingNumber text={`₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`} />
-              </span>
+            <div className="flex items-center justify-between pt-3">
+              <button type="button" onClick={addLine}
+                className="inline-flex items-center gap-1.5 font-tight text-[13px] font-semibold text-amber-text hover:underline underline-offset-2">
+                <Plus size={14} /> Add another product
+              </button>
+              <span className="text-[12px] text-mute">Empty lines are left out when saving</span>
             </div>
           </div>
         </div>
 
-        {/* Submit */}
-        <SaveButton
-          type="submit"
-          status={saveState.status}
-          idleLabel={`Save ${lines.filter(l => l.linked_product_id).length} Item${lines.filter(l => l.linked_product_id).length !== 1 ? 's' : ''}`}
-          icon={CheckCircle2}
-          disabled={loading || !header.supplier_id || lines.every(l => !l.linked_product_id)}
-          className="w-full !h-12"
-        />
+        {/* ── Total and payment ─────────────────────────────────────────── */}
+        <aside className={`${card} m-rise lg:sticky lg:top-3`} style={{ '--i': 2 }}>
+          <Eyebrow>Bill total</Eyebrow>
+          <div className="mb-0.5 mt-1.5 font-tight text-[32px] font-semibold leading-[1.05] tracking-[-0.03em] tabular-nums">
+            <RollingNumber text={`₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`} />
+          </div>
+          <span className="text-[12px] text-mute">
+            {productCount} product{productCount === 1 ? '' : 's'}{supplierName ? ` from ${supplierName}` : ''}
+          </span>
+
+          <div className="mb-2 mt-[18px] flex items-center font-tight text-[11px] font-semibold uppercase tracking-[0.07em] text-mute">{stepNo(3, true)}Payment</div>
+          <div role="radiogroup" aria-label="Payment type" className="flex flex-col gap-1.5">
+            {PAY_OPTIONS.map((o) => {
+              const on = header.payment_type === o.value;
+              return (
+                <button key={o.value} type="button" role="radio" aria-checked={on} data-card
+                  onClick={() => setHeader(h => ({ ...h, payment_type: o.value }))}
+                  className={`m-press flex items-center gap-[11px] rounded-xl px-3 py-2.5 text-left ${on ? 'shadow-[inset_0_0_0_2px_var(--color-ink)]' : 'shadow-[inset_0_0_0_1px_var(--color-line)] hover:bg-tile'}`}>
+                  <i className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full ${on ? 'shadow-[inset_0_0_0_5px_var(--color-ink)]' : 'shadow-[inset_0_0_0_1.5px_#CFCFCD]'}`} />
+                  <span className="min-w-0">
+                    <b className="block font-tight text-[13.5px] font-semibold">{o.title}</b>
+                    <small className="block text-[12px] leading-snug text-mute">{o.hint}</small>
+                  </span>
+                  <o.icon size={18} strokeWidth={1.8} className="ml-auto shrink-0 text-ink-2" />
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Part payment. A bill is often settled with some cash now and the
+              rest on credit, which the payment types alone cannot say. */}
+          <label htmlFor="pf-paidnow" className={`${lbl} mt-3.5`}>Paid now, optional</label>
+          <input id="pf-paidnow" aria-label="Amount paid now" type="number" step="0.01" min="0"
+            className={field}
+            placeholder={header.payment_type === 'CREDIT' ? 'Nothing paid yet' : grandTotal.toFixed(2)}
+            value={header.paid_now}
+            onChange={e => setHeader(h => ({ ...h, paid_now: e.target.value }))} />
+
+          <div className="mt-3.5 rounded-xl bg-tile px-3.5 py-3">
+            <div className="flex justify-between py-[3px] text-[13px] text-body">
+              <span>Grand total</span><span className="font-tight font-medium tabular-nums text-ink-2">{inr(grandTotal)}</span>
+            </div>
+            {paidTyped > 0 && grandTotal > 0 && (() => {
+              const due = Math.max(0, grandTotal - paidTyped);
+              return (
+                <>
+                  <div className="flex justify-between py-[3px] text-[13px] text-body">
+                    <span>Paid now</span><span className="font-tight font-medium tabular-nums text-good-text">{inr(paidTyped)}</span>
+                  </div>
+                  {due > 0.005
+                    ? <div className="mt-1.5 flex justify-between border-t border-line pt-[9px] font-tight text-[14px] font-semibold text-amber-text">
+                        <span>Pending to supplier</span><span className="tabular-nums">{inr(due)}</span>
+                      </div>
+                    : <div className="mt-1.5 border-t border-line pt-[9px] font-tight text-[13px] font-semibold text-good-text">Paid in full</div>}
+                </>
+              );
+            })()}
+          </div>
+
+          <SaveButton
+            type="submit"
+            variant="amber"
+            size="lg"
+            status={saveState.status}
+            idleLabel={`Save ${productCount} item${productCount !== 1 ? 's' : ''}${grandTotal > 0 ? ` · ₹${Math.round(grandTotal).toLocaleString('en-IN')}` : ''}`}
+            disabled={loading || !header.supplier_id || lines.every(l => !l.linked_product_id)}
+            className="mt-4 w-full font-tight !font-semibold !text-[14px]"
+          />
+        </aside>
       </form>
+
+      {review && (
+        <PriceChangeReview
+          changes={review}
+          prices={newPrices}
+          setPrice={(id, v) => setNewPrices(p => ({ ...p, [id]: v }))}
+          onBack={() => setReview(null)}
+          onConfirm={confirmReview}
+          loading={loading}
+          total={grandTotal}
+        />
+      )}
 
       {priceFlags && (
         <PriceCheckDialog flagged={priceFlags} onChange={backToLine} onConfirm={confirmPrices} saving={loading} />
       )}
 
-      {/* Quick-create product modal */}
+      {/* Quick-create product */}
       {quickCreate && (
         <QuickCreateProductModal
           barcode={quickCreate.barcode}
