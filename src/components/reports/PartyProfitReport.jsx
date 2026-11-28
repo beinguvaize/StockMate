@@ -163,8 +163,8 @@ const PartyProfitReport = () => {
       </div>
 
       {/* Table */}
-      <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-        <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
+      <div className="bg-surface rounded-[14px] border border-line overflow-hidden">
+        <div className="px-4 pt-3.5 pb-3 border-b border-line flex items-center justify-between">
           <SectionHead title="Customer P&L" sub="ranked by profit" />
           {!loading && (
             <span className="text-[11.5px] font-semibold text-body bg-tile px-2 py-1 rounded-full">
@@ -174,21 +174,21 @@ const PartyProfitReport = () => {
         </div>
 
         {loading ? (
-          <div className="p-6 space-y-3">
+          <div className="p-4 space-y-3">
             {[...Array(6)].map((_, i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}
           </div>
         ) : rows.length === 0 ? (
           <div className="py-16 text-center text-sm text-body">No sales data for selected period</div>
         ) : (
           <div>
-            <div className="grid grid-cols-[36px_1fr_120px_120px_120px_90px_100px] gap-4 px-6 py-2 bg-tile/50 border-b border-border/60">
+            <div className="grid grid-cols-[36px_1fr_120px_120px_120px_90px_100px] gap-4 px-4 py-2 bg-tile border-b border-line">
               {['#', 'Customer', 'Revenue', 'Cost', 'Profit', 'Margin', 'Orders'].map(h => (
                 <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
               ))}
             </div>
             {rows.map((row, i) => (
               <div key={row.name}
-                className={`grid grid-cols-[36px_1fr_120px_120px_120px_90px_100px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-tile/40 transition-colors`}>
+                className={`grid grid-cols-[36px_1fr_120px_120px_120px_90px_100px] gap-4 px-4 py-3.5 items-center border-b border-line last:border-0 hover:bg-tile/40 transition-colors`}>
                 <span className={`text-sm font-semibold tabular-nums ${i===0?'text-amber-text':i===1?'text-body':i===2?'text-amber-text':'text-ink-tertiary'}`}>
                   {i + 1}
                 </span>

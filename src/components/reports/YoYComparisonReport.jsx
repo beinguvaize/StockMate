@@ -525,7 +525,7 @@ const YoYComparisonReport = () => {
   return (
     <div className="flex flex-col gap-4">
       {/* Year switcher + headline strip */}
-      <div className="no-print flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-card/60 backdrop-blur-md border border-border/60">
+      <div className="no-print flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-surface/60 backdrop-blur-md border border-line">
         <div className="flex items-center gap-2">
           <Calendar size={14} className="text-amber-text" />
           <span className="text-[12px] font-semibold uppercase tracking-[0.07em] text-body">Compare</span>
@@ -533,7 +533,7 @@ const YoYComparisonReport = () => {
         <select
           value={cyYear}
           onChange={(e) => setCyYear(Number(e.target.value))}
-          className="px-3 py-1.5 text-[12px] font-semibold uppercase tracking-[0.07em] text-ink bg-card border border-black/10 rounded-md focus:outline-none focus:border-accent-signature"
+          className="px-3 py-1.5 text-[12px] font-semibold uppercase tracking-[0.07em] text-ink bg-surface border border-black/10 rounded-md focus:outline-none focus:border-accent-signature"
         >
           {yearOptions.map((y) => (
             <option key={y} value={y}>{y} vs {y - 1}</option>

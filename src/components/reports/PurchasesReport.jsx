@@ -400,7 +400,7 @@ const PurchasesReport = () => {
             <button key={id} onClick={() => applyPreset(id)}
               className={`px-3 py-1.5 rounded-pill text-[12px] whitespace-nowrap transition-colors flex items-center gap-1.5 ${
                 preset === id
-                  ? 'bg-card text-ink font-semibold shadow-sm'
+                  ? 'bg-surface text-ink font-semibold shadow-sm'
                   : 'text-body font-medium hover:text-ink'
               }`}>
               {id === 'CUSTOM' && <Calendar size={12} />}{label}
@@ -411,10 +411,10 @@ const PurchasesReport = () => {
         {showCustom && (
           <div className="flex items-center gap-2">
             <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-              className="bg-card border border-black/10 rounded-lg px-3 py-1.5 text-xs tabular-nums outline-none focus:border-accent-signature/70" />
+              className="bg-surface border border-black/10 rounded-lg px-3 py-1.5 text-xs tabular-nums outline-none focus:border-accent-signature/70" />
             <span className="text-body">–</span>
             <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-              className="bg-card border border-black/10 rounded-lg px-3 py-1.5 text-xs tabular-nums outline-none focus:border-accent-signature/70" />
+              className="bg-surface border border-black/10 rounded-lg px-3 py-1.5 text-xs tabular-nums outline-none focus:border-accent-signature/70" />
             <button onClick={applyCustom} className="px-3 py-1.5 rounded-pill bg-accent-signature text-white text-[12px] font-semibold">Apply</button>
           </div>
         )}

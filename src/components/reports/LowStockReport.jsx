@@ -79,8 +79,8 @@ const LowStockReport = () => {
       </div>
 
       {/* Table */}
-      <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-        <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
+      <div className="bg-surface rounded-[14px] border border-line overflow-hidden">
+        <div className="px-4 pt-3.5 pb-3 border-b border-line flex items-center justify-between">
           <SectionHead title="Low Stock Products" sub="sorted by lowest stock first" />
           {!loading && (
             <span className="text-[11.5px] font-semibold text-body bg-tile px-2 py-1 rounded-full">
@@ -90,7 +90,7 @@ const LowStockReport = () => {
         </div>
 
         {loading ? (
-          <div className="p-6 space-y-3">
+          <div className="p-4 space-y-3">
             {[...Array(6)].map((_, i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}
           </div>
         ) : lowItems.length === 0 ? (
@@ -100,7 +100,7 @@ const LowStockReport = () => {
           </div>
         ) : (
           <div>
-            <div className="grid grid-cols-[1fr_100px_120px_80px_80px_80px_120px] gap-3 px-6 py-2 bg-tile/50 border-b border-border/60">
+            <div className="grid grid-cols-[1fr_100px_120px_80px_80px_80px_120px] gap-3 px-4 py-2 bg-tile border-b border-line">
               {['Product','SKU','Category','Stock','Threshold','Shortfall','Stock Value'].map(h => (
                 <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
               ))}
@@ -109,7 +109,7 @@ const LowStockReport = () => {
               const isOut = p.totalStock === 0;
               return (
                 <div key={p.id || i}
-                  className={`grid grid-cols-[1fr_100px_120px_80px_80px_80px_120px] gap-3 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-tile/40 transition-colors ${isOut ? 'bg-bad-soft/40' : ''}`}>
+                  className={`grid grid-cols-[1fr_100px_120px_80px_80px_80px_120px] gap-3 px-4 py-3.5 items-center border-b border-line last:border-0 hover:bg-tile/40 transition-colors ${isOut ? 'bg-bad-soft/40' : ''}`}>
                   <div className="flex items-center gap-2 min-w-0">
                     <div className={`w-2 h-2 rounded-full shrink-0 ${isOut ? 'bg-red-500' : 'bg-accent-signature/70'}`} />
                     <span className="text-sm font-semibold text-ink truncate">{p.name || '—'}</span>

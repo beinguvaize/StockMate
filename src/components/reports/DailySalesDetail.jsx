@@ -38,15 +38,15 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
   const toggle = (date) => setOpenDates(prev => ({ ...prev, [date]: !prev[date] }));
 
   if (loading) return (
-    <div className="bg-card rounded-[10px] border border-border/60 shadow-sm p-6 space-y-3">
+    <div className="bg-surface rounded-[14px] border border-line p-4 space-y-3">
       {[...Array(4)].map((_, i) => <div key={i} className="h-12 bg-tile animate-pulse rounded-xl" />)}
     </div>
   );
   if (byDate.length === 0) return null;
 
   return (
-    <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-      <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
+    <div className="bg-surface rounded-[14px] border border-line overflow-hidden">
+      <div className="px-4 pt-3.5 pb-3 border-b border-line flex items-center justify-between">
         <SectionHead title="Daily Sales Detail" sub="product & client breakdown" />
         <span className="text-[11.5px] font-semibold text-body bg-tile px-2 py-1 rounded-full">
           {byDate.length} days
@@ -56,10 +56,10 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
       {byDate.map(day => {
         const isOpen = openDates[day.date] ?? (byDate.length === 1);
         return (
-          <div key={day.date} className="border-b border-border/60 last:border-0">
+          <div key={day.date} className="border-b border-line last:border-0">
             {/* Day header — click to expand */}
             <button
-              className="w-full flex items-center gap-4 px-6 py-4 hover:bg-tile/40 transition-colors text-left"
+              className="w-full flex items-center gap-4 px-4 py-4 hover:bg-tile/40 transition-colors text-left"
               onClick={() => toggle(day.date)}
             >
               <div className="w-9 h-9 rounded-xl bg-accent-signature/10 flex items-center justify-center shrink-0">
@@ -82,9 +82,9 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
 
             {/* Expanded sales for this day */}
             {isOpen && (
-              <div className="bg-tile/30 border-t border-border/60">
+              <div className="bg-tile/30 border-t border-line">
                 {/* Column labels */}
-                <div className="grid grid-cols-[1fr_180px_56px_72px_72px_110px_84px_120px] gap-3 px-8 py-2 border-b border-border/60 items-center">
+                <div className="grid grid-cols-[1fr_180px_56px_72px_72px_110px_84px_120px] gap-3 px-8 py-2 border-b border-line items-center">
                   {[['Client','justify-self-start'],['Products','justify-self-start'],['Items','justify-self-center'],['Source','justify-self-center'],['App','justify-self-center'],['By','justify-self-start'],['Method','justify-self-center'],['Amount','justify-self-end']].map(([h,a]) => (
                     <span key={h} className={`text-[12px] font-semibold text-body uppercase tracking-[0.07em] ${a}`}>{h}</span>
                   ))}
@@ -114,7 +114,7 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
 
                   return (
                     <div key={s.id || si}
-                      className="grid grid-cols-[1fr_180px_56px_72px_72px_110px_84px_120px] gap-3 px-8 py-3 border-b border-border/60 last:border-0 hover:bg-card/60 transition-colors items-center">
+                      className="grid grid-cols-[1fr_180px_56px_72px_72px_110px_84px_120px] gap-3 px-8 py-3 border-b border-line last:border-0 hover:bg-surface/60 transition-colors items-center">
 
                       {/* Client */}
                       <div className="flex items-center gap-2 min-w-0">
@@ -176,7 +176,7 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
                 })}
 
                 {/* Day subtotal */}
-                <div className="flex justify-end items-center px-8 py-2.5 border-t border-border/60 bg-card/40">
+                <div className="flex justify-end items-center px-8 py-2.5 border-t border-line bg-surface/40">
                   <span className="text-[11.5px] font-semibold text-body uppercase tracking-[0.07em] mr-4">Day Total</span>
                   <span className="tabular-nums text-sm font-semibold text-ink tabular-nums">{formatCurrency(day.total)}</span>
                 </div>

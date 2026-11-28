@@ -200,20 +200,20 @@ const AllTransactionsReport = () => {
       />
 
       {/* Ledger Table */}
-      <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-        <div className="px-6 pt-6 pb-4 border-b border-border/60">
+      <div className="bg-surface rounded-[14px] border border-line overflow-hidden">
+        <div className="px-4 pt-3.5 pb-3 border-b border-line">
           <SectionHead title="Transaction Ledger" sub="newest first" />
         </div>
 
         {loading ? (
-          <div className="p-6 space-y-3">
+          <div className="p-4 space-y-3">
             {[...Array(8)].map((_, i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}
           </div>
         ) : filteredRows.length === 0 ? (
           <div className="py-16 text-center text-sm text-body">No transactions for selected period</div>
         ) : (
           <div>
-            <div className="grid grid-cols-[90px_90px_1fr_90px_130px] gap-4 px-6 py-2 bg-tile/50 border-b border-border/60">
+            <div className="grid grid-cols-[90px_90px_1fr_90px_130px] gap-4 px-4 py-2 bg-tile border-b border-line">
               {['Date', 'Type', 'Party / Description', 'Flow', 'Amount'].map(h => (
                 <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
               ))}
@@ -222,7 +222,7 @@ const AllTransactionsReport = () => {
               const ts = TYPE_STYLE[row.type] || { bg: 'bg-muted', text: 'text-ink-2' };
               return (
                 <div key={`${row.ref}-${i}`}
-                  className="grid grid-cols-[90px_90px_1fr_90px_130px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-tile/40 transition-colors">
+                  className="grid grid-cols-[90px_90px_1fr_90px_130px] gap-4 px-4 py-3.5 items-center border-b border-line last:border-0 hover:bg-tile/40 transition-colors">
                   <span className="text-xs font-semibold text-ink-2 tabular-nums">{row.date}</span>
                   <span className={`inline-flex px-2 py-0.5 rounded-full text-[12px] font-semibold w-fit ${ts.bg} ${ts.text}`}>
                     {row.type}

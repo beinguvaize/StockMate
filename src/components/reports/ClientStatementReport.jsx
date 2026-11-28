@@ -168,7 +168,7 @@ const ClientStatementReport = () => {
       />
 
       {/* Client Picker */}
-      <div className="bg-card rounded-[10px] border border-border/60 shadow-sm p-6">
+      <div className="bg-surface rounded-[14px] border border-line p-4">
         <SectionHead title="Select Client" sub="search by name" />
         <div className="relative max-w-sm">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-body" />
@@ -177,11 +177,11 @@ const ClientStatementReport = () => {
             placeholder="Search clients..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-card border border-border shadow-sm rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full pl-9 pr-4 py-2.5 bg-surface border border-border rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-accent-signature/20"
           />
         </div>
         {!selectedClient && (
-          <div className="mt-2 bg-card border border-border shadow-sm rounded-xl max-h-64 overflow-y-auto">
+          <div className="mt-2 bg-surface border border-border rounded-xl max-h-64 overflow-y-auto">
             {cLoading
               ? <div className="p-4 text-xs text-body">Loading...</div>
               : clients.length === 0
@@ -190,7 +190,7 @@ const ClientStatementReport = () => {
               ? <div className="p-4 text-xs text-body">No clients match "{search}"</div>
               : filteredClients.map(c => (
                 <button key={c.id} onClick={() => { setClientId(c.id); setSearch(''); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-tile/60 transition-colors text-left border-b border-border/60 last:border-0 ${clientId === c.id ? 'bg-accent-signature/5' : ''}`}>
+                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-tile/60 transition-colors text-left border-b border-line last:border-0 ${clientId === c.id ? 'bg-accent-signature/5' : ''}`}>
                   <div className="w-8 h-8 rounded-full bg-accent-signature/10 flex items-center justify-center shrink-0">
                     <span className="text-[11.5px] font-semibold text-amber-text">{(c.name?.[0] || '?').toUpperCase()}</span>
                   </div>
@@ -233,13 +233,13 @@ const ClientStatementReport = () => {
           </div>
 
           {/* Ledger Table */}
-          <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-            <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
+          <div className="bg-surface rounded-[14px] border border-line overflow-hidden">
+            <div className="px-4 pt-3.5 pb-3 border-b border-line flex items-center justify-between">
               <SectionHead title={`${selectedClient.name} — Ledger`} sub={`${ledgerRows.length} entries`} />
             </div>
 
             {loading ? (
-              <div className="p-6 space-y-3">
+              <div className="p-4 space-y-3">
                 {[...Array(6)].map((_, i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}
               </div>
             ) : ledgerRows.length === 0 ? (
@@ -247,7 +247,7 @@ const ClientStatementReport = () => {
             ) : (
               <div>
                 {/* Table header */}
-                <div className="grid grid-cols-[90px_80px_1fr_110px_110px_120px] gap-4 px-6 py-2 bg-tile/50 border-b border-border/60">
+                <div className="grid grid-cols-[90px_80px_1fr_110px_110px_120px] gap-4 px-4 py-2 bg-tile border-b border-line">
                   {['Date','Type','Reference','Debit','Credit','Balance'].map(h => (
                     <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
                   ))}
@@ -255,7 +255,7 @@ const ClientStatementReport = () => {
                 {ledgerRows.map((row, i) => {
                   const ts = TYPE_STYLE[row.type] || TYPE_STYLE.SALE;
                   return (
-                    <div key={i} className="grid grid-cols-[90px_80px_1fr_110px_110px_120px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-tile/40 transition-colors">
+                    <div key={i} className="grid grid-cols-[90px_80px_1fr_110px_110px_120px] gap-4 px-4 py-3.5 items-center border-b border-line last:border-0 hover:bg-tile/40 transition-colors">
                       <span className="text-xs font-semibold text-ink-2 tabular-nums">{row.date}</span>
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-[12px] font-semibold w-fit ${ts.bg} ${ts.text}`}>{ts.label}</span>
                       <span className="text-xs font-semibold text-ink truncate tabular-nums">{row.ref}</span>
@@ -272,7 +272,7 @@ const ClientStatementReport = () => {
                   );
                 })}
                 {/* Closing balance */}
-                <div className="flex justify-end gap-8 px-6 py-3.5 border-t border-border/60 bg-tile/30">
+                <div className="flex justify-end gap-8 px-4 py-3.5 border-t border-line bg-tile/30">
                   <span className="text-[11.5px] font-semibold text-body uppercase tracking-[0.07em]">Closing Balance</span>
                   {ledgerRows.length > 0 && (
                     <span className={`text-sm font-semibold tabular-nums ${ledgerRows[ledgerRows.length-1].balance > 0 ? 'text-bad-text' : 'text-good-text'}`}>
@@ -288,7 +288,7 @@ const ClientStatementReport = () => {
       )}
 
       {!selectedClient && !cLoading && (
-        <div className="py-20 text-center text-sm text-body bg-card rounded-[10px] border border-border/60 shadow-sm">
+        <div className="py-20 text-center text-sm text-body bg-surface rounded-[14px] border border-line">
           <UserCircle size={32} className="mx-auto mb-3 text-body" />
           Select a client above to view their statement
         </div>

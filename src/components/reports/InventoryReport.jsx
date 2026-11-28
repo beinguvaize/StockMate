@@ -150,7 +150,7 @@ const InventoryReport = () => {
       profit: valuationMetrics.totalPotential - valuationMetrics.totalCost
     },
     columns: [
-      { key: 'sku', label: 'SKU', sortable: true, width: 120, render: (val) => <span className="tabular-nums text-[11.5px] bg-tile px-2 py-0.5 rounded border border-border/60 uppercase font-semibold">{val || 'N/A'}</span> },
+      { key: 'sku', label: 'SKU', sortable: true, width: 120, render: (val) => <span className="tabular-nums text-[11.5px] bg-tile px-2 py-0.5 rounded border border-line uppercase font-semibold">{val || 'N/A'}</span> },
       { key: 'name', label: 'Product Name', sortable: true, width: 250 },
       { key: 'category', label: 'Category', sortable: true, width: 140, render: (val) => <span className="text-[11.5px] font-semibold uppercase text-body tracking-[0.07em]">{val || 'GENERAL'}</span> },
       { key: 'stock', label: 'Quantity', align: 'right', sortable: true, width: 100, render: (val, row) => (
@@ -235,7 +235,7 @@ const InventoryReport = () => {
       {/* A cost from a supplier bill and a cost somebody estimated look
           identical in the table below. This says which is which. */}
       {evidence && evidence.estimated > 0 && (
-        <div className="rounded-[10px] border border-border/60 bg-card p-4">
+        <div className="rounded-[14px] border border-line bg-surface p-4">
           <div className="flex items-baseline justify-between mb-2">
             <span className="text-[12px] font-semibold uppercase tracking-[0.07em] text-body">
               What this value rests on

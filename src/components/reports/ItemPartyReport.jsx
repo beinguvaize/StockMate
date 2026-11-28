@@ -25,7 +25,7 @@ const EntityPicker = ({ label, items, selectedId, onSelect, loading, displayKey 
   const selected = items.find(c => c.id === selectedId);
 
   return (
-    <div className="bg-card rounded-[10px] border border-border/60 shadow-sm p-6">
+    <div className="bg-surface rounded-[14px] border border-line p-4">
       <SectionHead title={label} sub="search to select" />
       <div className="relative max-w-sm">
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-body" />
@@ -34,11 +34,11 @@ const EntityPicker = ({ label, items, selectedId, onSelect, loading, displayKey 
           placeholder={`Search ${label.toLowerCase()}...`}
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2.5 bg-card border border-border shadow-sm rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-accent-signature/20"
+          className="w-full pl-9 pr-4 py-2.5 bg-surface border border-border rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-accent-signature/20"
         />
       </div>
       {search && (
-        <div className="mt-2 bg-card border border-black/8 rounded-xl shadow-lg max-h-56 overflow-y-auto">
+        <div className="mt-2 bg-surface border border-line rounded-xl shadow-lg max-h-56 overflow-y-auto">
           {loading
             ? <div className="p-4 text-xs text-body">Loading...</div>
             : filtered.length === 0
@@ -46,7 +46,7 @@ const EntityPicker = ({ label, items, selectedId, onSelect, loading, displayKey 
             : filtered.map(item => (
               <button key={item.id}
                 onClick={() => { onSelect(item.id); setSearch(''); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-tile/60 transition-colors text-left border-b border-border/60 last:border-0 ${selectedId === item.id ? 'bg-accent-signature/5' : ''}`}>
+                className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-tile/60 transition-colors text-left border-b border-line last:border-0 ${selectedId === item.id ? 'bg-accent-signature/5' : ''}`}>
                 <div className="w-8 h-8 rounded-full bg-accent-signature/10 flex items-center justify-center shrink-0">
                   <span className="text-[11.5px] font-semibold text-amber-text">{((item[displayKey]||'?')[0]).toUpperCase()}</span>
                 </div>
@@ -182,16 +182,16 @@ const ItemPartyReport = () => {
       {/* View toggle */}
       <div className="flex items-center gap-3">
         <span className="text-[11.5px] font-semibold text-body uppercase tracking-[0.07em]">View:</span>
-        <div className="flex items-center gap-1 bg-card border border-border shadow-sm rounded-xl p-1">
+        <div className="flex items-center gap-1 bg-surface border border-border rounded-xl p-1">
           <button onClick={() => { setView('customer'); setProductId(''); }}
             className={`flex items-center gap-2 px-4 py-2 rounded-pill text-[12px] font-semibold transition-all ${
-              view === 'customer' ? 'bg-card text-ink font-semibold shadow-sm' : 'text-body font-medium hover:text-ink'
+              view === 'customer' ? 'bg-surface text-ink font-semibold shadow-sm' : 'text-body font-medium hover:text-ink'
             }`}>
             <Users size={12} /> By Customer
           </button>
           <button onClick={() => { setView('item'); setClientId(''); }}
             className={`flex items-center gap-2 px-4 py-2 rounded-pill text-[12px] font-semibold transition-all ${
-              view === 'item' ? 'bg-card text-ink font-semibold shadow-sm' : 'text-body font-medium hover:text-ink'
+              view === 'item' ? 'bg-surface text-ink font-semibold shadow-sm' : 'text-body font-medium hover:text-ink'
             }`}>
             <Package size={12} /> By Item
           </button>
@@ -242,8 +242,8 @@ const ItemPartyReport = () => {
 
       {/* Table */}
       {entitySelected && (
-        <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-          <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
+        <div className="bg-surface rounded-[14px] border border-line overflow-hidden">
+          <div className="px-4 pt-3.5 pb-3 border-b border-line flex items-center justify-between">
             <SectionHead
               title={isCustomerView
                 ? `Items — ${selectedEntity?.name || ''}`
@@ -256,7 +256,7 @@ const ItemPartyReport = () => {
           </div>
 
           {sLoading ? (
-            <div className="p-6 space-y-3">
+            <div className="p-4 space-y-3">
               {[...Array(5)].map((_, i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}
             </div>
           ) : tableRows.length === 0 ? (
@@ -265,14 +265,14 @@ const ItemPartyReport = () => {
             </div>
           ) : (
             <div>
-              <div className="grid grid-cols-[36px_1fr_100px_140px] gap-4 px-6 py-2 bg-tile/50 border-b border-border/60">
+              <div className="grid grid-cols-[36px_1fr_100px_140px] gap-4 px-4 py-2 bg-tile border-b border-line">
                 {['#', isCustomerView ? 'Item' : 'Customer', 'Qty', 'Revenue'].map(h => (
                   <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
                 ))}
               </div>
               {tableRows.map((row, i) => (
                 <div key={row.name}
-                  className="grid grid-cols-[36px_1fr_100px_140px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-tile/40 transition-colors">
+                  className="grid grid-cols-[36px_1fr_100px_140px] gap-4 px-4 py-3.5 items-center border-b border-line last:border-0 hover:bg-tile/40 transition-colors">
                   <span className={`text-sm font-semibold tabular-nums ${i===0?'text-amber-text':i===1?'text-body':i===2?'text-amber-text':'text-ink-tertiary'}`}>
                     {i + 1}
                   </span>
@@ -293,7 +293,7 @@ const ItemPartyReport = () => {
 
       {/* Prompt when nothing selected */}
       {!entitySelected && !loading && (
-        <div className="py-20 text-center text-sm text-body bg-card rounded-[10px] border border-border/60 shadow-sm">
+        <div className="py-20 text-center text-sm text-body bg-surface rounded-[14px] border border-line">
           {isCustomerView
             ? <><Users size={32} className="mx-auto mb-3 text-body" />Select a customer above to see their items</>
             : <><Package size={32} className="mx-auto mb-3 text-body" />Select a product above to see its customers</>

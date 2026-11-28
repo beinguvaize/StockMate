@@ -322,7 +322,7 @@ const APAgingReport = () => {
       {
         key: 'bill_ref', label: 'Bill Ref', sortable: true, width: 130,
         render: (val) => (
-          <span className="tabular-nums text-[11.5px] bg-tile px-2 py-0.5 rounded border border-border/60 uppercase font-semibold">
+          <span className="tabular-nums text-[11.5px] bg-tile px-2 py-0.5 rounded border border-line uppercase font-semibold">
             {val}
           </span>
         ),
@@ -399,7 +399,7 @@ const APAgingReport = () => {
   return (
     <div className="flex flex-col gap-4">
       {/* Payment-terms banner */}
-      <div className="no-print flex items-center gap-2 px-3 py-2 rounded-2xl bg-accent-signature/5 border border-border/60 shadow-sm">
+      <div className="no-print flex items-center gap-2 px-3 py-2 rounded-2xl bg-accent-signature/5 border border-line">
         <Clock size={12} className="text-amber-text" />
         <span className="text-[11.5px] font-semibold uppercase tracking-[0.07em] text-amber-text">
           Aging computed from bill date + net-{DEFAULT_PAYMENT_TERMS_DAYS} terms.

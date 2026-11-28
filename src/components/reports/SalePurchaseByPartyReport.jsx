@@ -23,8 +23,8 @@ const ShareBar = ({ share, color }) => (
 );
 
 const PartyTable = ({ title, icon: Icon, rows, totalAmount, totalLabel, colorAccent, amountLabel, loading, emptyMsg, rankColors }) => (
-  <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden flex-1 min-w-0">
-    <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
+  <div className="bg-surface rounded-[14px] border border-line overflow-hidden flex-1 min-w-0">
+    <div className="px-4 pt-3.5 pb-3 border-b border-line flex items-center justify-between">
       <SectionHead title={title} sub={`${rows.length} ${totalLabel}`} />
       <div className="text-right">
         <div className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{amountLabel}</div>
@@ -33,20 +33,20 @@ const PartyTable = ({ title, icon: Icon, rows, totalAmount, totalLabel, colorAcc
     </div>
 
     {loading ? (
-      <div className="p-6 space-y-3">
+      <div className="p-4 space-y-3">
         {[...Array(5)].map((_, i) => <div key={i} className="h-12 bg-tile animate-pulse rounded-xl" />)}
       </div>
     ) : rows.length === 0 ? (
       <div className="py-16 text-center text-sm text-body">{emptyMsg}</div>
     ) : (
       <div>
-        <div className="grid grid-cols-[36px_1fr_80px_130px] gap-3 px-6 py-2 bg-tile/50 border-b border-border/60">
+        <div className="grid grid-cols-[36px_1fr_80px_130px] gap-3 px-4 py-2 bg-tile border-b border-line">
           {['#','Name','Orders','Amount'].map(h => (
             <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
           ))}
         </div>
         {rows.map((row, i) => (
-          <div key={row.name} className="grid grid-cols-[36px_1fr_80px_130px] gap-3 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-tile/40 transition-colors">
+          <div key={row.name} className="grid grid-cols-[36px_1fr_80px_130px] gap-3 px-4 py-3.5 items-center border-b border-line last:border-0 hover:bg-tile/40 transition-colors">
             <span className={`text-sm font-semibold ${rankColors[i] || 'text-ink-tertiary'}`}>{i + 1}</span>
             <div className="min-w-0">
               <div className="flex items-center gap-2">

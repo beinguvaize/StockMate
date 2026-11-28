@@ -18,7 +18,7 @@ import { formatCurrency } from '../../lib/utils';
 import { useLinkedRange } from '../../lib/linkedRange';
 
 const KPI = ({ label, value, icon: Icon, color = 'var(--color-accent-signature)', loading }) => (
-  <div className="bg-card rounded-[10px] border border-border/60 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
+  <div className="bg-surface rounded-[14px] border border-line p-5 flex flex-col gap-3">
     <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `color-mix(in srgb, ${color} 10%, transparent)` }}>
       <Icon size={16} style={{ color }} />
     </div>
@@ -166,7 +166,7 @@ const ProductSalesReport = () => {
       />
 
       {/* Product Picker */}
-      <div className="bg-card rounded-[10px] border border-border/60 shadow-sm p-6">
+      <div className="bg-surface rounded-[14px] border border-line p-4">
         <SectionHead title="Select Product" sub="search by name or SKU" />
         <div className="relative max-w-sm">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-body" />
@@ -175,11 +175,11 @@ const ProductSalesReport = () => {
             placeholder="Search products..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-card border border-border shadow-sm rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full pl-9 pr-4 py-2.5 bg-surface border border-border rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-accent-signature/20"
           />
         </div>
         {!selectedProduct && (
-          <div className="mt-2 bg-card border border-border shadow-sm rounded-xl max-h-64 overflow-y-auto">
+          <div className="mt-2 bg-surface border border-border rounded-xl max-h-64 overflow-y-auto">
             {prodLoading
               ? <div className="p-4 text-xs text-body">Loading...</div>
               : products.length === 0
@@ -188,7 +188,7 @@ const ProductSalesReport = () => {
               ? <div className="p-4 text-xs text-body">No products match "{search}"</div>
               : filteredProducts.map(p => (
                 <button key={p.id} onClick={() => { setProductId(p.id); setSearch(''); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-tile/60 transition-colors text-left border-b border-border/60 last:border-0`}>
+                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-tile/60 transition-colors text-left border-b border-line last:border-0`}>
                   <div className="w-8 h-8 rounded-lg bg-accent-signature/10 flex items-center justify-center shrink-0">
                     <Package size={14} className="text-amber-text" />
                   </div>
@@ -233,11 +233,11 @@ const ProductSalesReport = () => {
 
           {/* Top buyers */}
           {topBuyers.length > 0 && (
-            <div className="bg-card rounded-[10px] border border-border/60 shadow-sm p-6">
+            <div className="bg-surface rounded-[14px] border border-line p-4">
               <SectionHead title="Top Buyers" sub={`${topBuyers.length} clients`} />
               <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                 {topBuyers.map((b, i) => (
-                  <div key={i} className="bg-tile/40 rounded-xl border border-border/60 p-3">
+                  <div key={i} className="bg-tile/40 rounded-xl border border-line p-3">
                     <div className="text-[12px] font-medium text-body mb-1 truncate">{b.name}</div>
                     <div className="text-sm font-semibold text-ink tabular-nums">{formatCurrency(b.revenue)}</div>
                     <div className="text-[11.5px] font-semibold text-body mt-0.5">{b.qty} {selectedProduct.unit || 'units'}</div>
@@ -248,26 +248,26 @@ const ProductSalesReport = () => {
           )}
 
           {/* Lines Table */}
-          <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-            <div className="px-6 pt-6 pb-4 border-b border-border/60">
+          <div className="bg-surface rounded-[14px] border border-line overflow-hidden">
+            <div className="px-4 pt-3.5 pb-3 border-b border-line">
               <SectionHead title={`${selectedProduct.name} — Sale Lines`} sub={`${lines.length} entries`} />
             </div>
 
             {loading ? (
-              <div className="p-6 space-y-3">
+              <div className="p-4 space-y-3">
                 {[...Array(6)].map((_, i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}
               </div>
             ) : lines.length === 0 ? (
               <div className="py-16 text-center text-sm text-body">No sales of this product in the selected period</div>
             ) : (
               <div>
-                <div className="grid grid-cols-[100px_180px_1fr_90px_110px_120px] gap-4 px-6 py-2 bg-tile/50 border-b border-border/60">
+                <div className="grid grid-cols-[100px_180px_1fr_90px_110px_120px] gap-4 px-4 py-2 bg-tile border-b border-line">
                   {['Date','Sale Ref','Client','Qty','Rate','Total'].map(h => (
                     <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
                   ))}
                 </div>
                 {lines.map((r, i) => (
-                  <div key={i} className="grid grid-cols-[100px_180px_1fr_90px_110px_120px] gap-4 px-6 py-3 items-center border-b border-border/60 last:border-0 hover:bg-tile/40 transition-colors">
+                  <div key={i} className="grid grid-cols-[100px_180px_1fr_90px_110px_120px] gap-4 px-4 py-3 items-center border-b border-line last:border-0 hover:bg-tile/40 transition-colors">
                     <span className="text-xs font-semibold text-ink-2 tabular-nums">{r.date}</span>
                     <span className="text-xs tabular-nums text-body truncate">{String(r.saleId).toUpperCase()}</span>
                     <span className="text-xs font-semibold text-ink truncate">{r.client}</span>
@@ -276,7 +276,7 @@ const ProductSalesReport = () => {
                     <span className="text-xs font-semibold text-good-text tabular-nums">{formatCurrency(r.total)}</span>
                   </div>
                 ))}
-                <div className="flex justify-end gap-8 px-6 py-3.5 border-t border-border/60 bg-tile/30">
+                <div className="flex justify-end gap-8 px-4 py-3.5 border-t border-line bg-tile/30">
                   <span className="text-[11.5px] font-semibold text-body uppercase tracking-[0.07em]">Total Revenue</span>
                   <span className="text-sm font-semibold text-good-text tabular-nums">{formatCurrency(kpis.revenue)}</span>
                 </div>
@@ -287,7 +287,7 @@ const ProductSalesReport = () => {
       )}
 
       {!selectedProduct && !prodLoading && (
-        <div className="py-20 text-center text-sm text-body bg-card rounded-[10px] border border-border/60 shadow-sm">
+        <div className="py-20 text-center text-sm text-body bg-surface rounded-[14px] border border-line">
           <Package size={32} className="mx-auto mb-3 text-body" />
           Select a product above to view its sale ledger
         </div>

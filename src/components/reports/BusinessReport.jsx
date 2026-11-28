@@ -57,7 +57,7 @@ const Spark = ({ data = [], color = 'var(--color-accent-signature)' }) => (
 
 /* ─── KPI card ────────────────────────────────────────────────────────────── */
 const KPI = ({ label, value, sub, spark, color = 'var(--color-accent-signature)', icon: Icon, loading }) => (
-  <div className="bg-card rounded-[10px] border border-border/60 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
+  <div className="bg-surface rounded-[14px] border border-line p-5 flex flex-col gap-3">
     <div className="flex items-center justify-between">
       <div className={`w-9 h-9 rounded-xl flex items-center justify-center`}
         style={{ background: `color-mix(in srgb, ${color} 10%, transparent)` }}>
@@ -86,7 +86,7 @@ const KPI = ({ label, value, sub, spark, color = 'var(--color-accent-signature)'
 const ChartTip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-card border border-black/8 rounded-xl px-3 py-2 shadow-lg text-xs">
+    <div className="bg-surface border border-line rounded-xl px-3 py-2 shadow-lg text-xs">
       <div className="font-semibold text-ink-2 mb-1">{label}</div>
       {payload.map((p, i) => (
         <div key={i} className="flex items-center gap-2">
@@ -432,7 +432,7 @@ const BusinessReport = () => {
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-6">
 
         {/* Daily revenue trend */}
-        <div className="bg-card rounded-[10px] border border-border/60 p-6 shadow-sm">
+        <div className="bg-surface rounded-[14px] border border-line p-4">
           <SectionHead title="Revenue Trend" sub={`${salesMetrics.dailyTrend.length} days`} />
           {salesLoading
             ? <div className="h-48 bg-tile animate-pulse rounded-xl" />
@@ -460,7 +460,7 @@ const BusinessReport = () => {
         </div>
 
         {/* Payment method split */}
-        <div className="bg-card rounded-[10px] border border-border/60 p-6 shadow-sm">
+        <div className="bg-surface rounded-[14px] border border-line p-4">
           <SectionHead title="Billed vs Collected" sub="by payment method" />
           {salesLoading
             ? <div className="h-48 bg-tile animate-pulse rounded-xl" />
@@ -502,8 +502,8 @@ const BusinessReport = () => {
       </div>
 
       {/* ── TOP PRODUCTS ────────────────────────────────────────────────── */}
-      <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-        <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
+      <div className="bg-surface rounded-[14px] border border-line overflow-hidden">
+        <div className="px-4 pt-3.5 pb-3 border-b border-line flex items-center justify-between">
           <SectionHead title="Top Products"
             sub={prodSort === 'PROFIT' ? 'by gross profit' : 'by revenue'} />
           <div className="flex items-center bg-muted rounded-lg p-0.5">
@@ -511,7 +511,7 @@ const BusinessReport = () => {
               <button key={id} onClick={() => setProdSort(id)}
                 className={`px-3 py-1.5 rounded-pill text-[12px] transition-colors ${
                   prodSort === id
-                    ? 'bg-card text-ink font-semibold shadow-sm'
+                    ? 'bg-surface text-ink font-semibold shadow-sm'
                     : 'text-body font-medium hover:text-ink'}`}>
                 {label}
               </button>
@@ -519,20 +519,20 @@ const BusinessReport = () => {
           </div>
         </div>
         {salesLoading
-          ? <div className="p-6 space-y-3">{[...Array(5)].map((_,i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}</div>
+          ? <div className="p-4 space-y-3">{[...Array(5)].map((_,i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}</div>
           : prodRows.length === 0
           ? <div className="py-16 text-center text-sm text-body">No sales data for selected period</div>
           : (
             <div>
               {/* Table header */}
-              <div className="grid grid-cols-[36px_1fr_90px_70px_110px_110px_110px_92px] gap-4 px-6 py-2 bg-tile/50 border-b border-border/60">
+              <div className="grid grid-cols-[36px_1fr_90px_70px_110px_110px_110px_92px] gap-4 px-4 py-2 bg-tile border-b border-line">
                 {['#','Product','Qty','Bills','Revenue','COGS','Gross profit','Margin'].map(h => (
                   <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
                 ))}
               </div>
               {prodRows.map((p, i) => (
                 <div key={p.name}
-                  className={`grid grid-cols-[36px_1fr_90px_70px_110px_110px_110px_92px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-tile/40 transition-colors ${
+                  className={`grid grid-cols-[36px_1fr_90px_70px_110px_110px_110px_92px] gap-4 px-4 py-3.5 items-center border-b border-line last:border-0 hover:bg-tile/40 transition-colors ${
                     i === 0 ? 'bg-accent-signature/3' : ''
                   }`}>
                   {/* Rank */}
@@ -573,7 +573,7 @@ const BusinessReport = () => {
         {/* Per-product cost is an allocation, not a stored figure — say so
             rather than implying these profits are exact to the paisa. */}
         {!salesLoading && prodRows.length > 0 && (
-          <div className="px-6 py-3 border-t border-border/60 text-[12px] text-body">
+          <div className="px-4 py-3 border-t border-line text-[12px] text-body">
             Cost per product uses FIFO batch cost where recorded, otherwise the product&apos;s cost
             price. Allocated COGS {formatCurrency(salesMetrics.allocatedCogs)} vs {formatCurrency(pnl.cogs)} in the P&amp;L
             {Math.abs(salesMetrics.allocatedCogs - pnl.cogs) > 1 && !plLoading && (
@@ -585,7 +585,7 @@ const BusinessReport = () => {
 
       {/* Loss-makers — the reason revenue ranking alone is not enough. */}
       {!salesLoading && salesMetrics.lossMakers.length > 0 && (
-        <div className="bg-card rounded-[10px] border border-border/60 shadow-sm p-5">
+        <div className="bg-surface rounded-[14px] border border-line p-5">
           <SectionHead title="Sold below cost"
             sub={`${salesMetrics.lossMakers.length} product${salesMetrics.lossMakers.length === 1 ? '' : 's'} this period`} />
           <div className="space-y-1.5 mt-1">
@@ -612,16 +612,16 @@ const BusinessReport = () => {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
         {/* Client leaderboard */}
-        <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-          <div className="px-6 pt-6 pb-4 border-b border-border/60">
+        <div className="bg-surface rounded-[14px] border border-line overflow-hidden">
+          <div className="px-4 pt-3.5 pb-3 border-b border-line">
             <SectionHead title="Top Clients" sub="by revenue" />
           </div>
           {salesLoading
-            ? <div className="p-6 space-y-3">{[...Array(4)].map((_,i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}</div>
+            ? <div className="p-4 space-y-3">{[...Array(4)].map((_,i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}</div>
             : salesMetrics.topClients.length === 0
             ? <div className="py-12 text-center text-sm text-body">No client data</div>
             : salesMetrics.topClients.map((c, i) => (
-              <div key={c.name} className="flex items-center gap-4 px-6 py-3.5 border-b border-border/60 last:border-0 hover:bg-tile/40 transition-colors">
+              <div key={c.name} className="flex items-center gap-4 px-4 py-3.5 border-b border-line last:border-0 hover:bg-tile/40 transition-colors">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-semibold shrink-0 ${
                   i===0?'bg-accent-signature/15 text-amber-text':i===1?'bg-muted text-ink-2':'bg-accent-signature/10 text-amber-text'
                 }`}>
@@ -641,16 +641,16 @@ const BusinessReport = () => {
         </div>
 
         {/* Daily sales breakdown */}
-        <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-          <div className="px-6 pt-6 pb-4 border-b border-border/60">
+        <div className="bg-surface rounded-[14px] border border-line overflow-hidden">
+          <div className="px-4 pt-3.5 pb-3 border-b border-line">
             <SectionHead title="Daily Summary" />
           </div>
           {salesLoading
-            ? <div className="p-6 space-y-3">{[...Array(4)].map((_,i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}</div>
+            ? <div className="p-4 space-y-3">{[...Array(4)].map((_,i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}</div>
             : salesMetrics.dailyTrend.length === 0
             ? <div className="py-12 text-center text-sm text-body">No data</div>
             : [...salesMetrics.dailyTrend].reverse().slice(0, 8).map(d => (
-              <div key={d.date} className="flex items-center gap-4 px-6 py-3 border-b border-border/60 last:border-0 hover:bg-tile/40 transition-colors">
+              <div key={d.date} className="flex items-center gap-4 px-4 py-3 border-b border-line last:border-0 hover:bg-tile/40 transition-colors">
                 <div className="w-8 h-8 rounded-xl bg-tile flex items-center justify-center shrink-0">
                   <Calendar size={13} className="text-body" />
                 </div>
@@ -693,8 +693,8 @@ const BusinessReport = () => {
         </div>
       </div>
 
-      <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-        <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
+      <div className="bg-surface rounded-[14px] border border-line overflow-hidden">
+        <div className="px-4 pt-3.5 pb-3 border-b border-line flex items-center justify-between">
           <SectionHead title="Purchases" sub="by supplier" />
           <div className="text-right">
             <div className="text-[12px] font-medium text-body">Total Spend</div>
@@ -702,18 +702,18 @@ const BusinessReport = () => {
           </div>
         </div>
         {purchLoading
-          ? <div className="p-6 space-y-3">{[...Array(3)].map((_,i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}</div>
+          ? <div className="p-4 space-y-3">{[...Array(3)].map((_,i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}</div>
           : purchMetrics.topSuppliers.length === 0
           ? <div className="py-16 text-center text-sm text-body">No purchases for selected period</div>
           : (
             <div>
-              <div className="grid grid-cols-[36px_1fr_80px_140px_120px] gap-4 px-6 py-2 bg-tile/50 border-b border-border/60">
+              <div className="grid grid-cols-[36px_1fr_80px_140px_120px] gap-4 px-4 py-2 bg-tile border-b border-line">
                 {['#','Supplier','Orders','Share','Amount'].map(h => (
                   <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
                 ))}
               </div>
               {purchMetrics.topSuppliers.map((s, i) => (
-                <div key={s.name} className="grid grid-cols-[36px_1fr_80px_140px_120px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-tile/40 transition-colors">
+                <div key={s.name} className="grid grid-cols-[36px_1fr_80px_140px_120px] gap-4 px-4 py-3.5 items-center border-b border-line last:border-0 hover:bg-tile/40 transition-colors">
                   <span className={`text-sm font-semibold ${i===0?'text-amber-text':'text-ink-tertiary'}`}>{s.rank}</span>
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-7 h-7 rounded-full bg-info-soft flex items-center justify-center shrink-0">

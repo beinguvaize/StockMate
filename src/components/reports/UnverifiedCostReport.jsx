@@ -152,7 +152,7 @@ const UnverifiedCostReport = () => {
     <>
       <div className="no-print flex items-center justify-end gap-2 mb-3">
         <button onClick={() => refetch?.()}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-pill border border-border text-[12px] font-semibold text-ink-2 hover:bg-card transition-colors">
+          className="flex items-center gap-1.5 px-3 py-2 rounded-pill border border-border text-[12px] font-semibold text-ink-2 hover:bg-surface transition-colors">
           <RefreshCw size={13} /> Refresh
         </button>
         <button onClick={exportExcel}
@@ -164,7 +164,7 @@ const UnverifiedCostReport = () => {
       {/* Say plainly what the number means — it is not a loss, and it is not an
           error. It is stock whose cost nobody has confirmed, which is a
           different and quieter problem. */}
-      <div className="no-print mb-3 rounded-xl border border-border bg-card p-3.5">
+      <div className="no-print mb-3 rounded-xl border border-border bg-surface p-3.5">
         <div className="text-[12px] text-body leading-relaxed">
           These batches carry a cost that <strong className="text-ink">no supplier bill supports</strong> —
           opening stock and hand adjustments. The figures are not losses; they are guesses that

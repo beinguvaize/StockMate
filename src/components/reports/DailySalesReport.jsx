@@ -128,7 +128,7 @@ const DailySalesReport = () => {
       />
 
       {!loading && sales.length > 0 && filtered.length === 0 ? (
-        <div className="bg-card rounded-[10px] border border-border/60 py-16 text-center">
+        <div className="bg-surface rounded-[14px] border border-line py-16 text-center">
           <p className="text-sm text-ink">No sales match these filters</p>
           <button onClick={clearFilters} className="text-[12px] text-body hover:text-ink mt-1">
             Clear filters

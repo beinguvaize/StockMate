@@ -29,7 +29,7 @@ const WINDOWS = [
 const SLOW_UNITS_THRESHOLD = 5;
 
 const KPI = ({ label, value, sub, icon: Icon, color = 'var(--color-accent-signature)', loading }) => (
-  <div className="bg-card rounded-[10px] border border-border/60 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
+  <div className="bg-surface rounded-[14px] border border-line p-5 flex flex-col gap-3">
     <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `color-mix(in srgb, ${color} 10%, transparent)` }}>
       <Icon size={16} style={{ color }} />
     </div>
@@ -181,13 +181,13 @@ const ProductMovementReport = () => {
               className={`px-3 py-1.5 rounded-pill text-xs font-semibold transition-colors ${
                 windowDays === w.key
                   ? 'bg-accent-signature text-button-text'
-                  : 'bg-card text-ink-2 hover:text-ink border border-border/60'
+                  : 'bg-surface text-ink-2 hover:text-ink border border-line'
               }`}>
               {w.label}
             </button>
           ))}
           <button onClick={exportCSV} disabled={loading || (!fast.length && !slow.length)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-xs font-semibold bg-card border border-border/60 text-ink-2 hover:text-ink hover:border-black/20 disabled:opacity-40 transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-pill text-xs font-semibold bg-surface border border-line text-ink-2 hover:text-ink hover:border-black/20 disabled:opacity-40 transition-colors">
             <Download size={13} /> Export
           </button>
         </div>
@@ -226,11 +226,11 @@ const ProductMovementReport = () => {
   );
 };
 
-const GRID = 'grid grid-cols-[1fr_90px_100px_70px_90px_90px_90px_110px] gap-3 px-6';
+const GRID = 'grid grid-cols-[1fr_90px_100px_70px_90px_90px_90px_110px] gap-3 px-4';
 
 const MovementTable = ({ title, sub, icon, rows, loading, tone, emptyText }) => (
-  <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-    <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
+  <div className="bg-surface rounded-[14px] border border-line overflow-hidden">
+    <div className="px-4 pt-3.5 pb-3 border-b border-line flex items-center justify-between">
       <div className="flex items-center gap-2">
         {icon}
         <h2 className="text-base font-semibold text-ink">{title}</h2>
@@ -242,7 +242,7 @@ const MovementTable = ({ title, sub, icon, rows, loading, tone, emptyText }) => 
     </div>
 
     {loading ? (
-      <div className="p-6 space-y-3">
+      <div className="p-4 space-y-3">
         {[...Array(5)].map((_, i) => <div key={i} className="h-10 bg-tile animate-pulse rounded-xl" />)}
       </div>
     ) : rows.length === 0 ? (
@@ -252,7 +252,7 @@ const MovementTable = ({ title, sub, icon, rows, loading, tone, emptyText }) => 
       </div>
     ) : (
       <div>
-        <div className={`${GRID} py-2 bg-tile/50 border-b border-border/60`}>
+        <div className={`${GRID} py-2 bg-tile border-b border-line`}>
           {['Product', 'Category', 'Units Sold', 'Sales', 'Revenue', 'Stock', 'Days Cover', 'Stock Value'].map(h => (
             <span key={h} className="text-[12px] font-semibold text-body uppercase tracking-[0.07em]">{h}</span>
           ))}
@@ -261,7 +261,7 @@ const MovementTable = ({ title, sub, icon, rows, loading, tone, emptyText }) => 
           const dead = p.units === 0;
           return (
             <div key={p.id || i}
-              className={`${GRID} py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-tile/40 transition-colors ${dead ? 'bg-bad-soft/40' : ''}`}>
+              className={`${GRID} py-3.5 items-center border-b border-line last:border-0 hover:bg-tile/40 transition-colors ${dead ? 'bg-bad-soft/40' : ''}`}>
               <div className="flex items-center gap-2 min-w-0">
                 {tone === 'fast' && i < 3 && (
                   <span className="shrink-0 w-5 h-5 rounded-full bg-good-soft text-good-text text-[11.5px] font-semibold grid place-items-center">{i + 1}</span>
