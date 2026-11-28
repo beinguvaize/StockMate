@@ -232,7 +232,7 @@ const Expenses = () => {
             <label className="relative inline-flex h-9 items-center gap-1.5 rounded-pill pl-3.5 pr-8 font-tight text-[13px] font-semibold text-ink-2 shadow-[inset_0_0_0_1px_var(--color-line)]">
               <em className="not-italic font-medium text-mute">Category</em>
               <select value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Category"
-                className="appearance-none bg-transparent outline-none">
+                className="appearance-none bg-transparent outline-none [field-sizing:content]">
                 <option value="ALL">All</option>
                 {periodCats.map(([c]) => <option key={c} value={c}>{c}</option>)}
                 {category !== 'ALL' && !periodCats.some(([c]) => c === category) && <option value={category}>{category}</option>}

@@ -5,7 +5,7 @@ import { Button } from '../ui/button';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../ui/table';
 import WriteFailure from '../invoices/WriteFailure';
 import { describeRecurring, paymentLabel } from '../../lib/recurring';
-import { cn } from '../../lib/utils';
+import { cn, getAppTimezone } from '../../lib/utils';
 import { Pill, rupees } from './parts';
 
 /**
@@ -65,7 +65,7 @@ export default function RepeatingTab({ templates = [], sym = '₹', canAdd, onNe
                       <small className="text-[12px] text-mute">{t.category || 'Other'}</small>
                       {t.last_error && (
                         <span className="mt-[3px] block text-[12px] text-bad-text" title={t.last_error}>
-                          Couldn’t log{t.last_error_at ? ` on ${new Date(t.last_error_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}: {t.last_error.slice(0, 120)}
+                          Couldn’t log{t.last_error_at ? ` on ${new Date(t.last_error_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: getAppTimezone() })}` : ''}: {t.last_error.slice(0, 120)}
                         </span>
                       )}
                     </TableCell>
