@@ -42,8 +42,8 @@ async function openForm(page) {
 // first. That check has its own spec (purchase-price-check.spec.js); here it
 // is answered "yes" so the cost review behind it can be tested.
 async function save(page) {
-  await page.getByRole('button', { name: /Save 1 Item/ }).click();
-  await page.getByRole('button', { name: 'Yes, these prices are right' }).click();
+  await page.getByRole('button', { name: /Save 1 item/i }).click();
+  await page.getByRole('button', { name: /Yes, (this price is|these prices are) right/ }).click();
 }
 
 async function buy(page, qty, total) {
@@ -129,6 +129,7 @@ test('an expiry date stamps the batch the server made, never a second batch', as
     return r.fallback();
   });
   await buy(page, 10, 300);                                   // no cost change: saves directly
+  await page.getByRole('button', { name: '+ Expiry' }).first().click();
   await page.getByLabel('Expiry date (optional)').first().fill('2027-03-31');
   await save(page);
   await expect.poll(() => calls.purchases).toBe(1);

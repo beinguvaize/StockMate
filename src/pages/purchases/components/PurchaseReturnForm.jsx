@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { RotateCcw, CheckCircle2 } from 'lucide-react';
-import Button from '../../../shared/Button';
+import { Button } from '../../../components/ui/button';
+import { Eyebrow } from '../../../components/ui/FigureStrip';
 import { formatCurrency, todayISOInAppTZ } from '../../../lib/utils';
+import { lbl, hint, field, footRow } from '../lib/ui';
 
-const PurchaseReturnForm = ({ purchase, product, supplier, warehouses = [], onSave, loading }) => {
+const PurchaseReturnForm = ({ purchase, product, supplier, warehouses = [], onSave, loading, onCancel }) => {
   const maxQty = Number(purchase?.quantity) || 0;
 
   const [formData, setFormData] = useState({
@@ -44,90 +45,59 @@ const PurchaseReturnForm = ({ purchase, product, supplier, warehouses = [], onSa
     });
   };
 
+  const whole = (n) => `₹${Math.round(n).toLocaleString('en-IN')}`;
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Context summary */}
-      <div className="bg-canvas rounded-2xl p-4 space-y-1">
-        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Original Purchase</div>
-        <div className="text-sm font-semibold text-foreground">{product?.name || 'Unknown Product'}</div>
-        <div className="flex items-center gap-4 mt-1">
-          <span className="text-xs font-semibold text-muted-foreground">Qty: <span className="text-foreground">{maxQty}</span></span>
-          <span className="text-xs font-semibold text-muted-foreground">Unit: <span className="text-foreground">{formatCurrency(unitPrice)}</span></span>
-          <span className="text-xs font-semibold text-muted-foreground">Total: <span className="text-foreground">{formatCurrency(purchase?.total_amount)}</span></span>
+    <form onSubmit={handleSubmit}>
+      {/* What is being returned against */}
+      <div className="mb-3.5 rounded-xl bg-tile px-3.5 py-3">
+        <Eyebrow>Original purchase{supplier ? ` · ${supplier.name}` : ''}</Eyebrow>
+        <b className="mb-1 mt-0.5 block font-tight text-[14px] font-semibold">{product?.name || 'Unknown Product'}</b>
+        <div className="flex flex-wrap gap-4 text-[12.5px] text-body">
+          <span>Qty <b className="font-tight font-semibold text-ink tabular-nums">{maxQty}</b></span>
+          <span>Unit <b className="font-tight font-semibold text-ink tabular-nums">{formatCurrency(unitPrice)}</b></span>
+          <span>Total <b className="font-tight font-semibold text-ink tabular-nums">{formatCurrency(purchase?.total_amount)}</b></span>
         </div>
-        {supplier && (
-          <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mt-1">{supplier.name}</div>
-        )}
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        <div>
-          <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            Return Quantity <span className="text-muted-foreground">(max {maxQty})</span>
-          </label>
-          <input
-            required
-            type="number"
-            min="0.01"
-            max={maxQty}
-            step="0.01"
-            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
-            placeholder={`0 – ${maxQty}`}
-            value={formData.quantity}
-            onChange={e => setFormData(f => ({ ...f, quantity: e.target.value }))}
-          />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="block">
+          <span className={lbl}>Return quantity, max {maxQty}</span>
+          <input required type="number" min="0.01" max={maxQty} step="0.01" className={field}
+            placeholder={`0 – ${maxQty}`} value={formData.quantity}
+            onChange={e => setFormData(f => ({ ...f, quantity: e.target.value }))} />
           {returnTotal > 0 && (
-            <div className="mt-1.5 text-[10px] font-semibold text-muted-foreground">
-              Return value: <span className="text-rose-600 font-semibold">{formatCurrency(returnTotal)}</span>
-            </div>
+            <span className={hint}>Return value <b className="font-tight font-semibold text-ink tabular-nums">{formatCurrency(returnTotal)}</b></span>
           )}
-        </div>
-
-        <div>
-          <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Date</label>
-          <input
-            required
-            type="date"
-            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
-            value={formData.date}
-            onChange={e => setFormData(f => ({ ...f, date: e.target.value }))}
-          />
-        </div>
-
+        </label>
+        <label className="block">
+          <span className={lbl}>Date</span>
+          <input required type="date" className={field} value={formData.date}
+            onChange={e => setFormData(f => ({ ...f, date: e.target.value }))} />
+        </label>
         {warehouses.length > 0 && (
-          <div>
-            <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Return Stock To</label>
-            <select
-              className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
-              value={formData.location_id}
-              onChange={e => setFormData(f => ({ ...f, location_id: e.target.value }))}
-            >
-              <option value="">Auto (main warehouse)</option>
+          <label className="block sm:col-span-2">
+            <span className={lbl}>Return stock from</span>
+            <select className={field} value={formData.location_id}
+              onChange={e => setFormData(f => ({ ...f, location_id: e.target.value }))}>
+              <option value="">Auto, main warehouse</option>
               {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
-          </div>
+          </label>
         )}
-
-        <div>
-          <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Reason</label>
-          <input
-            type="text"
-            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
-            placeholder="Damaged, wrong item, excess stock..."
-            value={formData.reason}
-            onChange={e => setFormData(f => ({ ...f, reason: e.target.value }))}
-          />
-        </div>
+        <label className="block sm:col-span-2">
+          <span className={lbl}>Reason</span>
+          <input type="text" className={field} placeholder="Damaged, wrong item, excess stock..."
+            value={formData.reason} onChange={e => setFormData(f => ({ ...f, reason: e.target.value }))} />
+        </label>
       </div>
 
-      <Button
-        type="submit"
-        disabled={loading || !formData.quantity}
-        className="w-full !rounded-xl !h-12 shadow-xl !bg-rose-600 hover:!bg-rose-700"
-        icon={RotateCcw}
-      >
-        {loading ? 'Processing...' : `Return ${formData.quantity || 0} units`}
-      </Button>
+      <div className={footRow}>
+        {onCancel && <Button variant="secondary" className="px-[22px]" onClick={onCancel}>Cancel</Button>}
+        <Button type="submit" disabled={loading || !formData.quantity} className="flex-1 h-11">
+          {loading ? 'Processing…' : `Return ${formData.quantity || 0} units${returnTotal > 0 ? ` · ${whole(returnTotal)}` : ''}`}
+        </Button>
+      </div>
     </form>
   );
 };

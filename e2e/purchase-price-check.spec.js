@@ -64,7 +64,7 @@ async function editPaidBill(page) {
 test('a price far from the last purchase asks first, and "Yes" still saves', async ({ page }) => {
   const calls = await boot(page);
   await newPurchase(page, 10, 300);                         // Rs 30 against Rs 92
-  await page.getByRole('button', { name: /Save 1 Item/ }).click();
+  await page.getByRole('button', { name: /Save 1 item/i }).click();
 
   const dialog = page.getByTestId('price-check-dialog');
   await expect(dialog).toBeVisible();
@@ -73,7 +73,7 @@ test('a price far from the last purchase asks first, and "Yes" still saves', asy
   expect(calls.purchases, 'nothing saved while asking').toBe(0);
   await shot(page, 'web-new-purchase-dialog.png');
 
-  await dialog.getByRole('button', { name: 'Yes, these prices are right' }).click();
+  await dialog.getByRole('button', { name: /Yes, (this price is|these prices are) right/ }).click();
   await expect.poll(() => calls.purchases).toBe(1);
   await expect(dialog).toHaveCount(0);
 });
@@ -81,7 +81,7 @@ test('a price far from the last purchase asks first, and "Yes" still saves', asy
 test('"Change it" goes back with the amount in focus, saving nothing', async ({ page }) => {
   const calls = await boot(page);
   await newPurchase(page, 10, 300);
-  await page.getByRole('button', { name: /Save 1 Item/ }).click();
+  await page.getByRole('button', { name: /Save 1 item/i }).click();
   await page.getByRole('button', { name: 'Change it' }).click();
 
   await expect(page.getByTestId('price-check-dialog')).toHaveCount(0);
@@ -92,7 +92,7 @@ test('"Change it" goes back with the amount in focus, saving nothing', async ({ 
 test('a price within 20 % of the last purchase does not ask', async ({ page }) => {
   const calls = await boot(page);
   await newPurchase(page, 10, 1000);                        // Rs 100 against Rs 92: +8.7 %
-  await page.getByRole('button', { name: /Save 1 Item/ }).click();
+  await page.getByRole('button', { name: /Save 1 item/i }).click();
   // Rs 100 is still a change from costPrice Rs 30, so the cost review shows.
   await expect(page.getByTestId('price-change-review')).toBeVisible();
   await expect(page.getByTestId('price-check-dialog')).toHaveCount(0);
@@ -120,7 +120,7 @@ test('Edit Bill compares a changed line with the purchase before it', async ({ p
   expect(calls.billEdits).toBe(0);
 
   await page.getByRole('button', { name: /Save bill/ }).click();
-  await page.getByRole('button', { name: 'Yes, these prices are right' }).click();
+  await page.getByRole('button', { name: /Yes, (this price is|these prices are) right/ }).click();
   await expect.poll(() => calls.billEdits).toBe(1);
 });
 

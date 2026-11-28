@@ -6,14 +6,15 @@ import { useNotifications } from '../../context/NotificationContext';
 import { usePurchases } from '../../hooks/usePurchases';
 import { useAccounts, accountForMethod } from '../../hooks/useAccounts';
 import { useInventory } from '../../hooks/useInventory';
-import { Plus, Banknote, Printer } from 'lucide-react';
-import Modal from '../../shared/Modal';
-import Table from '../../shared/Table';
+import Dialog from '../../components/ui/Dialog';
+import { Tabs } from '../../components/ui/Tabs';
+import { Button } from '../../components/ui/button';
 import { PageSkeleton } from '../../components/ui/States';
-import { formatCurrency, formatDate, generateRef, todayISOInAppTZ } from '../../lib/utils';
+import { formatCurrency, generateRef, todayISOInAppTZ } from '../../lib/utils';
 import { groupPurchasesIntoBills, dueOf as billDueOf, isCreditType } from '../../lib/bills';
 import { buildVoucherModel, voucherNo } from './lib/voucher';
 import { decorateBills, lineDeltas, allocatePayment, fmtDate } from './lib/register';
+import { monthSummary } from './lib/monthSummary';
 import { classifyWriteFailure } from '../../lib/writeOutcome';
 import { voucherHtml } from './lib/voucherHtml';
 import PurchaseForm from './components/PurchaseForm';
@@ -23,6 +24,8 @@ import MultiPurchaseForm from './components/MultiPurchaseForm';
 import PurchaseReturnForm from './components/PurchaseReturnForm';
 import PriceHistory from './components/PriceHistory';
 import BillRegister from './components/BillRegister';
+import BillDetailPanel from './components/BillDetailPanel';
+import PayBillsDialog from './components/PayBillsDialog';
 
 const PurchasesPage = () => {
   const { currentTenantId, businessProfile } = useTenant();
@@ -76,73 +79,18 @@ const PurchasesPage = () => {
   const [payDate, setPayDate]     = useState(() => todayISOInAppTZ());
   const [paySubmitting, setPaySubmitting] = useState(false);
   const [dupTarget, setDupTarget]   = useState(null); // purchase to duplicate (prefill single form)
-  const [printTarget, setPrintTarget] = useState(null);
+  const [detailId, setDetailId] = useState(null); // bill open in the side panel
   const [historyProduct, setHistoryProduct] = useState(null); // product whose price history is open
   // Credit terms, paid and due all come from src/lib/bills.js so this screen and
   // the supplier ledger cannot disagree about what is owed.
   const _credit = isCreditType;
   const dueOf = billDueOf;
 
-  // Header summary — this-month spend, count, total payable, claimable ITC.
-  //
-  // ITC used to be `amt - amt / 1.18` on every purchase, which assumed 18% no
-  // matter what the product is actually taxed at. It now uses each product's
-  // own rate, so a 0-rated item contributes nothing instead of phantom credit.
-  //
-  // Registration is reported, not assumed. Credit can only be claimed against a
-  // registered supplier's tax invoice, but a blank GSTIN here means "never
-  // entered" rather than "unregistered" — 12 of 13 suppliers are blank, and the
-  // one that is set is a placeholder. Excluding blanks outright would understate
-  // the claim and cost money at filing, so they are counted into a separate
-  // "pending" figure that names how many suppliers need a GSTIN on file.
-  const summary = useMemo(() => {
-    const ym = new Date().toISOString().slice(0, 7); // YYYY-MM
-
-    const gstinOf = new Map(
-      (suppliers || []).map(s => [s.id, String(s.gstin || '').trim()])
-    );
-    const rateOf = new Map(
-      (products || []).map(p => [p.id, Number(p.taxRate)])
-    );
-
-    let month = 0, itc = 0, payable = 0, itcUnverified = 0, missingGstinCount = 0;
-    const missingGstinSuppliers = new Set();
-
-    (purchases || []).forEach((p) => {
-      const amt = Number(p.total_amount) || 0;
-      payable += dueOf(p);
-      if (String(p.date || '').slice(0, 7) !== ym) return;
-
-      month += amt;
-
-      // The product's own rate. A product taxed at 0 earns no credit, rather
-      // than an assumed 18%.
-      const rate = Number(rateOf.get(p.linked_product_id));
-      if (!Number.isFinite(rate) || rate <= 0) return;
-
-      // total_amount is GST-inclusive.
-      const credit = amt - amt / (1 + rate / 100);
-
-      // A blank GSTIN means "not recorded", NOT "unregistered". Almost no
-      // supplier here has one filled in, so treating blank as unregistered
-      // would understate the claim — which costs real money at filing time,
-      // the opposite error to the one being fixed. Count it separately and
-      // say so, instead of folding an unknown into either extreme.
-      if (gstinOf.get(p.supplier_id)) {
-        itc += credit;
-      } else {
-        itcUnverified += credit;
-        missingGstinCount += 1;
-        if (p.supplier_id) missingGstinSuppliers.add(p.supplier_id);
-      }
-    });
-
-    return {
-      month, count: (purchases || []).length, payable, itc,
-      itcUnverified, missingGstinCount,
-      missingGstinSuppliers: missingGstinSuppliers.size,
-    };
-  }, [purchases, suppliers, products, dueOf]);
+  // Header summary — this-month spend and claimable ITC (lib/monthSummary).
+  // "This month" is the shop's month (todayISOInAppTZ), not the UTC one.
+  const summary = useMemo(() => monthSummary({
+    purchases, suppliers, products, dueOf, today: todayISOInAppTZ(),
+  }), [purchases, suppliers, products, dueOf]);
 
 
   const productNameById = useMemo(() => {
@@ -466,132 +414,169 @@ const PurchasesPage = () => {
     }
   };
 
-  // ── Returns table ────────────────────────────────────────────────────────────
-  const returnHeaders = [
-    { label: 'Date' },
-    { label: 'Reference' },
-    { label: 'Product' },
-    { label: 'Supplier' },
-    { label: 'Qty', className: 'text-center' },
-    { label: 'Total', className: 'text-right' },
-    { label: 'Reason' },
-  ];
+  // ── Keyboard: N opens a new purchase from the Returns tab too ────────────────
+  // (The register binds N itself while it is on screen.)
+  useEffect(() => {
+    if (activeTab !== 'returns' || showAddModal) return undefined;
+    const k = (e) => {
+      if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (document.querySelector('[role="dialog"]')) return;
+      if (e.key === 'n' || e.key === 'N') { e.preventDefault(); setShowAddModal(true); }
+    };
+    document.addEventListener('keydown', k);
+    return () => document.removeEventListener('keydown', k);
+  }, [activeTab, showAddModal]);
 
-  const renderReturnRow = (ret) => {
-    const product  = products.find(p => p.id === ret.product_id);
-    const supplier = suppliers.find(s => s.id === ret.supplier_id);
-    return (
-      <tr key={ret.id} className="hover:bg-canvas transition-colors">
-        <td className="px-4 py-3">
-          <div className="text-xs font-semibold text-muted-foreground uppercase">{formatDate(ret.date)}</div>
-        </td>
-        <td className="px-4 py-3">
-          <div className="text-sm font-semibold text-rose-600">#{ret.id.split('-').pop()}</div>
-          <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">Debit Note</div>
-        </td>
-        <td className="px-4 py-3">
-          <div className="text-sm font-semibold text-foreground">{product?.name || ret.product_name || 'Unknown'}</div>
-        </td>
-        <td className="px-4 py-3">
-          <div className="text-[11px] text-muted-foreground truncate mt-0.5"
-               title={supplier?.name || ret.supplier_name || ''}>
-            {supplier?.name || ret.supplier_name || '—'}
-          </div>
-        </td>
-        <td className="px-4 py-3 text-center">
-          <div className="text-sm font-semibold text-rose-500">−{ret.quantity}</div>
-        </td>
-        <td className="px-4 py-3 text-right">
-          <div className="tabular-nums text-sm font-semibold text-rose-600 tabular-nums">{formatCurrency(ret.total_amount)}</div>
-        </td>
-        <td className="px-4 py-3">
-          <div className="text-xs text-muted-foreground">{ret.reason || '—'}</div>
-        </td>
-      </tr>
-    );
+  // The bill in the side panel, looked up afresh each render so a payment or
+  // an edit made from the panel shows at once. Gone (deleted): the panel shuts.
+  const detailBill = useMemo(() => (detailId ? registerBills.find(b => b.id === detailId) || null : null), [detailId, registerBills]);
+  const detailModel = useMemo(() => {
+    if (!detailBill) return null;
+    const sup = (suppliers || []).find(x => x.id === detailBill.supplier_id);
+    return buildVoucherModel({
+      bill: detailBill,
+      supplier: { ...sup, name: sup?.name || detailBill.supplier_name, __homeStateCode: String(businessProfile?.gst_no || '').slice(0, 2) },
+      productById,
+    });
+  }, [detailBill, suppliers, businessProfile, productById]);
+  const detailPayments = useMemo(() => {
+    if (!detailBill) return 0;
+    const ids = new Set(detailBill.lines.map(l => l.id));
+    return (supplierPayments || []).filter(p => !p.deleted_at && p.purchase_id && ids.has(p.purchase_id)).length;
+  }, [detailBill, supplierPayments]);
+
+  const lineHandlers = {
+    onHistory: (l) => setHistoryProduct(products.find(x => x.id === l.linked_product_id) || { id: l.linked_product_id, name: productNameById[l.linked_product_id] }),
+    onDuplicate: (l) => setDupTarget(l),
+    onReturn: (l) => setReturnTarget({ purchase: l, product: products.find(x => x.id === l.linked_product_id), supplier: suppliers.find(s => s.id === l.supplier_id) }),
+    onDelete: (l) => handleDeletePurchase(l),
   };
 
   if (purLoading || prodLoading) return <PageSkeleton cards={3} rows={8} />;
 
-  return (
-    // Capped and centred. A row of this table is four columns the eye has to
-    // pair up -- item with its amount -- and on a 2000px monitor there was
-    // 1,300px of nothing between them. The cap is on the whole page rather
-    // than the table alone, so the header does not span a width the rows
-    // deliberately refuse.
-    <div className="flex flex-col gap-6 max-w-[1180px] mx-auto w-full">
-      {/* One quiet title row. The register below carries its own tabs, so
-          Purchases / Returns is a small segmented switch beside the title
-          rather than a second tab strip with a divider of its own. */}
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <div className="flex items-center gap-3 min-w-0">
-          <h1 className="text-base font-semibold text-foreground tracking-tight">Purchases</h1>
-          <div className="inline-flex h-8 p-0.5 rounded-md bg-canvas border border-border/60" role="group" aria-label="Show">
-            {[['purchases', 'Bills', purchases.length], ['returns', 'Returns', purchaseReturns.length]].map(([k, label, n]) => (
-              <button key={k} type="button" onClick={() => setActiveTab(k)} aria-pressed={activeTab === k}
-                className={`px-2.5 rounded text-[12px] inline-flex items-center gap-1.5 transition-[background-color,color] duration-(--dur-hover) ${
-                  activeTab === k ? 'bg-card text-foreground font-semibold shadow-sm' : 'text-muted-foreground font-medium hover:text-foreground'}`}>
-                {label}<span className="text-[11px] tabular-nums text-muted-foreground">{n}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+  // ── New purchase: a page of its own (mockup purchases-12) ────────────────────
+  if (showAddModal) {
+    return (
+      <div className="mx-auto flex w-full max-w-[1180px] flex-col pb-16">
+        <MultiPurchaseForm
+          products={products}
+          suppliers={suppliers}
+          warehouses={warehouses}
+          purchases={purchases}
+          onSave={handleSaveMultiPurchase}
+          loading={addLoading}
+          onCreateProduct={handleCreateProduct}
+          initialProductId={reorderId}
+          onBack={() => { setShowAddModal(false); setReorderId(null); }}
+        />
+      </div>
+    );
+  }
 
-        <div className="flex items-center gap-6">
-          {activeTab === 'purchases' && (
-            // What is owed lives in the register's Due tab, with the overdue part
-            // as its own red figure. A big red Payable here said the same number
-            // again and painted all of it red, overdue or not.
-            <div className="hidden lg:flex items-baseline gap-3 text-[12px] text-muted-foreground">
-              <span><span className="tabular-nums font-semibold text-foreground">{formatCurrency(summary.month)}</span> this month</span>
-              <span><span className="tabular-nums font-semibold text-[color:var(--color-pos)]">{formatCurrency(summary.itc)}</span> ITC
-                {summary.itcUnverified > 0 && (
-                  <span title={`${summary.missingGstinSuppliers} supplier${summary.missingGstinSuppliers === 1 ? '' : 's'} have no GSTIN on file`}>
-                    {' '}· +{formatCurrency(summary.itcUnverified)} pending
-                  </span>
-                )}
-              </span>
-            </div>
-          )}
-          <button onClick={() => setShowAddModal(true)} aria-label="New purchase"
-            className="flex items-center gap-1.5 h-8 px-3 rounded-pill bg-primary text-primary-foreground text-[13px] font-semibold hover:bg-primary/90 transition-[background-color,transform] duration-150 active:scale-[0.98] shrink-0">
-            <Plus size={14} /><span className="hidden sm:inline">New purchase</span>
-          </button>
-        </div>
+  const th = 'px-3.5 py-2.5 text-left font-tight text-[12px] font-semibold text-mute border-b border-line whitespace-nowrap';
+  const td = 'px-3.5 py-[11px] border-b border-sep align-middle';
+
+  return (
+    // Capped and centred, so a row's item and its amount stay close together
+    // on a wide monitor.
+    <div className="mx-auto flex w-full max-w-[1180px] flex-col pb-16">
+      {/* Bills / Returns, with the page's main action on the same line. */}
+      <div className="m-rise mb-[18px] flex items-end gap-3 border-b border-line" style={{ '--i': 0 }}>
+        <Tabs className="flex-1 border-b-0" ariaLabel="Purchases" value={activeTab} onChange={setActiveTab}
+          items={[
+            { key: 'purchases', label: 'Bills', count: allBills.length },
+            { key: 'returns', label: 'Returns', count: purchaseReturns.length },
+          ]} />
+        <Button className="mb-1.5" onClick={() => setShowAddModal(true)} aria-label="New purchase">
+          New purchase
+          <kbd className="hidden rounded-[5px] bg-white/20 px-1.5 py-px font-tight text-[11px] font-semibold text-white sm:inline">N</kbd>
+        </Button>
       </div>
 
       {activeTab === 'purchases' && (
         <BillRegister
           bills={registerBills}
           today={today}
+          month={summary}
           suppliers={suppliers}
           productById={productById}
           voucherNoOf={voucherNo}
           onNew={() => setShowAddModal(true)}
           onPay={(b) => openPay([b])}
           onBulkPay={(bs) => openPay(bs)}
-          onVoucher={(b) => setPrintTarget(b)}
+          onOpenBill={(b) => setDetailId(b.id)}
           onPayments={(b) => setPaymentsTarget(b)}
           onEdit={(b) => setEditBillTarget(b)}
-          onHistory={(l) => setHistoryProduct(products.find(x => x.id === l.linked_product_id) || { id: l.linked_product_id, name: productNameById[l.linked_product_id] })}
-          onDuplicate={(l) => setDupTarget(l)}
-          onReturn={(l) => setReturnTarget({ purchase: l, product: products.find(x => x.id === l.linked_product_id), supplier: suppliers.find(s => s.id === l.supplier_id) })}
-          onDelete={(l) => handleDeletePurchase(l)}
+          onHistory={lineHandlers.onHistory}
+          onDuplicate={lineHandlers.onDuplicate}
+          onReturn={lineHandlers.onReturn}
+          onDelete={lineHandlers.onDelete}
           onSetStatus={(b, st) => b.lines.forEach(l => updatePurchaseStatus(l.id, st))}
         />
       )}
+
+      {/* Returns (mockup purchases-11): debit notes, newest first as loaded. */}
       {activeTab === 'returns' && (
-        <Table
-          headers={returnHeaders}
-          rows={purchaseReturns}
-          renderRow={renderReturnRow}
-          emptyMessage="No purchase returns yet"
-        />
+        <>
+          <p className="m-rise -mt-1.5 mb-3.5 text-[12px] text-mute" style={{ '--i': 1 }}>
+            Debit notes. A return is started from a bill&apos;s line, with &ldquo;Return to supplier&rdquo;.
+          </p>
+          <div className="m-rise overflow-x-auto" style={{ '--i': 2 }}>
+            <table className="w-full border-collapse text-[13px] text-ink">
+              <thead>
+                <tr>
+                  <th className={th}>Date</th><th className={th}>Debit note</th><th className={th}>Product</th>
+                  <th className={th}>Supplier</th><th className={`${th} text-right`}>Qty</th>
+                  <th className={`${th} text-right`}>Total</th><th className={th}>Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {purchaseReturns.length === 0 && (
+                  <tr><td colSpan={7} className="px-3.5 py-12 text-center text-body">No purchase returns yet</td></tr>
+                )}
+                {purchaseReturns.map((ret) => {
+                  const product = products.find(p => p.id === ret.product_id);
+                  const supplier = suppliers.find(s => s.id === ret.supplier_id);
+                  return (
+                    <tr key={ret.id} className="[&>td]:transition-colors [&>td]:duration-(--dur-press) hover:[&>td]:bg-tile">
+                      <td className={`${td} whitespace-nowrap`}>{fmtDate(ret.date, { year: String(ret.date || '').slice(0, 4) !== today.slice(0, 4) })}</td>
+                      <td className={`${td} whitespace-nowrap font-tight font-semibold`}>{ret.id}</td>
+                      <td className={td}>{product?.name || ret.product_name || 'Unknown'}</td>
+                      <td className={`${td} max-w-[220px] truncate`} title={supplier?.name || ret.supplier_name || ''}>{supplier?.name || ret.supplier_name || '—'}</td>
+                      <td className={`${td} text-right font-tight tabular-nums`}>−{ret.quantity}</td>
+                      <td className={`${td} text-right font-tight tabular-nums`}>{formatCurrency(ret.total_amount)}</td>
+                      <td className={`${td} text-body`}>{ret.reason || '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {purchaseReturns.length > 0 && (
+            <div className="m-rise px-1 pt-3.5 text-[13px] text-body" style={{ '--i': 3 }}>
+              {purchaseReturns.length} return{purchaseReturns.length === 1 ? '' : 's'}
+            </div>
+          )}
+        </>
       )}
 
+      {/* One bill, opened (mockup purchases-03). */}
+      <BillDetailPanel
+        bill={detailBill}
+        model={detailModel}
+        paymentsCount={detailPayments}
+        onClose={() => setDetailId(null)}
+        onPay={(b) => openPay([b])}
+        onPrint={(b) => printVoucher(b)}
+        onPayments={(b) => setPaymentsTarget(b)}
+        onEdit={(b) => setEditBillTarget(b)}
+        {...lineHandlers}
+      />
+
       {/* Edit whole bill */}
-      <Modal isOpen={!!editBillTarget} onClose={() => setEditBillTarget(null)}
-        title="Edit Bill" subtitle="Header applies to every line · saved in one transaction">
+      <Dialog open={!!editBillTarget} onClose={() => { if (!billSaving) setEditBillTarget(null); }} width={600}
+        title="Edit Bill"
+        subtitle={editBillTarget ? `${editBillTarget.bill_no || voucherNo(editBillTarget)} · the details apply to every line; saved in one go` : ''}>
         {editBillTarget && (
           <BillEditForm
             bill={editBillTarget}
@@ -700,13 +685,13 @@ const PurchasesPage = () => {
             }}
           />
         )}
-      </Modal>
+      </Dialog>
 
       {/* Part payments against this bill.
           Correcting one was only possible from the Supplier Ledger, which is
           not where someone looking at a bill marked "still due" is standing. */}
-      <Modal isOpen={!!paymentsTarget} onClose={() => setPaymentsTarget(null)}
-        title="Payments" subtitle="Part payments recorded against this bill">
+      <Dialog open={!!paymentsTarget} onClose={() => setPaymentsTarget(null)} title="Payments"
+        subtitle={paymentsTarget ? `Part payments recorded against ${paymentsTarget.bill_no || voucherNo(paymentsTarget)}` : ''}>
         {paymentsTarget && (
           <BillPaymentsModal
             bill={paymentsTarget}
@@ -716,31 +701,17 @@ const PurchasesPage = () => {
             onDelete={(id) => deleteSupplierPayment(id)}
           />
         )}
-      </Modal>
+      </Dialog>
 
       {/* What this item has cost, purchase by purchase. */}
-      <Modal isOpen={!!historyProduct} onClose={() => setHistoryProduct(null)}
+      <Dialog open={!!historyProduct} onClose={() => setHistoryProduct(null)} width={680}
         title="Price history" subtitle={historyProduct?.name || ''}>
         {historyProduct && <PriceHistory product={historyProduct} purchases={purchases} />}
-      </Modal>
+      </Dialog>
 
-      {/* Add Purchase Modal — multi-line */}
-      <Modal isOpen={showAddModal} onClose={() => { setShowAddModal(false); setReorderId(null); }} title="Add Purchase" subtitle="One supplier · multiple products · single submit">
-        <MultiPurchaseForm
-          products={products}
-          suppliers={suppliers}
-          warehouses={warehouses}
-          purchases={purchases}
-          onSave={handleSaveMultiPurchase}
-          loading={addLoading}
-          onCreateProduct={handleCreateProduct}
-          initialProductId={reorderId}
-        />
-      </Modal>
-
-
-      {/* Duplicate Purchase Modal — prefilled single form, saves as new */}
-      <Modal isOpen={!!dupTarget} onClose={() => setDupTarget(null)} title="Duplicate Purchase" subtitle="Creates a new purchase from this one">
+      {/* Duplicate Purchase — prefilled single form, saves as new */}
+      <Dialog open={!!dupTarget} onClose={() => setDupTarget(null)} width={600} title="Duplicate Purchase"
+        subtitle={dupTarget ? `Creates a new purchase from ${dupTarget.bill_no || voucherNo({ ...dupTarget, lines: [dupTarget] })}` : ''}>
         {dupTarget && (
           <PurchaseForm
             products={products}
@@ -748,152 +719,29 @@ const PurchasesPage = () => {
             purchases={purchases}
             onSave={handleDuplicateSave}
             loading={addLoading}
+            onCancel={() => setDupTarget(null)}
             initialData={{ ...dupTarget, date: new Date().toISOString().slice(0, 10) }}
           />
         )}
-      </Modal>
+      </Dialog>
 
-      {/* Pay one bill, or several of one supplier's bills. Same rules as the
-          register: red only for what is overdue, labels in sentence case. */}
-      <Modal isOpen={!!payTarget} onClose={() => setPayTarget(null)} title="Record payment"
-        subtitle={payTarget ? `${payTarget.bills?.length > 1 ? `${payTarget.bills.length} bills` : (payTarget.bills?.[0]?.bill_no || voucherNo(payTarget.bills?.[0] || payTarget))} · ${payTarget.supplier_name || ''}` : ''}>
-        {payTarget && (() => {
-          const due = dueOf(payTarget);
-          const overdue = (payTarget.bills || []).reduce((s2, b) => s2 + (b.overdue || 0), 0);
-          const lbl = 'text-[12px] font-medium text-muted-foreground';
-          return (
-            <div className="flex flex-col gap-3" data-testid="pay-dialog">
-              {payTarget.bills?.length > 1 && (
-                <div className="rounded-lg border border-border/60 divide-y divide-border/60 text-[12.5px]">
-                  {payTarget.bills.map(b => (
-                    <div key={b.id} className="flex justify-between gap-3 px-3 py-2">
-                      <span className="truncate"><span className="font-semibold">{b.bill_no || voucherNo(b)}</span>
-                        <span className="text-muted-foreground"> · {formatDate(b.date)}</span></span>
-                      <span className={`tabular-nums font-semibold ${b.state === 'over' ? 'text-[color:var(--color-neg)]' : ''}`}>{formatCurrency(b.due)}</span>
-                    </div>
-                  ))}
-                  <p className="px-3 py-2 text-[12px] text-muted-foreground">A part payment settles the oldest bill first.</p>
-                </div>
-              )}
-              <div className="flex justify-between text-[13px]"><span className={lbl}>{payTarget.bills?.length > 1 ? 'Bills total' : 'Bill total'}</span><span className="tabular-nums font-semibold">{formatCurrency(payTarget.total_amount)}</span></div>
-              <div className="flex justify-between text-[13px]"><span className={lbl}>Already paid</span><span className="tabular-nums font-semibold">{formatCurrency(payTarget.paid_amount || 0)}</span></div>
-              <div className="flex justify-between text-[13px] pt-2 border-t border-border/60">
-                <span className="font-semibold">Due</span>
-                <span className="text-right">
-                  <span className="tabular-nums font-semibold">{formatCurrency(due)}</span>
-                  {overdue > 0.005 && <span className="block text-[12px] font-semibold text-[color:var(--color-neg)]">{Math.abs(overdue - due) < 0.005 ? 'all overdue' : `${formatCurrency(overdue)} overdue`}</span>}
-                </span>
-              </div>
-              <label className="block"><span className={lbl}>Amount</span>
-                <input type="number" min="0" step="0.01" value={payAmount} onChange={e => setPayAmount(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-lg text-[14px] tabular-nums font-semibold outline-none focus:border-accent-signature/70" autoFocus />
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="block"><span className={lbl}>Method</span>
-                  <select value={payMethod} onChange={e => setPayMethod(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-lg text-[13px] font-semibold">
-                    <option value="CASH">Cash</option><option value="BANK">Bank</option><option value="UPI">UPI</option>
-                  </select>
-                </label>
-                <label className="block"><span className={lbl}>Date</span>
-                  <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-lg text-[13px] font-semibold" />
-                </label>
-              </div>
-              <button onClick={submitPay} disabled={paySubmitting || !(Number(payAmount) > 0)} className="h-11 rounded-pill bg-primary text-primary-foreground text-[13px] font-semibold disabled:opacity-40 hover:bg-primary/90 transition-[background-color,transform] duration-(--dur-press) ease-(--ease-out) active:scale-[0.98] disabled:active:scale-100 flex items-center justify-center gap-2">
-                <Banknote size={15} /> {paySubmitting ? 'Recording…' : 'Record payment'}
-              </button>
-            </div>
-          );
-        })()}
-      </Modal>
+      {/* Pay one bill, or several of one supplier's bills. */}
+      <PayBillsDialog
+        target={payTarget}
+        due={payTarget ? dueOf(payTarget) : 0}
+        overdue={(payTarget?.bills || []).reduce((s2, b) => s2 + (b.overdue || 0), 0)}
+        voucherNoOf={voucherNo}
+        amount={payAmount} setAmount={setPayAmount}
+        method={payMethod} setMethod={setPayMethod}
+        date={payDate} setDate={setPayDate}
+        submitting={paySubmitting}
+        onSubmit={submitPay}
+        onClose={() => { if (!paySubmitting) setPayTarget(null); }}
+      />
 
-      {/* View / Print voucher */}
-      <Modal isOpen={!!printTarget} onClose={() => setPrintTarget(null)} title="Purchase Voucher"
-        subtitle={printTarget ? buildVoucherModel({ bill: printTarget, supplier: (suppliers || []).find(x => x.id === printTarget.supplier_id), productById }).voucherNo : ''}>
-        {printTarget && (() => {
-          const supplier = {
-            ...(suppliers || []).find(x => x.id === printTarget.supplier_id),
-            name: (suppliers || []).find(x => x.id === printTarget.supplier_id)?.name || printTarget.supplier_name,
-            __homeStateCode: String(businessProfile?.gst_no || '').slice(0, 2),
-          };
-          const m = buildVoucherModel({ bill: printTarget, supplier, productById });
-          return (
-            <div className="text-[13px]">
-              <div className="flex justify-between items-start gap-4">
-                <div>
-                  <div className="font-semibold text-foreground">{m.supplierName}</div>
-                  <div className="text-[11px] text-muted-foreground mt-0.5">
-                    {m.gstin ? `GSTIN ${m.gstin}` : 'No GSTIN on file'} · {formatDate(m.date)} · {m.paymentType}
-                  </div>
-                </div>
-                <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-pill ${m.settled ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-                  {m.settled ? 'Paid' : 'Part paid'}
-                </span>
-              </div>
-
-              <table className="w-full mt-3 border-t border-border">
-                <thead>
-                  <tr className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                    <th className="text-left py-1.5 font-medium">Item</th>
-                    <th className="text-left font-medium">HSN</th>
-                    <th className="text-center font-medium">Qty</th>
-                    <th className="text-right font-medium">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/60">
-                  {m.items.map(it => (
-                    <tr key={it.id}>
-                      <td className="py-1.5">{it.name}</td>
-                      <td className={it.hsn ? 'text-muted-foreground text-[11px]' : 'text-muted-foreground/60 text-[11px]'}>{it.hsn || '—'}</td>
-                      <td className="text-center tabular-nums">{it.qty} {it.unit}</td>
-                      <td className="text-right tabular-nums">{formatCurrency(it.amount)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-
-              <div className="mt-3 pt-2 border-t border-border space-y-1">
-                {m.registered && (
-                  <>
-                    <div className="flex justify-between text-muted-foreground"><span>Taxable</span><span className="tabular-nums">{formatCurrency(m.taxable)}</span></div>
-                    {m.interstate
-                      ? <div className="flex justify-between text-muted-foreground"><span>IGST</span><span className="tabular-nums">{formatCurrency(m.igst)}</span></div>
-                      : <div className="flex justify-between text-muted-foreground"><span>CGST + SGST</span><span className="tabular-nums">{formatCurrency(m.cgst + m.sgst)}</span></div>}
-                  </>
-                )}
-                <div className="flex justify-between font-semibold text-foreground"><span>Total</span><span className="tabular-nums">{formatCurrency(m.total)}</span></div>
-                {m.paid > 0 && <div className="flex justify-between text-emerald-600"><span>Paid</span><span className="tabular-nums">{formatCurrency(m.paid)}</span></div>}
-                {m.due > 0.005 && <div className="flex justify-between text-[color:var(--color-neg)]"><span>Balance due</span><span className="tabular-nums">{formatCurrency(m.due)}</span></div>}
-              </div>
-
-              <p className="text-[11px] text-muted-foreground mt-2">{m.words}</p>
-
-              {/* Both are worth knowing BEFORE the paper is handed over, not after. */}
-              {!m.registered && (
-                <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 mt-2 leading-relaxed">
-                  No GSTIN on file for this supplier, so the voucher shows no tax split and no ITC can be claimed against it.
-                </p>
-              )}
-              {m.missingHsn > 0 && (
-                <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 mt-2 leading-relaxed">
-                  {m.missingHsn} of {m.items.length} {m.missingHsn === 1 ? 'product has' : 'products have'} no HSN code — it will print blank and is required for GSTR-1.
-                </p>
-              )}
-
-              <button onClick={() => printVoucher(printTarget)}
-                className="mt-3 w-full h-11 rounded-pill bg-primary text-primary-foreground text-[13px] font-semibold flex items-center justify-center gap-2">
-                <Printer size={15} /> Print voucher
-              </button>
-            </div>
-          );
-        })()}
-      </Modal>
-
-      {/* Purchase Return Modal */}
-      <Modal
-        isOpen={!!returnTarget}
-        onClose={() => setReturnTarget(null)}
-        title="Return to Supplier"
-        subtitle="Debit note — stock will be deducted"
-      >
+      {/* Return to Supplier */}
+      <Dialog open={!!returnTarget} onClose={() => { if (!returnLoading) setReturnTarget(null); }}
+        title="Return to Supplier" subtitle="Debit note. Stock will be taken out.">
         {returnTarget && (
           <PurchaseReturnForm
             purchase={returnTarget.purchase}
@@ -902,9 +750,10 @@ const PurchasesPage = () => {
             warehouses={warehouses}
             onSave={handleSaveReturn}
             loading={returnLoading}
+            onCancel={() => setReturnTarget(null)}
           />
         )}
-      </Modal>
+      </Dialog>
     </div>
   );
 };
