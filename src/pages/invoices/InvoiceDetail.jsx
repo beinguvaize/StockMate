@@ -10,6 +10,7 @@ import { usePeople } from '../../hooks/usePeople';
 import { supabase } from '../../lib/supabase';
 import { shareToWhatsApp } from '../../lib/gstEngine';
 import { formatCurrency, formatDate, todayISOInAppTZ } from '../../lib/utils';
+import { documentRules } from '../../lib/gstDocument';
 import { resolveInvoiceStatus, invoiceOutstanding, dueWords, paymentCheck } from '../../lib/invoiceList';
 import { paymentsSummary, buildTimeline, creditTermsDays, collectedShare, whenWords } from '../../lib/invoiceDetail';
 import { Button } from '../../components/ui/button';
@@ -101,6 +102,7 @@ const InvoiceDetail = () => {
   }
 
   const today = todayISOInAppTZ();
+  const docTitle = documentRules(businessProfile || {}).title;
   const status = resolveInvoiceStatus(inv);
   const unpaid = status !== 'PAID';
   const out = invoiceOutstanding(inv);
@@ -148,7 +150,7 @@ const InvoiceDetail = () => {
             {inv.client_id
               ? <button type="button" onClick={goClient} className="font-tight font-semibold text-amber-text hover:underline underline-offset-4">{client?.name}</button>
               : <span>{client?.name}</span>}
-            {' · '}Invoice · issued {formatDate(inv.invoice_date)}{dueLine ? ` · ${dueLine}` : ''}
+            {' · '}{docTitle} · issued {formatDate(inv.invoice_date)}{dueLine ? ` · ${dueLine}` : ''}
           </p>
         </div>
         <div className="ml-auto mt-1 flex flex-wrap items-center gap-2">

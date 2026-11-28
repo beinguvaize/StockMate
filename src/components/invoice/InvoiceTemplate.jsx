@@ -18,6 +18,8 @@ import { INVOICE_LAYOUTS, DEFAULT_DOC_TEXTS, DEFAULT_INV_OPTS, Editable, CustomF
 import { formatDate, formatTime } from '../../lib/utils';
 import { QRCodeSVG } from 'qrcode.react';
 import BillBarcode from './BillBarcode';
+import InvoiceModel from './invoiceModels';
+import { resolveInvoiceTemplate, isInvoiceModel } from '../../lib/printSettings';
 
 const Totals = ({ k, v, bold }) => (
   <div className={`flex justify-between items-center py-0.5 ${bold ? 'font-bold' : ''}`}>
@@ -96,7 +98,10 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
         || JSON.parse(localStorage.getItem('print_settings_default')) || {};
     } catch { return {}; }
   })();
-  const invTheme = themeOverride || printPrefs.invoiceTemplate || 'classic';
+  // The saved design (per document type, then the old flat key); a shop that
+  // never saved one gets DEFAULT_INVOICE_TEMPLATE (lib/printSettings).
+  const invTheme = themeOverride || resolveInvoiceTemplate(printPrefs, safeBusiness);
+  const isModel = isInvoiceModel(invTheme);
 
   // Customizable document texts (Settings -> Printing designer).
   const docTexts = textsOverride
@@ -258,10 +263,13 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
         <div 
           id="invoice-print-area"
           style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}
-          className={`inv-sheet inv-theme-${invTheme} w-[210mm] min-h-[297mm] bg-white shadow-2xl p-[12mm] flex flex-col text-slate-900 transition-all duration-300 print:shadow-none print:transform-none print:p-[10mm] print:w-full print:min-h-0`}
+          className={`inv-sheet inv-theme-${invTheme} w-[210mm] min-h-[297mm] bg-white shadow-2xl ${isModel ? 'p-0 print:p-0' : 'p-[12mm] print:p-[10mm]'} flex flex-col text-slate-900 transition-all duration-300 print:shadow-none print:transform-none print:w-full print:min-h-0`}
         >
           
-          {AltLayout ? (
+          {isModel ? (
+            <InvoiceModel model={invTheme} invoice={invoice} business={safeBusiness} client={client || null}
+              printPrefs={printPrefs} overrides={{ opts: optsOverride, texts: textsOverride, accent: accentOverride }} />
+          ) : AltLayout ? (
             <AltLayout d={layoutD} texts={docTexts} editable={previewMode && editable} onEdit={onEditText} opts={invOpts} accent={invAccent} />
           ) : (
           <>
