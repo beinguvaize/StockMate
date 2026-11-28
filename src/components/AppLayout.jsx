@@ -99,8 +99,8 @@ const buildNavGroups = ({ navItem, t, isOwner, basePath, ICON }) => {
 const EXTRA_TITLES = [
   ['/vehicles/van-sale', 'Van Sale'],
   ['/suppliers/ledger', 'Supplier Ledger'],
-  ['/clients/settle', 'Settle Account'],
-  ['/clients/collect', 'Cash Collection'],
+  ['/clients/settle', 'Client Account'],
+  ['/clients/collect', 'Collect Payments'],
   ['/onboarding', 'Getting Started'],
   ['/sync-diagnostics', 'Sync Diagnostics'],
   ['/users', 'Users'],
