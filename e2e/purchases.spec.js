@@ -37,8 +37,10 @@ test('the tabs count bills and money over the whole filtered set', async ({ page
   await openPurchases(page);
   await expect(tab(page, 'Due')).toHaveAttribute('aria-selected', 'true');
   await expect(tab(page, 'Due')).toContainText('3');
-  await expect(tab(page, 'Due')).toContainText('₹42,870.00');
-  await expect(tab(page, 'Overdue')).toContainText('₹9,300.00');
+  // The money rides on each pill's title; the strip says it in full.
+  await expect(tab(page, 'Due')).toHaveAttribute('title', /₹42,870\.00/);
+  await expect(tab(page, 'Overdue')).toHaveAttribute('title', /₹9,300\.00/);
+  await expect(page.getByTestId('purchase-strip')).toContainText('₹42,870.00');
   await expect(tab(page, 'Part paid')).toContainText('2');
   await expect(tab(page, 'Paid')).toContainText('1');
   await expect(tab(page, 'All')).toContainText('4');
@@ -56,7 +58,7 @@ test('red marks only money that is overdue', async ({ page }) => {
   await openPurchases(page);
   const colour = (loc) => loc.evaluate((el) => getComputedStyle(el).color);
   const neg = await page.evaluate(() => {
-    const p = document.createElement('span'); p.style.color = 'var(--color-neg)';
+    const p = document.createElement('span'); p.style.color = 'var(--color-bad-text)';
     document.querySelector('.breg').appendChild(p); const c = getComputedStyle(p).color; p.remove(); return c;
   });
   // the overdue bill's due figure is red ...
@@ -80,7 +82,7 @@ test('the total row is the sum of the rows above it', async ({ page }) => {
   const total = page.getByTestId('register-total');
   await expect(total.locator('.c-amt')).toHaveText(`₹${sum(0)}`);
   await expect(total.locator('.c-due')).toHaveText(`₹${sum(1)}`);
-  await expect(page.getByTestId('register-summary')).toContainText(`₹${sum(0)}`);
+  await expect(page.getByTestId('purchase-strip')).toContainText(`₹${sum(1)}`);
 });
 
 test('an opened bill keeps its lines under the bill’s own columns', async ({ page }) => {
@@ -143,7 +145,7 @@ test('a filter is never hidden: each one shows as a chip', async ({ page }) => {
 test('search finds a bill by what was bought', async ({ page }) => {
   await openPurchases(page);
   await tab(page, 'All').click();
-  await page.getByPlaceholder('Search bills').fill('Gadget');
+  await page.getByPlaceholder('Search bill no., supplier or item').fill('Gadget');
   await expect(page.getByTestId('bill')).toHaveCount(2);           // PUR-2, and the bill holding PUR-5
   await expect(page.locator('.chip', { hasText: 'Search: Gadget' })).toBeVisible();
 });
@@ -204,7 +206,7 @@ test('the keyboard does what the legend says', async ({ page }) => {
   await page.keyboard.press('ArrowRight');
   await expect(page.getByTestId('bill').nth(1).getByTestId('bill-line').first()).toBeVisible();
   await page.keyboard.press('.');
-  await expect(page.getByRole('menuitem', { name: /Voucher/ })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: /Open bill/ })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('.breg-pop')).toHaveCount(0);
   // tabs move with the arrow keys
@@ -328,7 +330,7 @@ test('a bill from last year that is still owed stays on the Due tab', async ({ p
   await tab(page, 'Due').click();
   // Due still holds all three open bills, from any date
   await expect(page.getByTestId('bill')).toHaveCount(3);
-  await expect(tab(page, 'Due')).toContainText('₹42,870.00');
+  await expect(tab(page, 'Due')).toHaveAttribute('title', /₹42,870\.00/);
 });
 
 test('tapping a row opens it, and Enter on its menu button opens the menu', async ({ page }) => {
@@ -338,7 +340,7 @@ test('tapping a row opens it, and Enter on its menu button opens the menu', asyn
   await expect(b.getByTestId('bill-line').first()).toBeVisible();
   await b.getByRole('button', { name: /^Actions for/ }).first().focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('menuitem', { name: /Voucher/ })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: /Open bill/ })).toBeVisible();
 });
 
 test('one line of a multi-line bill can be returned on its own', async ({ page }) => {
@@ -369,4 +371,16 @@ test('on a phone, one item of a multi-item bill can still be returned', async ({
   await b.getByTestId('bill-line').nth(1).getByRole('button', { name: /Actions for/ }).click();
   await page.getByRole('menuitem', { name: /Return to supplier/ }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
+});
+
+test('Open bill shows the bill in a side panel, with its voucher figures', async ({ page }) => {
+  await openPurchases(page);
+  const b = bill(page, '17,250.00');
+  await b.getByRole('button', { name: /^Actions for/ }).first().click();
+  await page.getByRole('menuitem', { name: /Open bill/ }).click();
+  const panel = page.getByTestId('bill-detail');
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText('₹17,250.00');
+  await expect(page.getByRole('button', { name: 'Print voucher' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Record payment/ })).toBeVisible();
 });
