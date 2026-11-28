@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EmptyState } from '../ui/States';
 import { formatCurrency } from '../../lib/utils';
+import { owedBySupplier, purchaseTotal, purchasePaid } from '../../lib/supplierOwed';
 import {
   Search, Plus, Phone, Mail, MapPin, Edit3, Trash2, Truck,
 } from 'lucide-react';
@@ -20,8 +21,9 @@ import {
 const DAY = 86400000;
 const daysSince = (d) => (d ? Math.floor((Date.now() - new Date(d).getTime()) / DAY) : null);
 
-const amtOf = (p) => Number(p.total_amount ?? p.total_cost ?? 0);
-const paidOf = (p) => Number(p.paid_amount ?? 0);
+// The owed rule lives in lib/supplierOwed.js, shared with the Dashboard.
+const amtOf = purchaseTotal;
+const paidOf = purchasePaid;
 
 // Defined at module scope: a component created inside render is a new type on
 // every pass, so React remounts it and any DOM state inside is lost.
@@ -65,12 +67,9 @@ const SupplierWorkspace = ({
       const due = Math.max(0, raw);
       f.bills.push({ ...p, _total: total, _due: due });
       f.billCount += 1;
-      f.payable += due;
-      // Overpaying one bill leaves money sitting with that supplier. Flooring
-      // every bill at zero hid it: PUR-JGBHRX was paid twice, so Rs 6,900 of
-      // the shop's cash was with SAJJAD and the screen still said the full
-      // amount was owed. Track it, net it, and say so.
-      if (raw < 0) f.advance += -raw;
+      // payable and advance are set below from lib/supplierOwed.js. Overpaying
+      // one bill leaves money sitting with that supplier; flooring every bill
+      // at zero hid it, so it is tracked, netted, and said.
       f.purchased += total;
       if (!f.lastBill || String(p.date) > String(f.lastBill)) f.lastBill = p.date;
       if (due > 0.01 && (!f.oldestUnpaid || String(p.date) < String(f.oldestUnpaid))) f.oldestUnpaid = p.date;
@@ -80,6 +79,9 @@ const SupplierWorkspace = ({
       const f = by[pay.supplier_id];
       if (f) f.payments.push(pay);
     });
+
+    const owed = owedBySupplier(suppliers, purchases);
+    owed.forEach((o, id) => { if (by[id]) { by[id].payable = o.payable; by[id].advance = o.advance; } });
 
     Object.values(by).forEach(f => {
       f.bills.sort((a, b) => String(b.date).localeCompare(String(a.date)));
