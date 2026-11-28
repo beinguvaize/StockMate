@@ -72,9 +72,57 @@ describe('Employee profile', () => {
   it('renders the overview from the server line', () => {
     const out = html('/payroll/employee/a?month=2026-11', <EmployeeProfile />, route);
     expect(out).toContain('Staff A');
-    expect(out).toContain('Salary statement');
+    expect(out).toContain('Most recent pay');
+    expect(out).toContain('Still to pay');
+    expect(out).toContain('View salary statement');
+    expect(out).toContain('aria-label="Tasks"');
+    expect(out).toContain('Pay now · ₹15,000');
     expect(out).not.toContain('Advances');
     expect(out).not.toContain('Documents');
+    expect(out).not.toContain('Leave balance');
+  });
+
+  it('lands old tab links on the matching sub-page', () => {
+    const page = (tab) => html(`/payroll/employee/a?month=2026-11&tab=${tab}`, <EmployeeProfile />, route);
+    expect(page('STATEMENT')).toContain('Pay › Salary statement');
+    expect(page('statement')).toContain('Totals for the period');
+    expect(page('PAYSLIPS')).toContain('Pay › Payslips');
+    expect(page('ATTENDANCE')).toContain('Change marks');
+    expect(page('DETAILS')).toContain('Show sensitive data');
+    expect(page('OVERVIEW')).toContain('Most recent pay');
+    expect(page('nonsense')).toContain('Most recent pay');
+  });
+
+  it('keeps the old overview pay breakdown on the Pay page', () => {
+    const out = html('/payroll/employee/a?month=2026-11&tab=pay', <EmployeeProfile />, route);
+    expect(out).toContain('November pay so far');
+    expect(out).toContain('Salary earned');
+    expect(out).toContain('Same calculation as Run payroll and the phone');
+  });
+
+  it('hides every money figure when Hide amounts is on, attendance stays', () => {
+    const store = new Map([['bookledger.payroll.hideAmounts', '1']]);
+    vi.stubGlobal('localStorage', { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v), removeItem: (k) => store.delete(k) });
+    try {
+      for (const tab of ['overview', 'pay', 'statement', 'payslips', 'details']) {
+        const out = html(`/payroll/employee/a?month=2026-11&tab=${tab}`, <EmployeeProfile />, route);
+        expect(out, tab).not.toMatch(/₹\d/);
+        expect(out, tab).toContain('Amounts hidden');
+      }
+      const ov = html('/payroll/employee/a?month=2026-11', <EmployeeProfile />, route);
+      expect(ov).toContain('₹ ••••••');
+      expect(ov).toContain('>Pay now<');
+      expect(ov).toContain('Attendance this month');
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  it('still renders when browser storage throws', () => {
+    vi.stubGlobal('localStorage', { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); }, removeItem() { throw new Error('blocked'); } });
+    try {
+      const out = html('/payroll/employee/a?month=2026-11', <EmployeeProfile />, route);
+      expect(out).toContain('Hide amounts');
+      expect(out).toContain('₹15,000');
+    } finally { vi.unstubAllGlobals(); }
   });
 
   it('says when an employee does not exist', () => {

@@ -23,7 +23,7 @@ const avTone = (name) => ['a', 'b', 'n', 'g'][String(name || '').length % 4];
 
 export const Avatar = ({ name, size = 'md', dim = false }) => (
   <span aria-hidden="true" className={cn('grid shrink-0 place-items-center rounded-full font-tight font-semibold', AV[avTone(name)],
-    size === 'xl' ? 'h-[60px] w-[60px] text-[19px]' : 'h-8 w-8 text-[11.5px]', dim && 'opacity-60')}>
+    size === 'xl' ? 'h-[60px] w-[60px] text-[19px]' : size === 'lg' ? 'h-11 w-11 text-[14px]' : 'h-8 w-8 text-[11.5px]', dim && 'opacity-60')}>
     {initials(name)}
   </span>
 );

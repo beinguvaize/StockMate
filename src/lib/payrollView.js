@@ -439,3 +439,13 @@ export function financialYearOf(day) {
 }
 
 export { describePeriod };
+
+// ── Employee profile pages ─────────────────────────────────────────────────
+
+export const PROFILE_PAGES = ['overview', 'pay', 'statement', 'payslips', 'attendance', 'details'];
+/** ?tab= value → page. Unknown or missing → overview. Case-insensitive, so the old upper-case tab keys still work. */
+export function profilePage(tab) {
+  const t = String(tab || '').trim().toLowerCase();
+  if (t === 'salary-statement' || t === 'salary_statement') return 'statement';
+  return PROFILE_PAGES.includes(t) ? t : 'overview';
+}
