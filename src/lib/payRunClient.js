@@ -83,6 +83,8 @@ export async function readReply(res) {
     },
     alreadyPaidRuns: json.already_paid_runs || [],
     mustConfirm: json.must_confirm_already_paid === true,
+    // Newer servers decide per person; an older one sends no list (null).
+    confirmEmployeeIds: Array.isArray(json.confirm_employee_ids) ? json.confirm_employee_ids.map(String) : null,
   };
 }
 

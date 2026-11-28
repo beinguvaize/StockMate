@@ -7,4 +7,4 @@
  * drift. payRunServer.test.js fails when the bundle is older than these sources.
  */
 export { buildPayRun, netOf, planAdvanceRecovery, ATTENDANCE_MARKS } from './payRun.js';
-export { findOverlapping, needsOverlapConfirmation, parsePeriod, paidForWindow } from './payrollPeriods.js';
+export { findOverlapping, needsOverlapConfirmation, overlapConfirmations, parsePeriod, paidForWindow } from './payrollPeriods.js';

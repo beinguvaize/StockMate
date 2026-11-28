@@ -67,7 +67,10 @@ describe('payroll-run server function', () => {
     // advances: {} -- the server always reads staff advances, so every line
     // carries advanceOutstanding / advancePlanned (0 here).
     const web = buildPayRun({ employees: staff, attendance, records: [], from: '2026-11-01', to: '2026-11-30', advances: {} });
-    expect(out.run).toEqual(JSON.parse(JSON.stringify(web)));
+    // The server adds the per-person overlap fields to each line; the rest is the web's line exactly.
+    const strip = (l) => { const { needsConfirmation, alreadyPaidRunIds, ...rest } = l; expect(needsConfirmation).toBe(false); expect(alreadyPaidRunIds).toEqual([]); return rest; };
+    expect({ ...out.run, items: out.run.items.map(strip), held: out.run.held.map(strip) }).toEqual(JSON.parse(JSON.stringify(web)));
+    expect(out.confirm_employee_ids).toEqual([]);
     expect(out.period).toBe('2026-11');
     expect(out.run.items.map(i => i.employeeId).sort()).toEqual(['aj', 'ks']);
     expect(out.run.held.map(l => l.employeeId)).toEqual(['sp']);
@@ -101,16 +104,92 @@ describe('payroll-run server function', () => {
     expect((await res.json()).run.items).toHaveLength(1500);
   });
 
-  it('lists runs that already cover the dates and asks before paying a line twice', async () => {
+  it('lists runs that already cover the dates', async () => {
     const payroll = [{ id: 'r1', period: '2026-11-01/2026-11-08', total_net: 500, processed_at: '2026-11-08T10:00:00Z',
       items: [{ employeeId: 'ks', netPay: 500 }] }];
     const res = await call({ tenant_id: TENANT, from: '2026-11-01', to: '2026-11-30' },
       { employees: staff, attendance: marks, payroll });
     const out = await res.json();
     expect(out.already_paid_runs).toEqual([{ id: 'r1', period: '2026-11-01/2026-11-08', total_net: 500, processed_at: '2026-11-08T10:00:00Z' }]);
-    // Anita was not in that run and is owed money, so a second payout over
-    // these dates has to be seen first.
-    expect(out.must_confirm_already_paid).toBe(true);
+    // Anita was not in that run, so paying her is not paying anyone twice;
+    // Kiran was, and his 500 is netted off his line.
+    expect(out.must_confirm_already_paid).toBe(false);
+    const ks = out.run.items.find((i) => i.employeeId === 'ks');
+    expect(ks).toMatchObject({ alreadyPaid: 500, alreadyPaidRunIds: ['r1'], needsConfirmation: false });
+    expect(out.run.items.find((i) => i.employeeId === 'aj')).toMatchObject({ alreadyPaidRunIds: [], needsConfirmation: false });
+  });
+
+  describe('the "already paid" check is per employee', () => {
+    const month = { tenant_id: TENANT, from: '2026-11-01', to: '2026-11-30' };
+    const two = [
+      { id: 'aj', name: 'A', status: 'ACTIVE', pay_type: 'MONTHLY', salary: 11000 },
+      { id: 'ks', name: 'K', status: 'ACTIVE', pay_type: 'MONTHLY', salary: 9000 },
+    ];
+    const ask = async (payroll, body = month, employees = two) => (await call(body, { employees, attendance: [], payroll })).json();
+    const line = (out, id) => [...out.run.items, ...out.run.held].find((i) => i.employeeId === id);
+
+    it('nobody paid before: no runs, nothing to confirm', async () => {
+      const out = await ask([]);
+      expect(out.already_paid_runs).toEqual([]);
+      expect(out.must_confirm_already_paid).toBe(false);
+      expect(out.confirm_employee_ids).toEqual([]);
+    });
+
+    it('some paid before: the run for the others raises no warning', async () => {
+      // Pay one person for the month, then run the month for everyone.
+      const out = await ask([{ id: 'r1', period: '2026-11', total_net: 11000, processed_at: '2026-11-28T10:00:00Z', items: [{ employeeId: 'aj', netPay: 11000 }] }]);
+      expect(out.already_paid_runs.map((r) => r.id)).toEqual(['r1']);
+      expect(out.must_confirm_already_paid).toBe(false);
+      expect(line(out, 'aj')).toMatchObject({ alreadyPaid: 11000, netPay: 0, alreadyPaidRunIds: ['r1'], needsConfirmation: false });
+      expect(line(out, 'ks')).toMatchObject({ netPay: 9000, alreadyPaidRunIds: [], needsConfirmation: false });
+    });
+
+    it('everyone paid before: all netted to nothing, nothing to confirm', async () => {
+      const out = await ask([{ id: 'r1', period: '2026-11', total_net: 20000, processed_at: '2026-11-28T10:00:00Z',
+        items: [{ employeeId: 'aj', netPay: 11000 }, { employeeId: 'ks', netPay: 9000 }] }]);
+      expect(out.must_confirm_already_paid).toBe(false);
+      expect(out.run.items.every((i) => i.netPay === 0 && i.needsConfirmation === false)).toBe(true);
+    });
+
+    it('partial overlap of dates: the shared days are netted, the rest paid, no warning', async () => {
+      // 1-15 Nov paid to aj; now 10-20 Nov for both.
+      const out = await ask([{ id: 'r1', period: '2026-11-01/2026-11-15', total_net: 5500, processed_at: '2026-11-15T10:00:00Z',
+        items: [{ employeeId: 'aj', netPay: 5500 }] }], { tenant_id: TENANT, from: '2026-11-10', to: '2026-11-20' });
+      expect(out.already_paid_runs.map((r) => r.id)).toEqual(['r1']);
+      const aj = line(out, 'aj');
+      expect(aj.alreadyPaid).toBeGreaterThan(0);
+      expect(aj.alreadyPaid).toBeLessThan(5500);
+      expect(aj).toMatchObject({ alreadyPaidRunIds: ['r1'], needsConfirmation: false });
+      expect(out.must_confirm_already_paid).toBe(false);
+    });
+
+    it('a person paid before whose payment was NOT netted still needs confirming, and only that person', async () => {
+      // A day-rate run made on the 10th covers no day after it, so a later
+      // window shares none of its days: the earlier pay is not netted.
+      const staff2 = [...two, { id: 'dr', name: 'D', status: 'ACTIVE', pay_type: 'DAILY', daily_rate: 500 }];
+      const out = await call({ tenant_id: TENANT, from: '2026-11-20', to: '2026-11-25' }, {
+        employees: staff2,
+        attendance: [{ employee_id: 'dr', day: '2026-11-21', status: 'PRESENT', custom_rate: null }],
+        payroll: [{ id: 'r1', period: '2026-11', total_net: 2000, processed_at: '2026-11-10T10:00:00Z', items: [{ employeeId: 'dr', netPay: 2000, payType: 'DAILY' }] }],
+      }).then((r) => r.json());
+      expect(line(out, 'dr')).toMatchObject({ netPay: 500, alreadyPaid: 0, alreadyPaidRunIds: ['r1'], needsConfirmation: true });
+      expect(line(out, 'aj').needsConfirmation).toBe(false);
+      expect(out.must_confirm_already_paid).toBe(true);
+      expect(out.confirm_employee_ids).toEqual(['dr']);
+    });
+
+    it('held on-leave staff do not raise it; switched in, they are checked like anyone', async () => {
+      const staff3 = [two[0], { id: 'ol', name: 'L', status: 'ON_LEAVE', pay_type: 'DAILY', daily_rate: 500 }];
+      const payroll = [{ id: 'r1', period: '2026-11', total_net: 1000, processed_at: '2026-11-05T10:00:00Z', items: [{ employeeId: 'ol', netPay: 1000, payType: 'DAILY' }] }];
+      const attendance = [{ employee_id: 'ol', day: '2026-11-21', status: 'PRESENT', custom_rate: null }];
+      const held = await call({ tenant_id: TENANT, from: '2026-11-20', to: '2026-11-25' }, { employees: staff3, attendance, payroll }).then((r) => r.json());
+      expect(held.run.held.map((l) => l.employeeId)).toEqual(['ol']);
+      expect(held.must_confirm_already_paid).toBe(false);
+      expect(held.confirm_employee_ids).toEqual([]);
+      const inRun = await call({ tenant_id: TENANT, from: '2026-11-20', to: '2026-11-25', include_on_leave: ['ol'] }, { employees: staff3, attendance, payroll }).then((r) => r.json());
+      expect(inRun.must_confirm_already_paid).toBe(true);
+      expect(inRun.confirm_employee_ids).toEqual(['ol']);
+    });
   });
 
   it('names the period the way the web stores it', () => {

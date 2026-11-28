@@ -406,27 +406,55 @@ export function monthlyPayItem({ year, month1to12, employeeId, records = [] } = 
 }
 
 /**
- * Does this run need the operator to confirm they mean to pay overlapping days
- * a SECOND time?
+ * Which lines need the operator to confirm they mean to pay overlapping days
+ * a SECOND time -- decided PER EMPLOYEE.
  *
  * Overlapping dates alone are not the question. The run already nets prior
- * payment off each line -- Akbar's August shows 8,100 earned, 7,200 already
+ * payment off each line -- a person's month shows 8,100 earned, 7,200 already
  * paid, 900 to pay -- so a monthly run after a month of weekly ones overlaps
- * every one of them while paying nobody twice. Blocking that behind a checkbox
- * reading "pay these dates again anyway" asked the owner to agree to something
- * he was not doing, to collect a remainder he was owed. It also made the button
- * look broken, because a disabled button that is not styled as disabled just
- * does not respond.
+ * every one of them while paying nobody twice.
  *
- * The real question is whether any line would hand over money for days already
- * paid WITHOUT that payment being netted off. A line that was netted has
- * alreadyPaid > 0; a re-run of an identical period nets to zero and is stopped
- * by "nothing to pay" long before this.
+ * Nor is "some earlier run overlaps these dates" enough on its own. After one
+ * person (or a chosen few) is paid for a month, the run for everyone else
+ * overlaps that payment while paying none of THEM twice; asking the owner to
+ * agree to "pay these dates again" there was a false warning.
+ *
+ * A line needs confirmation only when THAT person has a paid line in an
+ * overlapping run, this line would hand over money (netPay > 0), and none of
+ * the earlier payment was netted off it (alreadyPaid is 0). A re-run of an
+ * identical period nets to zero and is stopped by "nothing to pay" first.
+ *
+ * Returns one entry per line, in order:
+ *   { employeeId, alreadyPaidRunIds, needsConfirmation }
+ * alreadyPaidRunIds are the overlapping runs that paid this person.
+ */
+export function overlapConfirmations(items = [], overlappingRuns = []) {
+  const runs = (overlappingRuns || []).filter(Boolean);
+  return (items || []).map((i) => {
+    const id = String(i?.employeeId ?? '');
+    const runIds = runs
+      .filter((r) => (r.items || []).some((x) => String(x?.employeeId ?? '') === id && paidOnLine(x) > 0))
+      .map((r) => r.id);
+    return {
+      employeeId: i?.employeeId,
+      alreadyPaidRunIds: runIds,
+      needsConfirmation: runIds.length > 0 && Number(i?.netPay || 0) > 0 && !(Number(i?.alreadyPaid || 0) > 0),
+    };
+  });
+}
+
+/**
+ * Does this run need the operator to confirm anything? True when any line
+ * does (overlapConfirmations). The released phone pays every line it shows,
+ * so "any line" is still the right answer for it; the web, which can pay a
+ * chosen few, reads each line's own needsConfirmation.
+ *
+ * `overlappingRuns` must carry their items (as findOverlapping returns them):
+ * a run with no items paid nobody and asks about nobody.
  */
 export function needsOverlapConfirmation(items = [], overlappingRuns = []) {
   if (!overlappingRuns || overlappingRuns.length === 0) return false;
-  return (items || []).some(i =>
-    Number(i?.netPay || 0) > 0 && !(Number(i?.alreadyPaid || 0) > 0));
+  return overlapConfirmations(items, overlappingRuns).some((c) => c.needsConfirmation);
 }
 
 /**

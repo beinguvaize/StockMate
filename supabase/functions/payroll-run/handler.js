@@ -6,7 +6,7 @@
 // database's access rules decide which shop's staff they can see.
 //
 // Free of Deno and npm imports so it can be tested.
-import { buildPayRun, findOverlapping, needsOverlapConfirmation } from "./payRun.bundle.js";
+import { buildPayRun, findOverlapping, needsOverlapConfirmation, overlapConfirmations } from "./payRun.bundle.js";
 
 export const CONTRACT_VERSION = 1;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -112,6 +112,19 @@ export async function handle(req, deps) {
     });
     const period = periodFor(from, to);
     const overlapping = findOverlapping(period, records);
+    // Per person: was THIS person in an overlapping run, and would they be
+    // paid again for days already paid? New fields on each line; held lines
+    // get them too, for when someone on leave is switched in.
+    const annotate = (lines) => {
+      const c = overlapConfirmations(lines, overlapping);
+      lines.forEach((l, i) => {
+        l.alreadyPaidRunIds = c[i].alreadyPaidRunIds;
+        l.needsConfirmation = c[i].needsConfirmation;
+      });
+    };
+    annotate(run.items || []);
+    annotate(run.held || []);
+    const confirmIds = (run.items || []).filter((l) => l.needsConfirmation).map((l) => String(l.employeeId));
     return reply(200, {
       period,
       run,
@@ -120,7 +133,12 @@ export async function handle(req, deps) {
       })),
       // True only when a line would genuinely be paid twice. When earlier pay
       // has simply been taken off the amounts, there is nothing to agree to.
+      // Decided per employee: someone else's earlier payment over these dates
+      // is not a reason to ask (lib/payrollPeriods.overlapConfirmations).
       must_confirm_already_paid: needsOverlapConfirmation(run.items, overlapping),
+      // New: whose lines need it. Each line also carries needsConfirmation
+      // and alreadyPaidRunIds.
+      confirm_employee_ids: confirmIds,
       // New fields; nothing above changed. Each line also carries
       // advanceOutstanding and advancePlanned. netPay stays what was earned:
       // send it back unchanged with p_options.advance_aware = true.

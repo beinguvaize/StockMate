@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parsePeriod, overlaps, findOverlapping, describePeriod, monthIsPaid, runsPaidInMonth, paidByEmployeeInMonth, monthToDate, financialYear, yearToDate, monthlyPayItem, needsOverlapConfirmation, paidForWindow, paidOnLine } from './payrollPeriods';
+import { parsePeriod, overlaps, findOverlapping, describePeriod, monthIsPaid, runsPaidInMonth, paidByEmployeeInMonth, monthToDate, financialYear, yearToDate, monthlyPayItem, needsOverlapConfirmation, overlapConfirmations, paidForWindow, paidOnLine } from './payrollPeriods';
 
 /**
  * The defect these pin: the same window could be paid twice. FUTURE DISPO's
@@ -474,21 +474,37 @@ describe('yearToDate on a monthly slip', () => {
   });
 });
 
-describe('needsOverlapConfirmation', () => {
-  const paid  = { netPay: 900, alreadyPaid: 7200 };   // Akbar's real August line
-  const fresh = { netPay: 900, alreadyPaid: 0 };
-  const nil   = { netPay: 0,   alreadyPaid: 0 };
-  const overlaps = [{ id: 'r1' }];
+describe('needsOverlapConfirmation (per employee)', () => {
+  const paid  = { employeeId: 'a', netPay: 900, alreadyPaid: 7200 };   // a real month line, netted
+  const fresh = { employeeId: 'b', netPay: 900, alreadyPaid: 0 };
+  const nil   = { employeeId: 'c', netPay: 0,   alreadyPaid: 0 };
+  const runPaying = (...ids) => ({ id: `r-${ids.join('')}`, items: ids.map((employeeId) => ({ employeeId, netPay: 500 })) });
 
   it('does not ask when prior payment was netted off', () => {
-    // The case that made the button look broken: a monthly run after four
-    // weekly ones overlaps all of them and pays nobody twice.
-    expect(needsOverlapConfirmation([paid, paid, nil], overlaps)).toBe(false);
+    expect(needsOverlapConfirmation([paid, nil], [runPaying('a', 'c')])).toBe(false);
   });
 
-  it('asks when a line would pay overlapping days that were not netted', () => {
-    expect(needsOverlapConfirmation([fresh], overlaps)).toBe(true);
-    expect(needsOverlapConfirmation([paid, fresh], overlaps)).toBe(true);
+  it('does not ask about someone who was not in the overlapping run', () => {
+    // a was paid alone; the run for b overlaps a's payment but pays b once.
+    expect(needsOverlapConfirmation([fresh], [runPaying('a')])).toBe(false);
+    expect(needsOverlapConfirmation([paid, fresh], [runPaying('a')])).toBe(false);
+  });
+
+  it('asks when THAT person was paid in an overlapping run and nothing was netted', () => {
+    expect(needsOverlapConfirmation([fresh], [runPaying('b')])).toBe(true);
+    expect(overlapConfirmations([paid, fresh], [runPaying('b')]).map((c) => c.needsConfirmation)).toEqual([false, true]);
+  });
+
+  it('matches ids whether they are numbers or strings', () => {
+    expect(needsOverlapConfirmation([{ employeeId: 7, netPay: 100, alreadyPaid: 0 }], [{ id: 'r', items: [{ employeeId: '7', netPay: 100 }] }])).toBe(true);
+  });
+
+  it('counts an earlier line paid wholly by advance recovery as paid', () => {
+    expect(needsOverlapConfirmation([fresh], [{ id: 'r', items: [{ employeeId: 'b', netPay: 0, advanceRecovered: 300 }] }])).toBe(true);
+  });
+
+  it('ignores a run where the person was on the run at zero', () => {
+    expect(needsOverlapConfirmation([fresh], [{ id: 'r', items: [{ employeeId: 'b', netPay: 0 }] }])).toBe(false);
   });
 
   it('never asks when nothing overlaps', () => {
@@ -496,8 +512,14 @@ describe('needsOverlapConfirmation', () => {
   });
 
   it('ignores lines that pay nothing', () => {
-    // Parthipan is on every run at zero; he must not trigger a confirmation.
-    expect(needsOverlapConfirmation([nil], overlaps)).toBe(false);
+    expect(needsOverlapConfirmation([{ ...nil, employeeId: 'b' }], [runPaying('b')])).toBe(false);
+  });
+
+  it('names the runs that paid each person', () => {
+    expect(overlapConfirmations([fresh, nil], [runPaying('b'), runPaying('a')])).toEqual([
+      { employeeId: 'b', alreadyPaidRunIds: ['r-b'], needsConfirmation: true },
+      { employeeId: 'c', alreadyPaidRunIds: [], needsConfirmation: false },
+    ]);
   });
 });
 

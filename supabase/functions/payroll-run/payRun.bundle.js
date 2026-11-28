@@ -94,9 +94,21 @@ function findOverlapping(period, records = [], { excludeId } = {}) {
     return p === null ? true : overlaps(target, p);
   });
 }
+function overlapConfirmations(items = [], overlappingRuns = []) {
+  const runs = (overlappingRuns || []).filter(Boolean);
+  return (items || []).map((i) => {
+    const id = String(i?.employeeId ?? "");
+    const runIds = runs.filter((r) => (r.items || []).some((x) => String(x?.employeeId ?? "") === id && paidOnLine(x) > 0)).map((r) => r.id);
+    return {
+      employeeId: i?.employeeId,
+      alreadyPaidRunIds: runIds,
+      needsConfirmation: runIds.length > 0 && Number(i?.netPay || 0) > 0 && !(Number(i?.alreadyPaid || 0) > 0)
+    };
+  });
+}
 function needsOverlapConfirmation(items = [], overlappingRuns = []) {
   if (!overlappingRuns || overlappingRuns.length === 0) return false;
-  return (items || []).some((i) => Number(i?.netPay || 0) > 0 && !(Number(i?.alreadyPaid || 0) > 0));
+  return overlapConfirmations(items, overlappingRuns).some((c) => c.needsConfirmation);
 }
 var SHOP_DAY = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Asia/Kolkata",
@@ -476,6 +488,7 @@ export {
   findOverlapping,
   needsOverlapConfirmation,
   netOf,
+  overlapConfirmations,
   paidForWindow,
   parsePeriod,
   planAdvanceRecovery
