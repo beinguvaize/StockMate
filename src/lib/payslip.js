@@ -151,8 +151,16 @@ export function buildPayslip({ run, item, employee, business, records, payment,
   const grossEarnings   = earnings.reduce((t, l) => t + l.amount, 0);
   const totalDeductions = deductionLines.reduce((t, l) => t + l.amount, 0);
   const netPay          = grossEarnings - totalDeductions;
-  const storedNet       = num(item.netPay);
+  // Staff advances: a run may take part of the earned pay back against an
+  // advance. The line then stores netPay = the CASH handed over and
+  // advanceRecovered = the part kept against the advance (earnedNet = both).
+  // The slip's net pay is what was EARNED, net of deductions; the recovery
+  // and the cash are shown under it, so year to date never loses the
+  // recovered part. Lines saved before advances have neither field.
+  const advanceRecovered = Math.max(0, num(item.advanceRecovered));
+  const storedNet       = item.earnedNet != null ? num(item.earnedNet) : num(item.netPay) + advanceRecovered;
   const discrepancy     = Math.abs(netPay - storedNet) > 0.005 ? storedNet : null;
+  const cashPaid        = netPay - advanceRecovered;
 
   return {
     employeeName: item.employeeName || 'Employee',
@@ -202,6 +210,9 @@ export function buildPayslip({ run, item, employee, business, records, payment,
     netPay,
     netPayInWords: amountInWords(netPay),
     discrepancy,
+    // Advance taken back from this pay, and the cash actually handed over.
+    advanceRecovered,
+    cashPaid,
 
     // The month around this slip. Daily wages are paid in many small runs, so a
     // slip for one day is nearly meaningless alone. Not computed for salaried

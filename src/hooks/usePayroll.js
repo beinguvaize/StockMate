@@ -3,6 +3,7 @@ import { fetchWithCache } from '../lib/offline/hookAdapter';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
 import useRefetchOnFocus from './useRefetchOnFocus';
+import { detectAdvances, isAdvanceExpense } from '../lib/staffAdvances';
 
 const EMPLOYEE_NUMERIC = ['daily_rate', 'days_worked', 'amount_paid', 'salary'];
 const PAYROLL_NUMERIC  = ['total_base', 'total_net', 'total_overtime', 'total_commission', 'total_bonus', 'total_deductions'];
@@ -57,6 +58,23 @@ const toEmployeeRow = (emp) => ({
   paid_leave_per_month: Math.max(0, Math.min(31, Math.round(Number(emp.paidLeavePerMonth ?? emp.paid_leave_per_month ?? 0)) || 0)),
 });
 
+/**
+ * payroll_id -> how the run was paid, from its salary expenses. One method per
+ * run: every line of a run is paid the same way, so the first expense answers
+ * for all of them. An ADVANCE row (PAYADV: pay kept against a staff advance)
+ * moved no money and never names the method.
+ */
+export function runPaymentMethods(rows = []) {
+  const methods = {};
+  for (const row of rows || []) {
+    if (isAdvanceExpense(row)) continue;
+    if (row.payroll_id && row.payment_method && !methods[row.payroll_id]) {
+      methods[row.payroll_id] = String(row.payment_method).toUpperCase();
+    }
+  }
+  return methods;
+}
+
 export const usePayroll = (tenantId) => {
   const [employees, setEmployees] = useState([]);
   const [payrollRecords, setPayrollRecords] = useState([]);
@@ -107,13 +125,7 @@ export const usePayroll = (tenantId) => {
 
       // payroll_id -> payment method. One method per run: every line of a run
       // is paid the same way, so the first expense answers for all of them.
-      const methods = {};
-      for (const row of mine(payExpRes.data) || []) {
-        if (row.payroll_id && row.payment_method && !methods[row.payroll_id]) {
-          methods[row.payroll_id] = String(row.payment_method).toUpperCase();
-        }
-      }
-      setPayrollPaymentMethods(methods);
+      setPayrollPaymentMethods(runPaymentMethods(mine(payExpRes.data)));
     } catch (err) {
       console.error("usePayroll Fetch Error:", err);
       setError(err.message);
@@ -191,15 +203,20 @@ export const usePayroll = (tenantId) => {
    * the same id is sent again, the function hands back the run it already
    * saved instead of paying everyone a second time.
    */
-  const processPayroll = async (record, runId = crypto.randomUUID()) => {
-    const { data, error } = await supabase.rpc('process_payroll_run', {
+  // `options` is process_payroll_run's p_options, sent ONLY to a database
+  // with staff advances (lib/staffAdvances.advanceOptions). A database without
+  // them has no such parameter, so the call is then exactly as before.
+  const processPayroll = async (record, runId = crypto.randomUUID(), options = null) => {
+    const args = {
       p_tenant_id:      tenantId,
       p_run_id:         runId,
       p_period:         record.period,
       p_payment_method: record.paymentMethod || 'CASH',
       p_items:          record.items || [],
       p_processed_at:   record.processedAt || null,
-    });
+    };
+    if (options) args.p_options = options;
+    const { data, error } = await supabase.rpc('process_payroll_run', args);
     if (error) {
       console.error('process_payroll_run error:', error);
       return { success: false, error, runId };
@@ -208,7 +225,10 @@ export const usePayroll = (tenantId) => {
     if (run) {
       setPayrollRecords(prev => [toPayrollRecord(run), ...prev.filter(r => r.id !== run.id)]);
     }
-    return { success: true, expensesPosted: Number(data?.expenses || 0), replayed: !!data?.replayed, runId };
+    return {
+      success: true, expensesPosted: Number(data?.expenses || 0), replayed: !!data?.replayed, runId,
+      advanceRecovered: Number(data?.advance_recovered || 0),
+    };
   };
 
   /**
@@ -225,6 +245,21 @@ export const usePayroll = (tenantId) => {
    * with the link gone.
    */
   const deletePayrollRecord = async (id) => {
+    // A database with staff advances deletes a run in ONE server step
+    // (delete_payroll_run): the expenses, the advance recoveries and the run
+    // together, reopening the advances. Without advances, the old two steps.
+    if (await detectAdvances(supabase)) {
+      const { data, error } = await supabase.rpc('delete_payroll_run', { p_tenant_id: tenantId, p_run_id: id });
+      if (error) {
+        console.error('delete_payroll_run error:', error);
+        return { success: false, error, message: `The pay run was not deleted: ${error.message}` };
+      }
+      setPayrollRecords(prev => prev.filter(p => p.id !== id));
+      return {
+        success: true, expensesReversed: Number(data?.expenses_reversed || 0), amountReversed: null,
+        recoveriesReversed: Number(data?.recoveries_reversed || 0), alreadyDeleted: !!data?.already_deleted,
+      };
+    }
     const now = new Date().toISOString();
 
     const { data: reversed, error: expError } = await supabase

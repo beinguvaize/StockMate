@@ -150,3 +150,27 @@ export function isNewShop(sales = [], today) {
   if (!first) return true;
   return !!today && first > addDays(today, -NEW_SHOP_DAYS);
 }
+
+/**
+ * The "Money in and out" chart's bars: one per day key in `days` (in order).
+ * Money in = sales; money out = expenses that moved money. Expenses with
+ * method ADVANCE (pay kept against a staff advance, an advance written off)
+ * or ADJUSTMENT (a stock write-off) moved none, so they are left out. Staff
+ * advances given (OUT) and paid back (IN) are money that moved with no expense
+ * row, so they count. `keyOf(date)` turns a row's date into a day key.
+ */
+export function moneyInOutBars({ days = [], sales = [], expenses = [], advances = [], keyOf }) {
+  const map = new Map(days.map((d) => [d, { date: d, income: 0, expense: 0 }]));
+  const add = (date, k, v) => { if (!date) return; const b = map.get(keyOf(date)); if (b) b[k] += v; };
+  for (const s of sales || []) add(s.date, 'income', Number(s.totalAmount) || 0);
+  for (const e of expenses || []) {
+    const m = String(e.payment_method ?? e.paymentMethod ?? '').toUpperCase();
+    if (m === 'ADVANCE' || m === 'ADJUSTMENT') continue;
+    add(e.date, 'expense', Number(e.amount) || 0);
+  }
+  for (const t of advances || []) {
+    if (String(t.ref_type || '').toUpperCase() !== 'STAFF_ADVANCE') continue;
+    add(String(t.date || '').slice(0, 10), String(t.direction).toUpperCase() === 'IN' ? 'income' : 'expense', Number(t.amount) || 0);
+  }
+  return [...map.values()];
+}

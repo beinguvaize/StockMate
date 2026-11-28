@@ -39,6 +39,7 @@ describe('profile page from the URL', () => {
     expect(profilePage('pay')).toBe('pay');
     expect(profilePage('salary-statement')).toBe('statement');
     expect(profilePage(null)).toBe('overview');
-    expect(profilePage('advances')).toBe('overview');
+    expect(profilePage('advances')).toBe('advances');   // the page falls back to the overview when advances are off
+    expect(profilePage('leave')).toBe('overview');
   });
 });

@@ -319,7 +319,7 @@ const overlapsWindow = (period, from, to) => {
  * check the tests hold the screen to: closing balance equals the list's
  * Pending figure, or the employee was paid ahead and Pending is zero.
  */
-export function salaryStatement({ line, month, records = [], methods = {}, accountFor, asOf } = {}) {
+export function salaryStatement({ line, month, records = [], methods = {}, accountFor, asOf, advanceEntries = null } = {}) {
   const win = monthBounds(month);
   if (!line || !win) return null;
   const id = String(line.employeeId);
@@ -361,13 +361,28 @@ export function salaryStatement({ line, month, records = [], methods = {}, accou
   for (const { r, item } of payments) {
     const method = methods[r.id] || null;
     const account = method && accountFor ? accountFor(method) : null;
-    paidShown += num(item.netPay);
-    rows.push({
-      key: `run-${r.id}`, type: 'paid', date: shopDay(r.processed_at) || parsePeriod(r.period)?.to,
-      title: `Paid, ${periodWords(r.period)} run`,
-      note: [methodLabel(method), account, runReference(r.id)].filter(Boolean).join(' · ') || null,
-      earned: 0, paid: num(item.netPay), runId: r.id, record: r, item,
-    });
+    const recovered = Math.max(0, num(item.advanceRecovered));
+    paidShown += num(item.netPay) + recovered;
+    if (num(item.netPay) > 0) {
+      rows.push({
+        key: `run-${r.id}`, type: 'paid', date: shopDay(r.processed_at) || parsePeriod(r.period)?.to,
+        title: `Paid, ${periodWords(r.period)} run`,
+        note: [methodLabel(method), account, runReference(r.id)].filter(Boolean).join(' · ') || null,
+        earned: 0, paid: num(item.netPay), runId: r.id, record: r, item,
+      });
+    }
+    // Part of the earned pay kept against a staff advance: it settles that
+    // much of the wages (no cash). When the advance itself is on the
+    // statement too, it also settles that much of the advance, so the
+    // balance (wages owed less advance outstanding) does not move; see below.
+    if (recovered > 0) {
+      rows.push({
+        key: `rec-${r.id}`, type: 'recovered', date: shopDay(r.processed_at) || parsePeriod(r.period)?.to,
+        title: `Advance taken back, ${periodWords(r.period)} run`,
+        note: `₹${recovered.toLocaleString('en-IN')} of the pay kept against the advance · no cash`,
+        earned: 0, paid: recovered, runId: r.id,
+      });
+    }
   }
   const paidGap = num(line.alreadyPaid) - paidShown;
   if (Math.abs(paidGap) >= 0.5) {
@@ -379,6 +394,41 @@ export function salaryStatement({ line, month, records = [], methods = {}, accou
     });
   }
 
+  // Staff advances (only when the caller read them). The balance is then what
+  // the shop owes the employee LESS the advance they still owe the shop, as the
+  // approved statement shows it: an advance given is money paid out ahead; one
+  // paid back or written off reduces what they owe.
+  let advanceStart = 0;
+  let advanceEnd = 0;
+  if (Array.isArray(advanceEntries) && advanceEntries.length) {
+    const liveRuns = new Set((records || []).filter((r) => r && !r.deleted_at).map((r) => String(r.id)));
+    const counts = (e) => !e.deleted_at && (e.kind !== 'RECOVERY' || liveRuns.has(String(e.payroll_id)));
+    const effect = (e) => (e.kind === 'GIVEN' ? num(e.amount) : -num(e.amount));   // + raises what they owe
+    for (const e of advanceEntries) {
+      if (!counts(e)) continue;
+      const d = String(e.on_date || '').slice(0, 10);
+      if (d < win.from) advanceStart += effect(e);
+      if (d <= end) advanceEnd += effect(e);
+      if (d < win.from || d > end || e.kind === 'RECOVERY') continue;   // recoveries are on their run's row
+      rows.push(e.kind === 'GIVEN'
+        ? { key: `adv-${e.id}`, type: 'advance', date: d, title: 'Advance given', note: e.note || null, earned: 0, paid: num(e.amount) }
+        : { key: `adv-${e.id}`, type: 'advance', date: d, title: e.kind === 'COLLECTION' ? 'Advance paid back' : 'Advance written off',
+          note: e.kind === 'WRITE_OFF' ? 'Counted as an expense' : null, earned: 0, paid: -num(e.amount) });
+    }
+    for (const row of rows) if (row.type === 'recovered') { row.shown = row.paid; row.paid = 0; }
+    advanceStart = Math.round(advanceStart * 100) / 100;
+    advanceEnd = Math.round(advanceEnd * 100) / 100;
+    if (advanceStart > 0) {
+      rows.unshift({ key: 'adv-open', type: 'advance', date: win.from, title: 'Advance outstanding at the start',
+        note: 'Given before this month, not yet taken back', earned: 0, paid: advanceStart });
+    }
+    // Keep the rows in date order; the earned row stays first.
+    const [head, ...rest] = rows[0]?.key === 'adv-open' ? [rows[1], rows[0], ...rows.slice(2)] : rows;
+    rest.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    rows.length = 0;
+    rows.push(head, ...rest);
+  }
+
   let bal = 0;
   for (const row of rows) { bal += row.earned - row.paid; row.balance = bal; }
   const totals = {
@@ -387,10 +437,12 @@ export function salaryStatement({ line, month, records = [], methods = {}, accou
   };
   const closing = Math.round(bal);
   const stillToPay = num(line.netPay);
+  const wages = closing + Math.round(advanceEnd);   // the balance without the advance
   return {
     from: win.from, to: win.to, asOf: end, rows, totals, closing, stillToPay,
-    paidAhead: closing < 0 ? -closing : 0,
-    agrees: closing === Math.round(stillToPay) || (closing < 0 && stillToPay === 0),
+    advanceOutstanding: advanceEnd,
+    paidAhead: !advanceEnd && closing < 0 ? -closing : 0,
+    agrees: wages === Math.round(stillToPay) || (wages < 0 && stillToPay === 0),
   };
 }
 
@@ -442,7 +494,7 @@ export { describePeriod };
 
 // ── Employee profile pages ─────────────────────────────────────────────────
 
-export const PROFILE_PAGES = ['overview', 'pay', 'statement', 'payslips', 'attendance', 'details'];
+export const PROFILE_PAGES = ['overview', 'pay', 'statement', 'payslips', 'advances', 'attendance', 'details'];
 /** ?tab= value → page. Unknown or missing → overview. Case-insensitive, so the old upper-case tab keys still work. */
 export function profilePage(tab) {
   const t = String(tab || '').trim().toLowerCase();

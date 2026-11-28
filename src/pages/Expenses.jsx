@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect} from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
+import { lockedAdvanceExpense } from '../lib/staffAdvances';
 import Button from '../shared/Button';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
@@ -345,6 +346,8 @@ const Expenses = () => {
 
  const handleEdit = (expense) => {
    if (!expense) return;
+   // Written by the server for a staff advance: changed only from Payroll.
+   if (lockedAdvanceExpense(expense)) return;
    setEditingExpense(expense);
    setFormData({
      note: expense.note || '',
@@ -572,7 +575,7 @@ const Expenses = () => {
        )}
      </div>
      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-0.5 truncate">
-       {expense.category || 'Other'} · via {expense.payment_method || 'CASH'}
+       {lockedAdvanceExpense(expense) ? `${lockedAdvanceExpense(expense).label} · no money moved` : `${expense.category || 'Other'} · via ${expense.payment_method || 'CASH'}`}
      </div>
    </div>
  </td>
@@ -591,6 +594,9 @@ const Expenses = () => {
  </div>
  </td>
  <td className="px-4 py-3 text-right whitespace-nowrap">
+ {lockedAdvanceExpense(expense) ? (
+ <Link to={lockedAdvanceExpense(expense).href} className="text-[11px] font-bold text-accent-signature hover:underline" title="Changed from the employee's advances, not here">Open employee</Link>
+ ) : (
  <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
  {hasPermission('EDIT_EXPENSE') && (
  <button
@@ -611,6 +617,7 @@ const Expenses = () => {
  </button>
  )}
  </div>
+ )}
  </td>
  </tr>
  );
@@ -632,9 +639,12 @@ const Expenses = () => {
          </span>
        </div>
        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mt-1 tabular-nums">
-         {expense.category || 'Other'} · via {expense.payment_method || 'CASH'} · {fmtDate(expense.date)}
+         {lockedAdvanceExpense(expense) ? `${lockedAdvanceExpense(expense).label} · no money moved` : `${expense.category || 'Other'} · via ${expense.payment_method || 'CASH'}`} · {fmtDate(expense.date)}
          {expense.recurring_template_id && <span className="text-accent-signature ml-1">· ↻ Recurring</span>}
        </div>
+       {lockedAdvanceExpense(expense) ? (
+       <div className="mt-2"><Link to={lockedAdvanceExpense(expense).href} className="text-[11px] font-bold text-accent-signature">Open employee</Link></div>
+       ) : (
        <div className="flex items-center gap-2 mt-2">
          {hasPermission('EDIT_EXPENSE') && (
            <button onClick={() => handleEdit(expense)} className="text-[11px] font-bold text-accent-signature">Edit</button>
@@ -643,6 +653,7 @@ const Expenses = () => {
            <button onClick={() => { if(window.confirm('Delete record?')) deleteExpense(expense.id); }} className="text-[11px] font-bold text-red-500">Delete</button>
          )}
        </div>
+       )}
      </div>
    </div>
    );

@@ -38,6 +38,7 @@ const SEL_SALETXN = 'id, tenant_id, date, direction, amount, mode, ref_type, ref
 export function useDayBookData(tenantId, selectedDate) {
   const [sales, setSales]                     = useState([]);
   const [expenses, setExpenses]               = useState([]);
+  const [advanceMoves, setAdvanceMoves]       = useState([]);
   const [purchases, setPurchases]             = useState([]);
   const [clientPayments, setClientPayments]   = useState([]);
   const [supplierPayments, setSupplierPayments] = useState([]);
@@ -89,6 +90,13 @@ export function useDayBookData(tenantId, selectedDate) {
         fetchWithCache('supplier_payments', () => supabase.from('supplier_payments').select(SEL_SUPPLIERPAY).eq('tenant_id', tenantId).eq('date', selectedDate).is('deleted_at', null)),
         fetchWithCache('account_transactions', () => supabase.from('account_transactions').select(SEL_SALETXN).eq('tenant_id', tenantId).eq('date', selectedDate).eq('ref_type', 'SALE')),
       ]);
+      // Staff advances given (OUT) and paid back (IN) are money moves with no
+      // expense row. A shop without advances simply has none. Read on its own:
+      // the cache adapter keys by table and already holds the SALE rows above.
+      const advRes = await supabase.from('account_transactions').select(SEL_SALETXN)
+        .eq('tenant_id', tenantId).eq('date', selectedDate).eq('ref_type', 'STAFF_ADVANCE');
+      if (advRes.error) console.error('useDayBookData: staff advances not read:', advRes.error);
+      setAdvanceMoves((advRes.data || []).filter(r => r.date === selectedDate));
       setSales(forDay(sRes.data));
       setExpenses(forDay(eRes.data));
       setPurchases(forDay(pRes.data));
@@ -135,7 +143,7 @@ export function useDayBookData(tenantId, selectedDate) {
   };
 
   return {
-    sales, expenses, purchases, clientPayments, supplierPayments, saleReceipts, dayBook,
+    sales, expenses, purchases, clientPayments, supplierPayments, saleReceipts, advanceMoves, dayBook,
     loading,
     refetch: fetchDay,
     updateDayBook, getDayBookForDate, getPrevDayBook,

@@ -84,6 +84,7 @@ const SHEET = `
   .ps-net-k{font-size:5.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--ps-ink2);}
   .ps-net-a{font-weight:500;font-size:17px;letter-spacing:-.02em;line-height:1;margin-top:.7mm;}
   .ps-net-w{font-size:6px;color:var(--ps-ink2);margin-top:1mm;line-height:1.3;font-style:italic;}
+  .ps-adv{margin-top:1.5mm;padding-top:1mm;border-top:0.2mm solid var(--ps-line, #ddd);}
   .ps-mtd{margin-top:auto;background:#f5f6f8;padding:1.3mm 1.8mm;}
   /* Month and year side by side, split by a hairline. Two stacked blocks would
      not fit the 74mm sheet once the instalment list is also present. */

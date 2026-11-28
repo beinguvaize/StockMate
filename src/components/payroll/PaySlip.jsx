@@ -162,6 +162,12 @@ export const Slip = ({ s }) => (
               <div className="ps-net-k">Net pay</div>
               <div className="ps-net-a">{money(s.netPay)}</div>
               <div className="ps-net-w">{s.netPayInWords}</div>
+              {s.advanceRecovered > 0 && (
+                <div className="ps-adv">
+                  <div className="ps-ln"><span>Advance taken back</span><span className="ps-a">−{money(s.advanceRecovered)}</span></div>
+                  <div className="ps-ln"><b>Paid to employee</b><b className="ps-a">{money(s.cashPaid)}</b></div>
+                </div>
+              )}
             </div>
 
             {/* The handovers that made up the month. A monthly slip on a daily

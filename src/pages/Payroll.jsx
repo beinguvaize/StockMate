@@ -244,7 +244,11 @@ export default function Payroll() {
           onRunPayroll={() => openRun()} onAddEmployee={() => setForm({ employee: null })}
           onDelete={async (r) => {
             const res = await deletePayrollRecord(r.id);
-            if (res?.success) addNotification(`Deleted ${periodWords(r.period)}: ${inr(res.amountReversed)} of salary expenses reversed.`, 'success');
+            if (res?.success) {
+              addNotification(res.amountReversed != null
+                ? `Deleted ${periodWords(r.period)}: ${inr(res.amountReversed)} of salary expenses reversed.`
+                : `Deleted ${periodWords(r.period)}: ${res.expensesReversed} salary expense${res.expensesReversed === 1 ? '' : 's'} reversed${res.recoveriesReversed > 0 ? `, and the advance taken back from it is owed again` : ''}.`, 'success');
+            }
             return res;
           }}
           onRerun={rerun} />
@@ -289,7 +293,7 @@ export default function Payroll() {
         }} />
 
       <PayOneDialog open={!!payOne} onClose={() => setPayOne(null)} tenantId={currentTenantId}
-        employee={payOne?.employee} month={month} amount={payOne?.pending} accountFor={accountFor} processPayroll={processPayroll}
+        employee={payOne?.employee} month={month} amount={payOne?.pending} planned={payOne?.line?.advancePlanned || 0} accountFor={accountFor} processPayroll={processPayroll}
         onPaid={(line, method, res) => {
           bump();
           addNotification(res?.replayed ? 'That payment was already saved by an earlier press; nothing was paid twice.' : `Paid ${inr(line.netPay)} to ${line.employeeName}.`, 'success');

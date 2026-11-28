@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ChevronLeft, ChevronDown, CalendarCheck, Pencil, Printer, FileText, UserX, UserCheck, Trash2, CalendarClock,
-  House, Banknote, CalendarDays, IdCard, Eye, EyeOff, PanelLeft,
+  House, Banknote, CalendarDays, IdCard, Eye, EyeOff, PanelLeft, HandCoins,
 } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext';
 import { useNotifications } from '../../context/NotificationContext';
@@ -10,6 +10,8 @@ import { usePayroll } from '../../hooks/usePayroll';
 import { usePeople } from '../../hooks/usePeople';
 import { useAccounts, accountForMethod } from '../../hooks/useAccounts';
 import { usePayRunPreview } from '../../hooks/usePayRunPreview';
+import { useAdvancesAvailable, useStaffAdvances } from '../../hooks/useStaffAdvances';
+import { AdvancesPage, GiveAdvanceDialog, SettleDialog } from '../../components/payroll/Advances';
 import { supabase } from '../../lib/supabase';
 import { formatDate, todayISOInAppTZ, cn } from '../../lib/utils';
 import { classifyWriteFailure } from '../../lib/writeOutcome';
@@ -55,8 +57,8 @@ const shiftMonth = (month, n) => {
 };
 const pad = (n) => String(n).padStart(2, '0');
 
-const PAGE_TITLE = { overview: 'Overview', statement: 'Salary statement', payslips: 'Payslips', attendance: 'Attendance', details: 'Details' };
-const PAY_PAGES = ['pay', 'statement', 'payslips'];
+const PAGE_TITLE = { overview: 'Overview', statement: 'Salary statement', payslips: 'Payslips', advances: 'Advances', attendance: 'Attendance', details: 'Details' };
+const PAY_PAGES = ['pay', 'statement', 'payslips', 'advances'];
 
 export default function EmployeeProfile() {
   const { employeeId } = useParams();
@@ -73,7 +75,11 @@ export default function EmployeeProfile() {
   const today = todayISOInAppTZ();
   const emp = useMemo(() => employees.find((e) => String(e.id) === String(employeeId)) || null, [employees, employeeId]);
 
-  const page = profilePage(params.get('tab'));
+  // Staff advances, only on a database that has them (asked once a session).
+  const advancesOn = useAdvancesAvailable() === true;
+  const adv = useStaffAdvances({ tenantId: currentTenantId, employeeId, enabled: advancesOn });
+  const asked = profilePage(params.get('tab'));
+  const page = asked === 'advances' && !advancesOn ? 'overview' : asked;
   const go = useCallback((p) => {
     setParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -104,9 +110,10 @@ export default function EmployeeProfile() {
   const failed = !!monthRun.error && !line;
 
   const accountFor = useCallback((mm) => accounts.find((a) => a.id === accountForMethod(accounts, mm))?.name || null, [accounts]);
+  const advanceEntries = advancesOn && adv.loaded && !adv.error ? adv.entries : null;
   const statement = useMemo(() => (line ? salaryStatement({
-    line, month, records: payrollRecords, methods: payrollPaymentMethods, accountFor, asOf: today,
-  }) : null), [line, month, payrollRecords, payrollPaymentMethods, accountFor, today]);
+    line, month, records: payrollRecords, methods: payrollPaymentMethods, accountFor, asOf: today, advanceEntries,
+  }) : null), [line, month, payrollRecords, payrollPaymentMethods, accountFor, today, advanceEntries]);
 
   // Year to date for the statement: the financial year's saved lines whose
   // period ends by the end of the month on screen.
@@ -144,6 +151,8 @@ export default function EmployeeProfile() {
   const [del, setDel] = useState(false);
   const [slip, setSlip] = useState(null);
   const [printStmt, setPrintStmt] = useState(false);
+  const [giving, setGiving] = useState(null);          // null | { editing }
+  const [settling, setSettling] = useState(false);
   const [collapsed, setCollapsed] = useState(false);   // left panel, wide screens
   const [navOpen, setNavOpen] = useState(false);       // left panel, narrow screens
 
@@ -171,13 +180,15 @@ export default function EmployeeProfile() {
   const mName = monthWords(month).split(' ')[0];
   const pending = line ? Number(line.netPay) : null;
   const canPay = !inactive && !failed && !joinsLater && pending > 0;
+  const owes = advancesOn ? Number(adv.balance?.outstanding || 0) : 0;
   const attendanceLink = `/payroll?tab=ATTENDANCE&from=${win.from}&to=${win.to}`;
   const title = page === 'pay' ? `${mName} pay so far` : PAGE_TITLE[page];
   const crumb = PAY_PAGES.includes(page) && page !== 'pay' ? `Pay › ${PAGE_TITLE[page]}` : null;
 
   const sections = [
     { key: 'overview', label: 'Overview', icon: House },
-    { key: 'pay', label: 'Pay', icon: Banknote, subs: [['pay', `${mName} pay`], ['statement', 'Salary statement'], ['payslips', 'Payslips', slips.length]] },
+    { key: 'pay', label: 'Pay', icon: Banknote, subs: [['pay', `${mName} pay`], ['statement', 'Salary statement'], ['payslips', 'Payslips', slips.length],
+      ...(advancesOn ? [['advances', 'Advances', (adv.advances || []).filter((a) => Number(a.outstanding) > 0).length]] : [])] },
     { key: 'attendance', label: 'Attendance', icon: CalendarDays },
     { key: 'details', label: 'Details', icon: IdCard },
   ];
@@ -233,7 +244,9 @@ export default function EmployeeProfile() {
             {inactive ? <Button size="sm" onClick={toggleActive}><UserCheck /> Mark active</Button>
               : failed ? <Button size="sm" onClick={monthRun.reload}>Try again</Button>
               : <Button size="sm" onClick={() => setPay(true)} disabled={!canPay}>{pending > 0 && !hidden ? `Pay now · ${inr(pending)}` : 'Pay now'}</Button>}
+            {inactive && owes > 0 && <Button size="sm" onClick={() => setSettling(true)}>Record settlement</Button>}
             {!inactive && <Button size="sm" variant="outline" onClick={() => navigate(attendanceLink)}><CalendarCheck /> Mark attendance</Button>}
+            {advancesOn && !inactive && <Button size="sm" variant="outline" onClick={() => setGiving({ editing: null })}><HandCoins /> Give advance</Button>}
             <Button size="sm" variant="outline" onClick={() => setPrintStmt(true)} disabled={!statement}><Printer /> Print statement</Button>
             <Button size="sm" variant="outline" onClick={() => setForm(true)}><Pencil /> Edit details</Button>
             <RowMenu label="More actions" trigger={({ ref, onClick, open }) => (
@@ -278,7 +291,8 @@ export default function EmployeeProfile() {
             ) : page === 'overview' ? (
               <Overview emp={emp} m={m} hidden={hidden} onToggleHidden={toggleHidden} line={line} failed={failed} inactive={inactive}
                 monthName={mName} month={month} today={today} slips={slips} methods={payrollPaymentMethods} ytd={stmtYtd} att={att}
-                canPay={canPay} onPay={() => setPay(true)} onGo={go} onSlip={(r, item) => setSlip({ run: r, items: [item] })} />
+                canPay={canPay} onPay={() => setPay(true)} onGo={go} onSlip={(r, item) => setSlip({ run: r, items: [item] })}
+                adv={advancesOn ? adv : null} onSettle={() => setSettling(true)} />
             ) : page === 'pay' ? (
               <Card title={`${monthWords(month)}`} aside={<span className="text-[12px] text-mute">Same calculation as Run payroll and the phone</span>}>
                 {inactive ? <p className="py-6 text-center text-[13.5px] text-body">Inactive staff are left out of pay runs and the staff totals. Mark active brings {first} back into the next run.</p>
@@ -289,6 +303,9 @@ export default function EmployeeProfile() {
             ) : page === 'statement' ? (
               <StatementTab month={month} setMonth={setMonth} st={statement} failed={failed} inactive={inactive} name={emp.name}
                 ytd={stmtYtd} onPrint={() => setPrintStmt(true)} m={m} />
+            ) : page === 'advances' ? (
+              <AdvancesPage emp={emp} adv={adv} m={m} accounts={accounts} inactive={inactive}
+                onGive={() => setGiving({ editing: null })} onEdit={(a) => setGiving({ editing: a })} onSettle={() => setSettling(true)} />
             ) : page === 'attendance' ? (
               <AttendanceView month={month} setMonth={setMonth} today={today} att={att} fy={fy} emp={emp} records={payrollRecords} />
             ) : page === 'payslips' ? (
@@ -302,7 +319,7 @@ export default function EmployeeProfile() {
 
       <EmployeeForm open={form} employee={emp} users={users} refetch={refetch} onClose={() => setForm(false)}
         addEmployee={addEmployee} updateEmployee={updateEmployee} onSaved={() => addNotification('Changes saved.', 'success')} />
-      <PayOneDialog open={pay} onClose={() => setPay(false)} tenantId={currentTenantId} employee={emp} month={month} amount={pending}
+      <PayOneDialog open={pay} onClose={() => setPay(false)} tenantId={currentTenantId} employee={emp} month={month} amount={pending} planned={line?.advancePlanned || 0}
         accountFor={accountFor} processPayroll={processPayroll}
         onPaid={(l, mm, res) => { setVersion((v) => v + 1); addNotification(res?.replayed ? 'That payment was already saved by an earlier press; nothing was paid twice.' : `Paid ${inr(l.netPay)} to ${emp.name}.`, 'success'); }} />
       <ConfirmDialog open={del} onClose={() => setDel(false)} title={`Delete ${emp.name}?`}
@@ -316,6 +333,15 @@ export default function EmployeeProfile() {
           const f = classifyWriteFailure(res?.error, { noun: 'delete' });
           return f.maySaved ? `Couldn't confirm the delete — it may have gone through. Reload to check. (${f.detail})` : `Not deleted: ${f.detail}`;
         }} />
+      {advancesOn && (
+        <>
+          <GiveAdvanceDialog open={!!giving} onClose={() => setGiving(null)} emp={emp} accounts={accounts} today={today}
+            editing={giving?.editing || null} earnedSoFar={line && !inactive ? line.basePay : null} adv={adv}
+            onDone={(res, how) => { setVersion((v) => v + 1); addNotification(res.replayed ? 'That advance was already saved by an earlier press; nothing was given twice.' : how === 'changed' ? 'Advance changed.' : `Advance given to ${emp.name}.`, 'success'); }} />
+          <SettleDialog open={settling} onClose={() => setSettling(false)} emp={emp} accounts={accounts} today={today} outstanding={owes} adv={adv}
+            onDone={(res, mode) => { setVersion((v) => v + 1); addNotification(res.replayed ? 'That settlement was already saved by an earlier press; nothing was entered twice.' : mode === 'COLLECT' ? 'Payment back recorded.' : 'Advance written off.', 'success'); }} />
+        </>
+      )}
       {slip && <PaySlip run={slip.run} items={slip.items} employees={employees} records={payrollRecords}
         paymentMethods={payrollPaymentMethods} accounts={accounts} business={businessProfile} onClose={() => setSlip(null)} />}
       {printStmt && statement && <StatementPrint st={statement} emp={emp} business={businessProfile} month={month} today={today}
@@ -420,7 +446,7 @@ function BigCard({ title, sub, fig, label, rows = [], link, onLink, money, hidde
 }
 
 /** Overview (34): each card links to its page. */
-function Overview({ emp, m, hidden, onToggleHidden, line, failed, inactive, monthName, month, today, slips, methods, ytd, att, canPay, onPay, onGo, onSlip }) {
+function Overview({ emp, m, hidden, onToggleHidden, line, failed, inactive, monthName, month, today, slips, methods, ytd, att, canPay, onPay, onGo, onSlip, adv = null, onSettle }) {
   const first = emp.name.split(' ')[0];
   const win = monthBounds(month);
   const upTo = today < win.to && today >= win.from ? today : win.to;
@@ -454,6 +480,18 @@ function Overview({ emp, m, hidden, onToggleHidden, line, failed, inactive, mont
         fig={m(ytd.ytd.net)} label="Net pay, year to date"
         rows={[['Gross pay', m(ytd.ytd.gross)], ['Deductions', m(ytd.ytd.deductionsTotal)]]}
         link="View salary statement" onLink={() => onGo('statement')} />
+      {adv && adv.loaded && !adv.error && (adv.advances || []).length > 0 && (() => {
+        const owed = Number(adv.balance?.outstanding || 0);
+        const open = (adv.advances || []).filter((a) => Number(a.outstanding) > 0);
+        const last = open[open.length - 1] || adv.advances[adv.advances.length - 1];
+        return (
+          <BigCard {...props} money title={inactive && owed > 0 ? `${first} owes the shop` : 'Advance outstanding'}
+            sub={last ? [`Given ${dayWords(last.given_on, { year: false })}`, methodLabel(last.method), last.note].filter(Boolean).join(' · ') : null}
+            fig={m(owed)} label={inactive && owed > 0 ? 'Not taken back: record a settlement' : 'Still to take back'}
+            rows={[['Next run takes back', inactive ? '—' : m(adv.balance?.due_per_run || 0)], ['Taken back so far', m(adv.balance?.recovered || 0)]]}
+            link={inactive && owed > 0 ? 'Record settlement' : 'View advances'} onLink={() => (inactive && owed > 0 ? onSettle() : onGo('advances'))} />
+        );
+      })()}
       <BigCard {...props} title="Attendance this month"
         sub={`${rangeWords(win.from, upTo, { year: false })}`}
         fig={att.error ? '—' : !att.loaded ? '…' : `${daysText(present)} ${present === 1 ? 'day' : 'days'}`}
@@ -502,14 +540,17 @@ function StatementTab({ month, setMonth, st, failed, inactive, name, ytd, onPrin
   const rows = st?.rows || [];
   const earnedN = rows.filter((r) => r.type === 'earned' || r.type === 'deduction').length;
   const paidN = rows.filter((r) => r.type === 'paid' || r.type === 'adjust').length;
-  const shown = rows.filter((r) => only === 'ALL' || (only === 'EARNED' ? (r.type === 'earned' || r.type === 'deduction') : (r.type === 'paid' || r.type === 'adjust')));
+  const advN = rows.filter((r) => r.type === 'advance' || r.type === 'recovered').length;
+  const shown = rows.filter((r) => only === 'ALL' || (only === 'EARNED' ? (r.type === 'earned' || r.type === 'deduction')
+    : only === 'ADVANCES' ? (r.type === 'advance' || r.type === 'recovered') : (r.type === 'paid' || r.type === 'adjust')));
   const first = name.split(' ')[0];
   return (
     <div className="m-rise">
       <div className="mb-3 flex flex-wrap items-center gap-2.5">
         <MonthStep label={monthWords(month)} onPrev={() => setMonth(shiftMonth(month, -1))} onNext={() => setMonth(shiftMonth(month, 1))} />
         <FilterPills value={only} onChange={setOnly} ariaLabel="Show"
-          items={[{ key: 'ALL', label: 'All', count: rows.length }, { key: 'EARNED', label: 'Earned', count: earnedN }, { key: 'PAID', label: 'Paid', count: paidN }]} />
+          items={[{ key: 'ALL', label: 'All', count: rows.length }, { key: 'EARNED', label: 'Earned', count: earnedN }, { key: 'PAID', label: 'Paid', count: paidN },
+            ...(advN ? [{ key: 'ADVANCES', label: 'Advances', count: advN }] : [])]} />
         <div className="flex-1" />
         <Button variant="secondary" onClick={onPrint} disabled={!st}><Printer /> Print</Button>
       </div>
@@ -522,6 +563,7 @@ function StatementTab({ month, setMonth, st, failed, inactive, name, ytd, onPrin
             <span className="inline-flex items-center gap-[5px]"><i className="inline-block h-2 w-2 rounded-full bg-good" />Earned</span>
             <span className="inline-flex items-center gap-[5px]"><i className="inline-block h-2 w-2 rounded-full bg-ink" />Payment</span>
             <span className="inline-flex items-center gap-[5px]"><i className="inline-block h-2 w-2 rounded-full bg-bad" />Deduction</span>
+            {advN > 0 && <span className="inline-flex items-center gap-[5px]"><i className="inline-block h-2 w-2 rounded-full bg-amber" />Advance</span>}
             <span className="ml-auto text-mute">Balance is what the shop owes {first}. Below zero means {first} has been paid ahead.{st.asOf < st.to ? ` Shown to ${dayWords(st.asOf, { year: false })}.` : ''}</span>
           </div>
         </>

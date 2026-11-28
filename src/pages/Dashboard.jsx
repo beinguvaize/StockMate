@@ -32,7 +32,7 @@ import { useTopSellingItems } from '../hooks/useTopSellingItems';
 import { supplierOwedSummary } from '../lib/supplierOwed';
 import {
   periodRange, sumInRange, inRange, deltaPct, deltaTone, formatDelta,
-  spanLabel, setupSteps, isNewShop,
+  spanLabel, setupSteps, isNewShop, moneyInOutBars,
 } from '../lib/dashboardFigures';
 import {
   minutesOfDay, periodComparison, sumInPeriodComparison, periodComparisonWords,
@@ -489,38 +489,36 @@ const Dashboard = () => {
  .slice(0, 5);
 }, [clients]);
 
+ // Staff advances given / paid back in the last 7 days: money that moved with
+ // no expense row (only on a database that has advances; elsewhere none).
+ const [advanceMoves, setAdvanceMoves] = useState([]);
+ useEffect(() => {
+   if (!currentTenantId) return undefined;
+   let alive = true;
+   const from = new Date(); from.setDate(from.getDate() - 7);
+   supabase.from('account_transactions').select('date, direction, amount, ref_type')
+     .eq('tenant_id', currentTenantId).eq('ref_type', 'STAFF_ADVANCE').gte('date', from.toISOString().slice(0, 10))
+     .then(({ data, error }) => {
+       if (!alive) return;
+       if (error) { console.error('[dashboard] staff advances not read:', error); return; }
+       setAdvanceMoves(data || []);
+     });
+   return () => { alive = false; };
+ }, [currentTenantId]);
+
  // Chart Data Preparation (Group by Date)
  const chartData = useMemo(() => {
- const dataMap = {};
-
- // Initialize last 7 days
+ const dayKey = (date) => parseLocalDate(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric'});
+ const days = [];
  for(let i=6; i>=0; i--) {
  const d = new Date();
  d.setDate(d.getDate() - i);
- const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric'});
- dataMap[dateStr] = { date: dateStr, income: 0, expense: 0};
+ days.push(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric'}));
 }
-
- // Process Sales (Income)
- (sales || []).forEach(s => {
- if (!s.date) return;
- const dateStr = parseLocalDate(s.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric'});
- if (dataMap[dateStr]) {
- dataMap[dateStr].income += (s.totalAmount || 0);
-}
-});
-
- // Process Expenses (Expense)
- (expenses || []).forEach(exp => {
- if (!exp.date) return;
- const dateStr = parseLocalDate(exp.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric'});
- if (dataMap[dateStr]) {
- dataMap[dateStr].expense += (exp.amount || 0);
-}
-});
-
- return Object.values(dataMap);
-}, [sales, expenses]);
+ // Expenses that moved no money (ADVANCE, ADJUSTMENT) are left out; staff
+ // advances given / paid back are in (lib/dashboardFigures.moneyInOutBars).
+ return moneyInOutBars({ days, sales, expenses, advances: advanceMoves, keyOf: dayKey });
+}, [sales, expenses, advanceMoves]);
  const moneyInOutEmpty = chartData.every(d => !d.income && !d.expense);
 
  // Efficiency Metrics Calculation

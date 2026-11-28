@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { receivedOnDay, carriedOpening, isBankMethod, saleReceiptsByMode } from '../lib/dayBook';
+import { receivedOnDay, carriedOpening, isBankMethod, saleReceiptsByMode, expensesByMoney, staffAdvanceMoney } from '../lib/dayBook';
 import { useDialogClose } from '../hooks/useDialogClose';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
@@ -85,7 +85,7 @@ const DayBook = () => {
   const currentUserId = currentUser?.id || null;
   const [selectedDate,  setSelectedDate]  = useState(todayISOInAppTZ());
   const {
-    sales, expenses, clientPayments, purchases, supplierPayments, saleReceipts, dayBook,
+    sales, expenses, clientPayments, purchases, supplierPayments, saleReceipts, advanceMoves, dayBook,
     loading: dbLoading, updateDayBook, getDayBookForDate, getPrevDayBook,
   } = useDayBookData(currentTenantId, selectedDate);
   const { addNotification } = useNotifications();
@@ -157,17 +157,23 @@ const DayBook = () => {
                                   .reduce((t, p) => t + (Number(p.amount) || 0), 0);
     // cashIn = money that hits the physical cash drawer (incl. amounts paid up
     // front on partial credit sales).
-    const cashIn       = cashSales + cashCollect + creditPaid;
-    const bankIn       = bankSales + bankCollect;
+    // Staff advances: given = money out, paid back = money in (no expense row).
+    const dayAdvances  = advanceMoves || [];
+    const adv          = staffAdvanceMoney(dayAdvances);
+    const cashIn       = cashSales + cashCollect + creditPaid + adv.cashIn;
+    const bankIn       = bankSales + bankCollect + adv.bankIn;
     const totalReceipts = cashIn + bankIn; // full display total
 
     // ── Payments ─────────────────────────────────────────────────────────────
     const isCash = (m) => (m || 'CASH').toUpperCase() === 'CASH';
-    const totalExpenses   = dayExpenses.reduce((t, e) => t + (Number(e.amount) || 0), 0);
-    // Only CASH expenses leave the physical drawer; bank/UPI/card don't.
-    const cashExpenses    = dayExpenses.filter(e => isCash(e.payment_method))
-      .reduce((t, e) => t + (Number(e.amount) || 0), 0);
-    const bankExpenses    = totalExpenses - cashExpenses;
+    // Only CASH expenses leave the physical drawer; bank/UPI/card don't; and
+    // ADVANCE / ADJUSTMENT expenses (pay kept against an advance, a stock
+    // write-off) move no money at all -- expenses, but in neither column.
+    const exp             = expensesByMoney(dayExpenses);
+    const totalExpenses   = exp.total;
+    const cashExpenses    = exp.cash;
+    const bankExpenses    = exp.bank;
+    const nonCashExpenses = exp.nonCash;
     // Cash purchases are paid in full at purchase time (process_purchase adds
     // no supplier_payment row for them). Credit-purchase repayments arrive
     // later as supplier_payments — counted separately below, so no double-count.
@@ -184,8 +190,8 @@ const DayBook = () => {
       .reduce((t, p) => t + (Number(p.amount) || 0), 0);
     const totalPurchPaid  = cashPurchPaid + bankPurchPaid + cashSupPay + bankSupPay; // display
     // cashOut = money leaving the physical cash drawer
-    const cashOut        = cashExpenses + cashPurchPaid + cashSupPay;
-    const totalPayments  = cashOut + bankPurchPaid + bankSupPay + bankExpenses; // full display total
+    const cashOut        = cashExpenses + cashPurchPaid + cashSupPay + adv.cashOut;
+    const totalPayments  = cashOut + bankPurchPaid + bankSupPay + bankExpenses + adv.bankOut; // money out, display total
 
     // ── Balances ─────────────────────────────────────────────────────────────
     // ── Net cash movement per day ────────────────────────────────────────────
@@ -203,6 +209,8 @@ const DayBook = () => {
       .forEach(p => bump(p.date, -(Number(p.total_amount) || 0)));
     (supplierPayments || []).filter(p => isCashM(p.payment_method))
       .forEach(p => bump(p.date, -(Number(p.amount) || 0)));
+    dayAdvances.filter(t => isCashM(t.mode))
+      .forEach(t => bump(t.date, (String(t.direction).toUpperCase() === 'IN' ? 1 : -1) * (Number(t.amount) || 0)));
 
     const record      = getDayBookForDate(selectedDate, storeFilter);
     const prevRecord  = getPrevDayBook(selectedDate, storeFilter);
@@ -261,6 +269,16 @@ const DayBook = () => {
         amount:    Number(e.amount) || 0,
         createdAt: e.created_at || selectedDate,
       })),
+      ...dayAdvances.map(t => ({
+        id:        t.id,
+        type:      String(t.direction).toUpperCase() === 'IN' ? 'INCOME' : 'EXPENSE',
+        category:  'Staff advance',
+        title:     String(t.direction).toUpperCase() === 'IN' ? 'Staff advance paid back' : 'Staff advance given',
+        note:      t.note || '',
+        method:    t.mode || 'CASH',
+        amount:    Number(t.amount) || 0,
+        createdAt: t.created_at || selectedDate,
+      })),
       ...dayPurchases.map(p => ({
         id:        p.id,
         type:      'EXPENSE',
@@ -300,7 +318,8 @@ const DayBook = () => {
       cashSales, bankSales, creditSales,
       cashCollect, bankCollect,
       cashIn, bankIn, cashOut, bankPurchPaid,
-      cashExpenses, bankExpenses, cashSupPay, bankSupPay,
+      cashExpenses, bankExpenses, nonCashExpenses, cashSupPay, bankSupPay,
+      advanceCashOut: adv.cashOut, advanceBankOut: adv.bankOut, advanceCashIn: adv.cashIn, advanceBankIn: adv.bankIn,
       totalReceipts, totalExpenses, cashPurchPaid, totalPurchPaid, totalPayments,
       entries: entriesWithBal,
       sales: daySales, expenses: dayExpenses, collect: dayCollect,
@@ -309,7 +328,7 @@ const DayBook = () => {
       expenseCount: dayExpenses.length,
       collectCount: dayCollect.length,
     };
-  }, [sales, expenses, clientPayments, purchases, supplierPayments, selectedDate, storeFilter, getDayBookForDate, getPrevDayBook]);
+  }, [sales, expenses, clientPayments, purchases, supplierPayments, advanceMoves, selectedDate, storeFilter, getDayBookForDate, getPrevDayBook]);
 
   const isDeficit  = ledger.closingBal < 0;
   const variance   = physicalCash !== '' ? (parseFloat(physicalCash) || 0) - ledger.closingBal : null;
@@ -930,6 +949,7 @@ const DayBook = () => {
               {[
                 { label: 'Expenses',          val: ledger.totalExpenses,  icon: <Receipt size={10} />,     color: 'text-red-500' },
                 { label: 'Purchase Payments', val: ledger.totalPurchPaid, icon: <ShoppingCart size={10} />, color: 'text-orange-500' },
+                ...(ledger.advanceCashOut + ledger.advanceBankOut > 0 ? [{ label: 'Staff advances given', val: ledger.advanceCashOut + ledger.advanceBankOut, icon: <Receipt size={10} />, color: 'text-orange-500' }] : []),
               ].map(({ label, val, icon, color }) => (
                 <div key={label} className="flex items-center justify-between">
                   <div className={`flex items-center gap-1.5 text-[9px] font-bold ${color}`}>
@@ -940,6 +960,11 @@ const DayBook = () => {
                   </span>
                 </div>
               ))}
+              {ledger.nonCashExpenses > 0 && (
+                <div className="text-[9px] font-bold text-muted-foreground">
+                  {cy}{fmt(ledger.nonCashExpenses)} of the expenses moved no money (advance taken back from pay, stock written off)
+                </div>
+              )}
               <div className="flex justify-between pt-2 border-t border-black/5 text-[10px] font-black">
                 <span className="text-ink-primary">Total Cash Out</span>
                 <span className="text-red-600 tabular-nums">{cy}{fmt(ledger.cashOut)}</span>

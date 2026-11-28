@@ -7,6 +7,7 @@ import {
 import { useTenant } from '../context/TenantContext';
 import { useNotifications } from '../context/NotificationContext';
 import { useAccounts, emiOf, loanStats } from '../hooks/useAccounts';
+import { refTypeLabel } from '../lib/staffAdvances';
 
 const inr = (n) => `₹${(Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const TYPES = [
@@ -237,10 +238,10 @@ const Accounts = () => {
                   </div>
                   <div className="leading-tight">
                     <div className="text-[12px] font-bold text-ink-primary flex items-center gap-1.5">
-                      {t.note || t.ref_type}
+                      {t.note || refTypeLabel(t)}
                       {isUpiTxn(t) && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-canvas border border-black/8 text-muted-foreground">UPI</span>}
                     </div>
-                    <div className="text-[10px] text-muted-foreground">{t.date} · {t.ref_type}</div>
+                    <div className="text-[10px] text-muted-foreground">{t.date} · {refTypeLabel(t)}</div>
                   </div>
                   <div className={`ml-auto tabular-nums font-bold text-[13px] ${t.direction === 'IN' ? 'text-emerald-700' : 'text-rose-600'}`}>
                     {t.direction === 'IN' ? '+' : '−'}{inr(t.amount)}

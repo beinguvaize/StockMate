@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
+import { expenseCreditAccount, staffAdvanceLedgerLines } from '../../lib/staffAdvances';
 import useDateWindow from './useDateWindow';
 import PremiumReportView from './PremiumReportView';
 import { BookOpen, TrendingUp, TrendingDown, Calendar, Receipt, Tag, Landmark } from 'lucide-react';
@@ -29,7 +30,9 @@ const GeneralLedgerReport = () => {
   const { data: payroll, loading: l3 } = useReportData({ table: 'payroll', select: '*', dateColumn: 'processed_at', filters: win.filters });
   const { data: purchases, loading: l4 } = useReportData({ table: 'purchases', select: 'id, date, total_amount, paid_amount, supplier_name, payment_type', dateColumn: 'date', filters: win.filters });
 
-  const loading = l1 || l2 || l3 || l4;
+  const { data: advances, loading: l5 } = useReportData({ table: 'account_transactions', select: 'id, date, direction, amount, mode, ref_type, ref_id', dateColumn: 'date', filters: win.filters, params: { ref_type: 'STAFF_ADVANCE' } });
+
+  const loading = l1 || l2 || l3 || l4 || l5;
 
   // Convert operational events to ledger entries
   const ledgerEntries = useMemo(() => {
@@ -106,12 +109,13 @@ const GeneralLedgerReport = () => {
         credit: 0,
         type: 'EXPENSE',
       });
+      // Credit where the money actually came from: an ADVANCE expense credits
+      // Staff Advances and a stock write-off (ADJUSTMENT) Inventory, not cash.
       addEntry({
         date: e.date,
         reference: `EXP-${refId}`,
         description: e.category || 'Operating Expense',
-        account: 'Cash & Bank',
-        accountCode: '1000',
+        ...expenseCreditAccount(e),
         debit: 0,
         credit: amount,
         type: 'EXPENSE',
@@ -173,9 +177,12 @@ const GeneralLedgerReport = () => {
       });
     });
 
+    // Staff advances given / paid back: Dr 1300 / Cr 1000, and back.
+    (advances || []).forEach((t) => staffAdvanceLedgerLines(t).forEach(addEntry));
+
     // Sort newest first
     return entries.sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
-  }, [sales, expenses, payroll, purchases]);
+  }, [sales, expenses, payroll, purchases, advances]);
 
   // Account summary
   const accountSummary = useMemo(() => {

@@ -7,7 +7,10 @@ import { Skeleton } from '../ui/States';
 import { cn } from '../../lib/utils';
 import { usePayRunPreview } from '../../hooks/usePayRunPreview';
 import { fetchPayRun, cleanAdjustments } from '../../lib/payRunClient';
-import { payRun, payFailureText } from '../../lib/payrollCommit';
+import { payRun, payFailureText, chosenLines, needsConfirming } from '../../lib/payrollCommit';
+import { useAdvancesAvailable } from '../../hooks/useStaffAdvances';
+import { advanceOptions, APP_UPDATE_TEXT, detectAdvances } from '../../lib/staffAdvances';
+import { supabase } from '../../lib/supabase';
 import {
   runWindow, windowProblem, rangeWords, monthWords, daysInclusive, mondayOf, periodWords,
   runLineNote, isDayRateType, PAY_METHODS, methodLabel, daysText, shopDay, dayWords,
@@ -24,6 +27,15 @@ import { inr } from './parts';
  * up the rows on screen. Confirm costs the run once more and saves exactly
  * what came back, with one run id per set of dates so a second press after a
  * lost reply cannot pay twice.
+ *
+ * Tick boxes (10, 11, 12): only the ticked people are paid; the totals and the
+ * button follow the selection, and "these dates were already paid" is asked
+ * only about the ticked people the server says need it.
+ *
+ * Staff advances, on a database that has them: each line shows the server's
+ * planned recovery (advancePlanned) and what is still owed; "Skip this run"
+ * and "Take all" per person go to the server and with the save (p_options).
+ * netPay is sent as earned; the server takes the recovery as it saves.
  */
 const MODES = [['MONTHLY', 'Monthly'], ['WEEKLY', 'Weekly'], ['CUSTOM', 'Custom']];
 const ADJ = [['overtime', 'Overtime / extra'], ['commission', 'Commission'], ['bonus', 'Bonus'], ['deductions', 'Deductions']];
@@ -39,6 +51,10 @@ export default function RunPayrollDialog({ open, onClose, tenantId, initial, tod
   const [include, setInclude] = useState([]);
   const [adjust, setAdjust] = useState({});     // { empId: { bonus: '500' } } as typed
   const [ackFor, setAckFor] = useState(null);
+  const [unticked, setUnticked] = useState([]);  // ids left out of this payout
+  const [skipAdv, setSkipAdv] = useState([]);    // advances: take nothing back this run
+  const [allAdv, setAllAdv] = useState([]);      // advances: take everything owed
+  const advancesOn = useAdvancesAvailable() === true;
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);         // { tone, text }
   const runId = useRef(null);
@@ -53,6 +69,9 @@ export default function RunPayrollDialog({ open, onClose, tenantId, initial, tod
     if (initial?.from) setFrom(initial.from);
     if (initial?.to) setTo(initial.to);
     setInclude([]);
+    setUnticked([]);
+    setSkipAdv([]);
+    setAllAdv([]);
     setMsg(null);
     setSaving(false);
     // A fresh id per opening: the same id twice is how the server knows a
@@ -69,25 +88,50 @@ export default function RunPayrollDialog({ open, onClose, tenantId, initial, tod
   useEffect(() => {
     setAdjust({});
     setAckFor(null);
+    setUnticked([]);
+    setSkipAdv([]);
+    setAllAdv([]);
     setMsg(null);
     runId.current = crypto.randomUUID();
   }, [winKey]);
 
   const adjustments = useMemo(() => cleanAdjustments(adjust), [adjust]);
+  const skipSent = advancesOn ? skipAdv : [];
+  const allSent = advancesOn ? allAdv : [];
   const preview = usePayRunPreview({
     tenantId, from: win?.from, to: win?.to, includeOnLeave: include, adjustments,
+    skipAdvance: skipSent, recoverAll: allSent,
     enabled: open && !problem, debounceMs: 300,
   });
   const data = preview.data;
   const items = data?.run?.items || [];
   const held = data?.run?.held || [];
-  const total = Number(data?.run?.totalNet || 0);
-  const alreadyPaid = items.reduce((t, i) => t + Number(i.alreadyPaid || 0), 0);
-  const statutory = items.reduce((t, i) => t + Number(i.statutoryTotal || 0), 0);
-  const extras = Number(data?.run?.totalOvertime || 0) + Number(data?.run?.totalCommission || 0) + Number(data?.run?.totalBonus || 0);
-  const typedDed = Number(data?.run?.totalDeductions || 0);
+  // The ticked lines. Every figure below the table is theirs alone; the
+  // browser only adds up the server's lines.
+  const ticked = useMemo(() => items.filter((i) => !unticked.includes(String(i.employeeId))).map((i) => String(i.employeeId)), [items, unticked]);
+  const chosen = useMemo(() => chosenLines(data, ticked), [data, ticked]);
+  const sum = (k) => chosen.reduce((t, i) => t + Number(i[k] || 0), 0);
+  const total = sum('netPay');
+  const allTotal = Number(data?.run?.totalNet || 0);
+  const recovered = advancesOn ? sum('advancePlanned') : 0;
+  const cash = total - recovered;
+  const alreadyPaid = sum('alreadyPaid');
+  const statutory = sum('statutoryTotal');
+  const extras = sum('overtime') + sum('commission') + sum('bonus');
+  const typedDed = sum('deductions');
   const acked = ackFor === winKey;
-  const mustAck = !!data?.mustConfirm;
+  const mustAck = !!data && needsConfirming(data, chosen);
+  const untickedLines = items.filter((i) => unticked.includes(String(i.employeeId)));
+  const allTicked = items.length > 0 && untickedLines.length === 0;
+  const toggle = (id) => setUnticked((u) => (u.includes(String(id)) ? u.filter((x) => x !== String(id)) : [...u, String(id)]));
+  const toggleAll = () => setUnticked(allTicked ? items.map((i) => String(i.employeeId)) : []);
+  const flip = (setter, other) => (id) => {
+    const k = String(id);
+    setter((xs) => (xs.includes(k) ? xs.filter((x) => x !== k) : [...xs, k]));
+    other((xs) => xs.filter((x) => x !== k));
+  };
+  const toggleSkip = flip(setSkipAdv, setAllAdv);
+  const toggleAllAdv = flip(setAllAdv, setSkipAdv);
   const zeroRate = items.filter((i) => isDayRateType(i.payType) && !(Number(i.dailyRate) > 0) && Number(i.daysWorked) > 0).map((i) => i.employeeName);
   const switchedIn = items.filter((i) => i.onLeave);
   const account = accountFor?.(method) || `${methodLabel(method)} account`;
@@ -101,19 +145,24 @@ export default function RunPayrollDialog({ open, onClose, tenantId, initial, tod
     if (saving || !data || problem || pendingAttendance > 0) return;
     setSaving(true);
     setMsg(null);
+    const withAdvances = await detectAdvances(supabase);
     const out = await payRun({
-      cost: () => fetchPayRun({ tenantId, from: win.from, to: win.to, includeOnLeave: include, adjustments }),
+      cost: () => fetchPayRun({ tenantId, from: win.from, to: win.to, includeOnLeave: include, adjustments, skipAdvance: skipSent, recoverAll: allSent }),
       save: processPayroll, runId: runId.current, method, shownTotal: total, acknowledged: acked,
+      selected: ticked,
+      options: withAdvances ? advanceOptions({ skip: skipSent, recoverAll: allSent }) : null,
     });
     setSaving(false);
     if (out.status === 'saved') { onSaved?.(out.result, out.data, method); onClose(); return; }
     if (out.status === 'nothing') { setMsg({ tone: 'info', text: 'Nothing is owed for these dates.' }); preview.reload(); return; }
     if (out.status === 'changed') {
       preview.reload();
-      setMsg({ tone: 'warn', text: `The total is now ${inr(out.data.run.totalNet)}: attendance or a payment changed since this opened. Check the lines and confirm again.` });
+      const now = chosenLines(out.data, ticked).reduce((t, i) => t + Number(i.netPay || 0), 0);
+      setMsg({ tone: 'warn', text: `The total for the ticked staff is now ${inr(now)}: attendance or a payment changed since this opened. Check the lines and confirm again.` });
       return;
     }
     if (out.status === 'confirm') { setMsg({ tone: 'warn', text: 'These dates have already been paid. Tick the box above to pay them again.' }); return; }
+    if (out.status === 'update-required') { setMsg({ tone: 'bad', text: APP_UPDATE_TEXT }); detectAdvances(supabase, { force: true }); return; }
     if (out.status === 'cost-failed') { setMsg({ tone: 'bad', text: `Nothing was paid: the pay figures could not be worked out. ${out.error?.message || ''}` }); return; }
     setMsg({ tone: out.failure.maySaved ? 'warn' : 'bad', text: payFailureText(out.failure, { again: 'Press Confirm again' }) });
   };
@@ -166,9 +215,9 @@ export default function RunPayrollDialog({ open, onClose, tenantId, initial, tod
         <div className="grid grid-cols-2 border-b border-sep md:grid-cols-4">
           {[
             ['Period', periodLabel, win ? `${daysInclusive(win.from, win.to)} ${daysInclusive(win.from, win.to) === 1 ? 'day' : 'days'} · ${kindWords}` : null],
-            ['Staff in run', data ? String(items.length) : '—', held.length ? `${held.map((h) => h.employeeName).join(', ')} on leave, left out` : switchedIn.length ? `${switchedIn.map((h) => h.employeeName).join(', ')} switched in` : null],
+            ['Ticked to pay', data ? `${chosen.length} of ${items.length}` : '—', untickedLines.length ? `${untickedLines.map((h) => h.employeeName).join(', ')} left unticked` : held.length ? `${held.map((h) => h.employeeName).join(', ')} on leave, left out` : switchedIn.length ? `${switchedIn.map((h) => h.employeeName).join(', ')} switched in` : null],
             ['Already paid', data ? <span className={alreadyPaid > 0 ? 'text-good-text' : ''}>{inr(alreadyPaid)}</span> : '—', data ? (alreadyPaid > 0 ? 'earlier runs, taken off below' : 'nothing paid for these days yet') : null],
-            ['To pay', data ? inr(total) : '—', 'one salary expense each'],
+            ['To pay', data ? inr(cash) : '—', recovered > 0 ? `${inr(total)} earned − ${inr(recovered)} advance taken back` : untickedLines.length ? `${inr(allTotal - total)} stays still to pay` : 'one salary expense each'],
           ].map(([k, v, s], i) => (
             <div key={k} className={cn('px-[22px] py-3', i > 0 && 'md:border-l border-sep')}>
               <span className="block font-tight text-[11px] font-semibold uppercase tracking-[0.06em] text-mute">{k}</span>
@@ -192,7 +241,12 @@ export default function RunPayrollDialog({ open, onClose, tenantId, initial, tod
             <table className="w-full border-collapse">
               <thead className="sticky top-0 z-[1]">
                 <tr>
-                  <th className={cn(th, 'pl-[22px] text-left')}>Employee</th>
+                  <th className={cn(th, 'w-[44px] pl-[22px] text-left')}>
+                    <input type="checkbox" aria-label="Tick everyone" checked={allTicked} disabled={!items.length}
+                      ref={(el) => { if (el) el.indeterminate = !allTicked && chosen.length > 0; }}
+                      onChange={toggleAll} className="h-4 w-4 accent-[var(--color-ink)]" />
+                  </th>
+                  <th className={cn(th, 'text-left')}>Employee</th>
                   <th className={cn(th, 'text-right')}>Days</th>
                   <th className={cn(th, 'text-right')}>Base pay</th>
                   {ADJ.map(([k, l]) => <th key={k} className={cn(th, 'text-right')}>{l}</th>)}
@@ -202,19 +256,34 @@ export default function RunPayrollDialog({ open, onClose, tenantId, initial, tod
               </thead>
               <tbody>
                 {items.length === 0 && held.length === 0 && (
-                  <tr><td colSpan={9} className="px-[22px] py-8 text-center text-[13.5px] text-body">No active staff to pay.</td></tr>
+                  <tr><td colSpan={10} className="px-[22px] py-8 text-center text-[13.5px] text-body">No active staff to pay.</td></tr>
                 )}
                 {items.map((i) => {
                   const dr = isDayRateType(i.payType);
+                  const id = String(i.employeeId);
+                  const on = !unticked.includes(id);
+                  const owed = advancesOn ? Number(i.advanceOutstanding || 0) : 0;
+                  const plan = advancesOn ? Number(i.advancePlanned || 0) : 0;
                   return (
-                    <tr key={i.employeeId}>
+                    <tr key={i.employeeId} className={cn(!on && '[&>td]:bg-[#FBFBFA] [&>td]:text-mute')}>
                       <td className={cn(td, 'pl-[22px]')}>
+                        <input type="checkbox" aria-label={`Pay ${i.employeeName}`} checked={on} onChange={() => toggle(id)} className="mt-0.5 h-4 w-4 accent-[var(--color-ink)]" />
+                      </td>
+                      <td className={td}>
                         <b className="block font-tight text-[13.5px] font-semibold">{i.employeeName}</b>
                         <small className="mt-0.5 block text-[11.5px] text-mute">{[i.department, runLineNote(i)].filter(Boolean).join(' · ')}</small>
                         {i.leaveExceeded && <small className="block text-[11.5px] font-medium text-amber-text">Leave {i.leaveUsed} of {i.leaveAllowed} this month · over the allowance, pay not cut</small>}
                         {i.onLeave && (
                           <button type="button" onClick={() => setInclude((ids) => ids.filter((x) => x !== i.employeeId))}
                             className="mt-0.5 block text-[11.5px] font-semibold text-info-text hover:underline">On leave · take out of run</button>
+                        )}
+                        {i.needsConfirmation && on && <small className="block text-[11.5px] font-medium text-amber-text">Already paid for some of these days</small>}
+                        {owed > 0 && (
+                          <small className="mt-0.5 block text-[11.5px] text-body">
+                            Advance {inr(owed)} owed · {skipAdv.includes(id) ? 'nothing taken back this run' : `takes back ${inr(plan)}`}
+                            <button type="button" onClick={() => toggleSkip(id)} aria-pressed={skipAdv.includes(id)} className="ml-2 font-semibold text-ink-2 underline decoration-faint underline-offset-2 hover:decoration-ink">{skipAdv.includes(id) ? 'Take back as planned' : 'Skip this run'}</button>
+                            <button type="button" onClick={() => toggleAllAdv(id)} aria-pressed={allAdv.includes(id)} className="ml-2 font-semibold text-ink-2 underline decoration-faint underline-offset-2 hover:decoration-ink">{allAdv.includes(id) ? 'Usual amount' : 'Take all'}</button>
+                          </small>
                         )}
                       </td>
                       <td className={cn(td, 'text-right')}>
@@ -242,13 +311,18 @@ export default function RunPayrollDialog({ open, onClose, tenantId, initial, tod
                           ? <span className="font-tight font-semibold text-bad-text" title={(i.statutoryLines || []).map((s) => `${s.label} ${inr(s.amount)}`).join(' · ')}>−{inr(i.statutoryTotal)}</span>
                           : <span className="text-faint">—</span>}
                       </td>
-                      <td className={cn(td, 'pr-[22px] text-right font-tight text-[15px] font-semibold tabular-nums')}>{inr(i.netPay)}</td>
+                      <td className={cn(td, 'pr-[22px] text-right font-tight text-[15px] font-semibold tabular-nums')}>
+                        {inr(i.netPay)}
+                        {!on && <small className="block text-right font-sans text-[11.5px] font-medium text-amber-text">still to pay</small>}
+                        {on && plan > 0 && <small className="block whitespace-nowrap text-right font-sans text-[11.5px] font-medium text-body">−{inr(plan)} advance · {inr(Number(i.netPay) - plan)} paid</small>}
+                      </td>
                     </tr>
                   );
                 })}
                 {held.map((h) => (
                   <tr key={h.employeeId} className="[&>td]:bg-[#FBFBFA] text-mute">
-                    <td className={cn(td, 'pl-[22px]')}>
+                    <td className={cn(td, 'pl-[22px]')} />
+                    <td className={td}>
                       <b className="block font-tight text-[13.5px] font-semibold text-mute">{h.employeeName}</b>
                       <small className="mt-0.5 block text-[11.5px]">{[h.department, 'On leave'].filter(Boolean).join(' · ')}</small>
                     </td>
@@ -298,14 +372,16 @@ export default function RunPayrollDialog({ open, onClose, tenantId, initial, tod
         <div className="mt-3 flex flex-wrap items-center gap-x-7 gap-y-2 border-t border-sep px-[22px] pt-3.5 pb-[18px]">
           <div>
             <span className="block font-tight text-[11px] font-semibold uppercase tracking-[0.06em] text-mute">Total payout</span>
-            <b className="mt-[3px] block font-tight text-[26px] font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums">{data ? inr(total) : '—'}</b>
+            <b className="mt-[3px] block font-tight text-[26px] font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums">{data ? inr(cash) : '—'}</b>
           </div>
           <div className="text-[12px] tabular-nums text-body">
             {data && [
-              `${inr(data.run.totalBase)} earned`,
+              `${inr(sum('basePay'))} earned`,
               extras > 0 ? `+ ${inr(extras)} extras` : null,
               typedDed + statutory > 0 ? `− ${inr(typedDed + statutory)} deductions` : null,
               alreadyPaid > 0 ? `− ${inr(alreadyPaid)} already paid` : null,
+              recovered > 0 ? `− ${inr(recovered)} advance taken back` : null,
+              untickedLines.length ? `· ${inr(allTotal - total)} for ${untickedLines.length} unticked stays still to pay` : null,
             ].filter(Boolean).join(' ')}
             {preview.loading && data && <span className="ml-2 text-mute">updating…</span>}
           </div>
@@ -315,7 +391,8 @@ export default function RunPayrollDialog({ open, onClose, tenantId, initial, tod
           <Button size="lg" onClick={confirm}
             disabled={saving || !data || !!problem || blocked || total <= 0 || (mustAck && !acked) || preview.loading}
             title={problem || (blocked ? 'Save attendance first' : total <= 0 ? 'Nothing to pay for this period' : undefined)}>
-            {saving ? 'Processing…' : problem ? 'Check the dates' : `Confirm and process · ${data ? inr(total) : '—'}`}
+            {saving ? 'Processing…' : problem ? 'Check the dates' : !data ? 'Confirm and process · —'
+              : untickedLines.length ? `Pay ${chosen.length} of ${items.length} · ${inr(cash)}` : `Confirm and process · ${inr(cash)}`}
           </Button>
         </div>
       </div>

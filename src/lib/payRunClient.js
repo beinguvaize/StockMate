@@ -34,7 +34,7 @@ export class PayRunError extends Error {
  * Resolves to { period, run: { from, to, items, held, totalNet, ... },
  * alreadyPaidRuns, mustConfirm }.
  */
-export async function fetchPayRun({ tenantId, from, to, includeOnLeave = [], adjustments = {} }, { fetchImpl = fetch } = {}) {
+export async function fetchPayRun({ tenantId, from, to, includeOnLeave = [], adjustments = {}, skipAdvance = [], recoverAll = [] }, { fetchImpl = fetch } = {}) {
   const { data: { session } = {} } = await supabase.auth.getSession();
   if (!session?.access_token) throw new PayRunError('reason', 'Sign in again to see pay figures.', 'not_signed_in');
 
@@ -54,6 +54,10 @@ export async function fetchPayRun({ tenantId, from, to, includeOnLeave = [], adj
         tenant_id: tenantId, from, to,
         include_on_leave: [...(includeOnLeave || [])].map(String),
         adjustments: cleanAdjustments(adjustments),
+        // Staff advances, per person, for the preview's advancePlanned. Sent
+        // only when used; a server without advances ignores them anyway.
+        ...(skipAdvance?.length ? { skip_advance: [...skipAdvance].map(String) } : {}),
+        ...(recoverAll?.length ? { recover_all: [...recoverAll].map(String) } : {}),
       }),
     });
   } catch (e) {

@@ -11,6 +11,7 @@
  * `cost` and `save` are passed in so this can be tested without a network.
  */
 import { classifyWriteFailure } from './writeOutcome.js';
+import { isAppUpdateRequired } from './staffAdvances.js';
 
 const num = (v) => {
   const n = Number(v);
@@ -24,6 +25,9 @@ const num = (v) => {
  *   save(record, id)  -> usePayroll.processPayroll
  *   shownTotal        the total the person agreed to on screen
  *   acknowledged      they ticked "pay these dates again anyway"
+ *   selected          ids ticked to pay (null: everyone in the run)
+ *   options           process_payroll_run p_options (only on a database with
+ *                     staff advances; null otherwise)
  *
  * Outcomes:
  *   { status: 'saved', result, data }
@@ -31,29 +35,54 @@ const num = (v) => {
  *   { status: 'confirm', data }            dates already paid: must be ticked first
  *   { status: 'changed', data }            the figures moved since they were shown
  *   { status: 'cost-failed', error }       could not ask the server; nothing was saved
+ *   { status: 'update-required', data }    the server wants an advance-aware app
  *   { status: 'failed', failure, data }    the save failed; `failure.maySaved`
  *                                          says whether it may have gone through
  */
-export async function payRun({ cost, save, runId, method, shownTotal, acknowledged = false }) {
+export async function payRun({ cost, save, runId, method, shownTotal, acknowledged = false, selected = null, options = null }) {
   let data;
   try {
     data = await cost();
   } catch (error) {
     return { status: 'cost-failed', error };
   }
-  const total = num(data?.run?.totalNet);
+  const chosen = chosenLines(data, selected);
+  const total = chosen.reduce((t, i) => t + num(i.netPay), 0);
   if (total <= 0) return { status: 'nothing', data };
   if (shownTotal != null && Math.round(total) !== Math.round(num(shownTotal))) return { status: 'changed', data };
-  if (data.mustConfirm && !acknowledged) return { status: 'confirm', data };
+  if (needsConfirming(data, chosen) && !acknowledged) return { status: 'confirm', data };
 
   const result = await save({
     period: data.period,
     paymentMethod: method,
-    items: data.run.items,
+    items: chosen,
     processedAt: new Date().toISOString(),
-  }, runId);
+  }, runId, options);
   if (result?.success) return { status: 'saved', result, data };
+  if (isAppUpdateRequired(result?.error)) return { status: 'update-required', data };
   return { status: 'failed', data, failure: classifyWriteFailure(result?.error, { noun: 'pay run' }) };
+}
+
+/** The lines to pay: the ticked ones (all, when nothing is chosen). */
+export function chosenLines(data, selected = null) {
+  const items = data?.run?.items || [];
+  if (!selected) return items;
+  const ids = new Set([...selected].map(String));
+  return items.filter((i) => ids.has(String(i.employeeId)));
+}
+
+/**
+ * Do the chosen lines need "pay these dates again"? A server that decides per
+ * person sends confirmEmployeeIds (and needsConfirmation on each line): only
+ * the chosen people count. An older server only says yes or no for the whole
+ * run, which is then the answer.
+ */
+export function needsConfirming(data, chosen = data?.run?.items || []) {
+  if (Array.isArray(data?.confirmEmployeeIds)) {
+    const ids = new Set(data.confirmEmployeeIds.map(String));
+    return chosen.some((i) => i.needsConfirmation === true || ids.has(String(i.employeeId)));
+  }
+  return !!data?.mustConfirm;
 }
 
 /**
@@ -62,7 +91,7 @@ export async function payRun({ cost, save, runId, method, shownTotal, acknowledg
  * into the run even when on leave -- pressing Pay is the decision to pay them.
  * Only their line is saved.
  */
-export async function payOne({ cost, save, runId, method, employeeId, shownAmount }) {
+export async function payOne({ cost, save, runId, method, employeeId, shownAmount, options = null }) {
   let data;
   try {
     data = await cost([employeeId]);
@@ -79,8 +108,9 @@ export async function payOne({ cost, save, runId, method, employeeId, shownAmoun
     paymentMethod: method,
     items: [line],
     processedAt: new Date().toISOString(),
-  }, runId);
+  }, runId, options);
   if (result?.success) return { status: 'saved', result, data, line };
+  if (isAppUpdateRequired(result?.error)) return { status: 'update-required', data, line };
   return { status: 'failed', data, line, failure: classifyWriteFailure(result?.error, { noun: 'payment' }) };
 }
 

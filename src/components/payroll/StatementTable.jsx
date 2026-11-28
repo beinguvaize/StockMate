@@ -4,7 +4,7 @@ import { dayWords } from '../../lib/payrollView';
 import { inr } from './parts';
 
 /** The salary statement's table (mockups 22, 23): screen and A4 print. */
-const DOT = { earned: 'bg-good', paid: 'bg-ink', deduction: 'bg-bad', adjust: 'bg-faint' };
+const DOT = { earned: 'bg-good', paid: 'bg-ink', deduction: 'bg-bad', adjust: 'bg-faint', advance: 'bg-amber', recovered: 'bg-amber' };
 export default function StatementTable({ st, rows = st.rows, print = false, money = inr }) {
   const tdc = print ? 'px-1.5 py-1.5 border-b border-dotted border-[#E3E4E6] align-top' : 'px-3.5 py-[11px] border-b border-sep align-top text-[13.5px]';
   const r = 'text-right whitespace-nowrap font-tight tabular-nums';
@@ -26,7 +26,7 @@ export default function StatementTable({ st, rows = st.rows, print = false, mone
                 {x.note && <small className="mt-0.5 block text-[12px] text-mute">{x.note}</small>}
               </td>
               <td className={cn(tdc, r)}>{x.earned ? <span className={x.earned > 0 ? 'text-good-text' : 'text-bad-text'}>{money(x.earned, { sign: true })}</span> : ''}</td>
-              <td className={cn(tdc, r)}>{x.paid ? money(-x.paid) : ''}</td>
+              <td className={cn(tdc, r)}>{x.paid ? (x.paid < 0 ? money(-x.paid, { sign: true }) : money(-x.paid)) : x.shown ? <span className="text-mute">({money(x.shown)})</span> : ''}</td>
               <td className={cn(tdc, r, 'font-semibold', x.balance < 0 && 'text-bad-text')}>{money(x.balance)}</td>
             </tr>
           ))}
@@ -38,7 +38,8 @@ export default function StatementTable({ st, rows = st.rows, print = false, mone
           <tr className={print ? '' : '[&>td]:bg-[#FBFBFA]'}>
             <td className={cn(tdc, 'border-b-0')}>{dayWords(st.asOf, { year: false })}</td>
             <td className={cn(tdc, 'border-b-0')}><b className="font-semibold">Closing balance</b>
-              <small className="mt-0.5 block text-[12px] text-mute">{st.paidAhead ? `Paid ${money(st.paidAhead)} ahead: nothing is due` : `${money(st.stillToPay)} still to pay — the figure on the staff list`}</small></td>
+              <small className="mt-0.5 block text-[12px] text-mute">{st.advanceOutstanding > 0 ? `${money(st.stillToPay)} wages due − ${money(st.advanceOutstanding)} advance outstanding`
+                : st.paidAhead ? `Paid ${money(st.paidAhead)} ahead: nothing is due` : `${money(st.stillToPay)} still to pay — the figure on the staff list`}</small></td>
             <td className={cn(tdc, 'border-b-0')} /><td className={cn(tdc, 'border-b-0')} />
             <td className={cn(tdc, r, 'border-b-0 text-[16px] font-semibold')}>{money(st.closing)}</td>
           </tr>

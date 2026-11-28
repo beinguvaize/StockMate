@@ -14,11 +14,11 @@ import { fetchPayRun } from '../lib/payRunClient';
  * `version` is anything that changes when the inputs on the server change: a
  * saved attendance batch, a saved or deleted pay run, an edited employee.
  */
-export function usePayRunPreview({ tenantId, from, to, includeOnLeave = [], adjustments = {}, enabled = true, version = 0, debounceMs = 0 }) {
+export function usePayRunPreview({ tenantId, from, to, includeOnLeave = [], adjustments = {}, skipAdvance = [], recoverAll = [], enabled = true, version = 0, debounceMs = 0 }) {
   const [state, setState] = useState({ data: null, loading: !!enabled, error: null, key: null });
   const seq = useRef(0);
   const windowKey = `${tenantId}|${from}|${to}`;
-  const inputsKey = JSON.stringify([includeOnLeave, adjustments]);
+  const inputsKey = JSON.stringify([includeOnLeave, adjustments, skipAdvance, recoverAll]);
 
   const run = useCallback(async () => {
     if (!enabled || !tenantId || !from || !to || to < from) {
@@ -28,7 +28,7 @@ export function usePayRunPreview({ tenantId, from, to, includeOnLeave = [], adju
     const mine = ++seq.current;
     setState((s) => ({ data: s.key === windowKey ? s.data : null, loading: true, error: null, key: windowKey }));
     try {
-      const data = await fetchPayRun({ tenantId, from, to, includeOnLeave, adjustments });
+      const data = await fetchPayRun({ tenantId, from, to, includeOnLeave, adjustments, skipAdvance, recoverAll });
       if (mine === seq.current) setState({ data, loading: false, error: null, key: windowKey });
       return data;
     } catch (error) {

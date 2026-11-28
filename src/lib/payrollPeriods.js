@@ -123,7 +123,8 @@ export function paidByEmployeeInMonth(year, month1to12, records = []) {
     const window = parsePeriod(r.period);
     for (const item of r.items || []) {
       const id = item.employeeId;
-      const net = Number(item.netPay || 0);
+      // Cash plus any staff advance taken back from the line: both settled pay.
+      const net = paidOnLine(item);
       if (!id || net <= 0) continue;   // a zero item is not a payment
       const prev = out.get(id) || { amount: 0, runs: [] };
       prev.amount += net;
@@ -199,7 +200,10 @@ export function monthToDate({ run, records = [], employeeId } = {}) {
   for (const r of runsPaidInMonth(year, month, records)) {
     const item = lineFor(r);
     if (!item) continue;
-    const net = Number(item.netPay || 0);
+    // What the line settled: cash (netPay) plus any staff advance taken back
+    // from it (advanceRecovered). Counting the cash alone lost the recovered
+    // part from the month's total.
+    const net = paidOnLine(item);
     const days = Number(item.daysWorked || 0);
 
     if (own.has(String(r.id))) {
@@ -298,7 +302,7 @@ export function yearToDate({ run, records = [], employeeId } = {}) {
     const item = (r.items || []).find(i => i.employeeId === employeeId);
     if (!item) continue;
 
-    const net = Number(item.netPay || 0);
+    const net = paidOnLine(item);   // cash + advance taken back, as monthToDate
     const days = Number(item.daysWorked || 0);
     const gross = Number(item.basePay || 0) + Number(item.overtime || 0)
                 + Number(item.commission || 0) + Number(item.bonus || 0);
@@ -349,7 +353,7 @@ export function monthlyPayItem({ year, month1to12, employeeId, records = [] } = 
   const acc = {
     basePay: 0, overtime: 0, commission: 0, bonus: 0,
     deductions: 0, alreadyPaid: 0, lopAmount: 0, lopDays: 0,
-    daysWorked: 0, netPay: 0,
+    daysWorked: 0, netPay: 0, advanceRecovered: 0,
   };
   const payments = [];
   let shape = null;
@@ -362,13 +366,13 @@ export function monthlyPayItem({ year, month1to12, employeeId, records = [] } = 
     for (const k of Object.keys(acc)) acc[k] += Number(it[k] || 0);
 
     // A zero line is not a payment and does not belong in a list of them.
-    if (Number(it.netPay || 0) > 0) {
+    if (paidOnLine(it) > 0) {
       payments.push({
         id: r.id,
         period: r.period,
         label: describePeriod(r.period),
         paidOn: r.processed_at || null,
-        amount: Number(it.netPay || 0),
+        amount: paidOnLine(it),
         days: Number(it.daysWorked || 0),
       });
     }

@@ -154,3 +154,49 @@ export function saleReceiptsByMode(rows = []) {
   }
   return { cash, bank, total: cash + bank };
 }
+
+// ── Non-cash expenses and staff advances ───────────────────────────────────
+// An expense with method ADVANCE (pay kept against a staff advance, or an
+// advance written off) or ADJUSTMENT (a stock write-off) is a real expense
+// but moves no money. Staff advances themselves are not expenses: giving one
+// is money OUT of an account and a payment back is money IN, recorded only as
+// account_transactions with ref_type STAFF_ADVANCE.
+
+const NON_CASH = ['ADVANCE', 'ADJUSTMENT'];
+const methodOf = (e) => String(e?.payment_method ?? e?.paymentMethod ?? 'CASH').toUpperCase();
+export const isNonCashMethod = (m) => NON_CASH.includes(String(m || '').toUpperCase());
+
+/**
+ * A day's expenses split by where the money went:
+ *   { total, cash, bank, nonCash }   total = cash + bank + nonCash
+ * Cash is method CASH (or none); non-cash is ADVANCE / ADJUSTMENT; every other
+ * method (bank, UPI, card...) is bank. Shops with no non-cash rows get exactly
+ * the old figures: cash as before, bank = total − cash.
+ */
+export function expensesByMoney(rows = []) {
+  let total = 0; let cash = 0; let nonCash = 0;
+  for (const e of rows || []) {
+    const a = Number(e?.amount) || 0;
+    total += a;
+    const m = methodOf(e);
+    if (m === 'CASH') cash += a;
+    else if (isNonCashMethod(m)) nonCash += a;
+  }
+  return { total, cash, bank: total - cash - nonCash, nonCash };
+}
+
+/**
+ * Staff advance money for a day, from account_transactions (ref STAFF_ADVANCE):
+ * given = OUT, paid back = IN, split by the mode the row was posted with.
+ */
+export function staffAdvanceMoney(rows = []) {
+  const out = { cashIn: 0, cashOut: 0, bankIn: 0, bankOut: 0 };
+  for (const t of rows || []) {
+    if (String(t?.ref_type || '').toUpperCase() !== 'STAFF_ADVANCE') continue;
+    const a = Number(t.amount) || 0;
+    const cash = String(t.mode || 'CASH').toUpperCase() === 'CASH';
+    const inn = String(t.direction || '').toUpperCase() === 'IN';
+    out[`${cash ? 'cash' : 'bank'}${inn ? 'In' : 'Out'}`] += a;
+  }
+  return out;
+}

@@ -17,6 +17,10 @@ vi.mock('../hooks/usePayroll', () => ({ usePayroll: () => state.payroll }));
 vi.mock('../hooks/usePeople', () => ({ usePeople: () => ({ users: [] }) }));
 vi.mock('../hooks/useAccounts', () => ({ useAccounts: () => ({ accounts: [] }), accountForMethod: () => '' }));
 vi.mock('../hooks/usePayRunPreview', () => ({ usePayRunPreview: () => state.preview }));
+vi.mock('../hooks/useStaffAdvances', () => ({
+  useAdvancesAvailable: () => state.advancesOn ?? false,
+  useStaffAdvances: () => state.adv || { balance: null, advances: [], entries: [], loaded: false, error: null, reload() {} },
+}));
 vi.mock('../hooks/usePayrollAttendance', () => ({
   usePayrollAttendance: () => ({ attendance: {}, pending: {}, pendingCount: 0, problem: null, saving: false, loading: false, applyNote: null, reload() {}, save() {}, discard() {} }),
 }));
@@ -123,6 +127,48 @@ describe('Employee profile', () => {
       expect(out).toContain('Hide amounts');
       expect(out).toContain('₹15,000');
     } finally { vi.unstubAllGlobals(); }
+  });
+
+  it('shows no advances anywhere on a database without them, even for ?tab=advances', () => {
+    state.advancesOn = false;
+    const out = html('/payroll/employee/a?month=2026-11&tab=advances', <EmployeeProfile />, route);
+    expect(out).toContain('Most recent pay');
+    expect(out).not.toContain('Give advance');
+    expect(out).not.toContain('Advance outstanding');
+  });
+
+  it('with advances: the card, the Tasks pill and the Advances page, all from the server views', () => {
+    state.advancesOn = true;
+    state.adv = {
+      loaded: true, error: null, reload() {},
+      balance: { outstanding: 2000, due_per_run: 1000, recovered: 1000 },
+      advances: [{ advance_id: 'a1', given_on: '2026-11-05', amount: 3000, recovery_per_run: 1000, recovered: 1000, collected: 0, written_off: 0, outstanding: 2000, method: 'CASH', status: 'OPEN' }],
+      entries: [{ id: 'ADVGIV-a1', kind: 'GIVEN', amount: 3000, on_date: '2026-11-05' }],
+    };
+    try {
+      const ov = html('/payroll/employee/a?month=2026-11', <EmployeeProfile />, route);
+      expect(ov).toContain('Advance outstanding');
+      expect(ov).toContain('₹2,000');
+      expect(ov).toContain('Give advance');
+      const pg = html('/payroll/employee/a?month=2026-11&tab=advances', <EmployeeProfile />, route);
+      expect(pg).toContain('Pay › Advances');
+      expect(pg).toContain('Advance of 5 Nov');
+      expect(pg).toContain('Next run takes back');
+      const st = html('/payroll/employee/a?month=2026-11&tab=statement', <EmployeeProfile />, route);
+      expect(st).toContain('Advance given');
+      expect(st).toContain('advance outstanding');
+    } finally { state.advancesOn = false; state.adv = null; }
+  });
+
+  it('a left employee who still owes an advance is offered a settlement', () => {
+    state.advancesOn = true;
+    state.adv = { loaded: true, error: null, reload() {}, balance: { outstanding: 1500, due_per_run: 0, recovered: 0 },
+      advances: [{ advance_id: 'a2', given_on: '2026-08-02', amount: 1500, recovery_per_run: 500, recovered: 0, collected: 0, written_off: 0, outstanding: 1500, method: 'CASH', status: 'OPEN' }], entries: [] };
+    try {
+      const out = html('/payroll/employee/b?month=2026-11', <EmployeeProfile />, route);
+      expect(out).toContain('Record settlement');
+      expect(out).toContain('owes the shop');
+    } finally { state.advancesOn = false; state.adv = null; }
   });
 
   it('says when an employee does not exist', () => {

@@ -7,7 +7,8 @@ import {
   ArrowDownCircle, ArrowUpCircle, Wallet, Briefcase,
   Building2, Droplets, TrendingUp, Calendar
 } from 'lucide-react';
-import { formatINR, round2 } from '../../utils/financialCalculations';
+import { formatINR } from '../../utils/financialCalculations';
+import { cashFlowFigures } from '../../lib/cashFlow';
 
 /**
  * Cash Flow Statement (Indirect Method)
@@ -24,116 +25,18 @@ const CashFlowReport = () => {
   const { data: salesRaw, loading: l1 } = useReportData({ table: 'sales', select: 'totalAmount, paymentMethod, date, voided_at, status, paymentStatus', dateColumn: 'date', filters: win.filters });
   // Voided and cancelled sales are not revenue and were being counted here.
   const sales = useMemo(() => (salesRaw || []).filter(isCountableSale), [salesRaw]);
-  const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: 'amount, category, date', dateColumn: 'date', filters: win.filters });
+  const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: 'amount, category, date, payment_method', dateColumn: 'date', filters: win.filters });
+  // Staff advances given / paid back: cash with no expense row.
+  const { data: advances, loading: l6 } = useReportData({ table: 'account_transactions', select: 'date, direction, amount, mode, ref_type', dateColumn: 'date', filters: win.filters, params: { ref_type: 'STAFF_ADVANCE' } });
   const { data: payroll, loading: l3 } = useReportData({ table: 'payroll', select: 'amount, processed_at', dateColumn: 'processed_at', filters: win.filters });
   const { data: purchases, loading: l4 } = useReportData({ table: 'purchases', select: 'id, date, total_amount, paid_amount, payment_type', dateColumn: 'date', filters: win.filters });
   const { data: vehicles, loading: l5 } = useReportData({ table: 'vehicles', select: '*' });
 
-  const loading = l1 || l2 || l3 || l4 || l5;
+  const loading = l1 || l2 || l3 || l4 || l5 || l6;
 
-  const cashFlow = useMemo(() => {
-    // --- Operating inflows ---
-    const cashSales = sales
-      .filter((s) => {
-        const m = (s.paymentMethod || 'CASH').toUpperCase();
-        return m !== 'CREDIT';
-      })
-      .reduce((a, s) => a + (Number(s.totalAmount) || 0), 0);
-
-    const creditSales = sales
-      .filter((s) => {
-        const m = (s.paymentMethod || 'CASH').toUpperCase();
-        return m === 'CREDIT';
-      })
-      .reduce((a, s) => a + (Number(s.totalAmount) || 0), 0);
-
-    // --- Operating outflows ---
-    const totalExpenses = expenses.reduce((a, e) => a + (Number(e.amount) || 0), 0);
-    const totalPayroll = payroll.reduce((a, p) => a + (Number(p.amount) || 0), 0);
-
-    const paidPurchases = purchases
-      .filter((p) => p.payment_status === 'PAID' || p.paid === true)
-      .reduce((a, p) => a + (Number(p.total_amount ?? p.amount) || 0), 0);
-
-    // --- Investing ---
-    const vehiclePurchases = vehicles.reduce((a, v) => a + (Number(v.book_value ?? v.cost ?? 0)), 0);
-
-    // --- Monthly breakdown ---
-    const monthly = {};
-    const now = new Date();
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const key = d.toLocaleString('default', { month: 'short', year: '2-digit' });
-      monthly[key] = { name: key, Inflow: 0, Outflow: 0, Net: 0 };
-    }
-    const getKey = (date) => {
-      if (!date) return null;
-      const d = new Date(date);
-      if (isNaN(d.getTime())) return null;
-      return d.toLocaleString('default', { month: 'short', year: '2-digit' });
-    };
-
-    sales.forEach((s) => {
-      const m = (s.paymentMethod || 'CASH').toUpperCase();
-      if (m === 'CREDIT') return;
-      const k = getKey(s.date);
-      if (monthly[k]) monthly[k].Inflow += Number(s.totalAmount) || 0;
-    });
-    expenses.forEach((e) => {
-      const k = getKey(e.date);
-      if (monthly[k]) monthly[k].Outflow += Number(e.amount) || 0;
-    });
-    payroll.forEach((p) => {
-      const k = getKey(p.processed_at);
-      if (monthly[k]) monthly[k].Outflow += Number(p.amount) || 0;
-    });
-    Object.values(monthly).forEach((m) => { m.Net = round2(m.Inflow - m.Outflow); });
-
-    // --- Build the statement ---
-    const operatingLines = [
-      { section: 'OPERATING', label: 'Cash receipts from customers (cash sales)', amount: round2(cashSales), direction: 'IN' },
-      { section: 'OPERATING', label: 'Cash receipts from credit customers (collections proxy)', amount: 0, direction: 'IN', note: 'Tracked via AR reductions' },
-      { section: 'OPERATING', label: 'Cash paid to suppliers (paid purchases)', amount: round2(-paidPurchases), direction: 'OUT' },
-      { section: 'OPERATING', label: 'Cash paid for operating expenses', amount: round2(-totalExpenses), direction: 'OUT' },
-      { section: 'OPERATING', label: 'Cash paid to employees (payroll)', amount: round2(-totalPayroll), direction: 'OUT' },
-    ];
-    const operatingNet = operatingLines.reduce((a, l) => a + l.amount, 0);
-
-    const investingLines = [
-      { section: 'INVESTING', label: 'Investment in fixed assets (vehicles/fleet)', amount: round2(-vehiclePurchases), direction: 'OUT' },
-    ];
-    const investingNet = investingLines.reduce((a, l) => a + l.amount, 0);
-
-    const financingLines = [
-      { section: 'FINANCING', label: 'Owner contributions', amount: 0, direction: 'IN' },
-      { section: 'FINANCING', label: 'Loan proceeds / repayments', amount: 0, direction: 'IN' },
-    ];
-    const financingNet = financingLines.reduce((a, l) => a + l.amount, 0);
-
-    const netChange = round2(operatingNet + investingNet + financingNet);
-
-    const rows = [
-      ...operatingLines,
-      { section: 'OPERATING', label: 'Net Cash from Operating Activities', amount: round2(operatingNet), isSubtotal: true },
-      ...investingLines,
-      { section: 'INVESTING', label: 'Net Cash from Investing Activities', amount: round2(investingNet), isSubtotal: true },
-      ...financingLines,
-      { section: 'FINANCING', label: 'Net Cash from Financing Activities', amount: round2(financingNet), isSubtotal: true },
-      { section: 'SUMMARY', label: 'Net Change in Cash', amount: netChange, isSubtotal: true, isTotal: true },
-    ];
-
-    return {
-      rows,
-      operatingNet: round2(operatingNet),
-      investingNet: round2(investingNet),
-      financingNet: round2(financingNet),
-      netChange,
-      totalInflow: round2(cashSales),
-      totalOutflow: round2(paidPurchases + totalExpenses + totalPayroll + vehiclePurchases),
-      monthly: Object.values(monthly),
-      creditSales: round2(creditSales),
-    };
-  }, [sales, expenses, payroll, purchases, vehicles]);
+  // Expenses need their method so non-cash ones (ADVANCE, ADJUSTMENT) stay out.
+  const cashFlow = useMemo(() => cashFlowFigures({ sales, expenses, payroll, purchases, vehicles, advances }),
+    [sales, expenses, payroll, purchases, vehicles, advances]);
 
   const kpis = [
     {
