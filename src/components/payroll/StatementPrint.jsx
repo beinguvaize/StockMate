@@ -39,7 +39,7 @@ export default function StatementPrint({ st, emp, business = {}, month, today, y
         <span>Salary statement · {emp.name} · {rangeWords(b.from, b.to)}</span>
         <div className="flex-1" />
         <button type="button" onClick={() => window.print()} className="m-press inline-flex h-9 items-center gap-1.5 rounded-pill bg-amber px-4 text-white"><Printer size={14} /> Print</button>
-        <button type="button" onClick={onClose} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-full bg-white/90 text-ink"><X size={15} /></button>
+        <button type="button" onClick={onClose} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-xl bg-white/90 text-ink"><X size={15} /></button>
       </div>
       <div className="st-paper mx-auto max-w-[794px] rounded-[4px] bg-white px-[34px] py-[30px] text-[12.5px] text-[#1b1e22] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.5)]">
         <div className="flex items-end justify-between border-b-2 border-[#1b1e22] pb-3">
