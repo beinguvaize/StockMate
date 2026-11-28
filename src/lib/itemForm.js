@@ -30,12 +30,15 @@ export const isServiceForm = ({ businessType, product_type } = {}) =>
  *  · RAW material is bought, not sold, so it needs no selling price;
  *  · everything else needs both.
  */
-export const validateItemPricing = (form = {}) => {
+export const validateItemPricing = (form = {}, { editing = false } = {}) => {
   const svc = isServiceForm(form);
   const cost = parseFloat(form.costPrice);
   const sell = parseFloat(form.sellingPrice);
 
-  if (!svc && !(cost > 0)) {
+  // On an edit the cost is read-only (it comes from purchases, see
+  // editFieldsFor), so it cannot be demanded: an item with no purchases yet
+  // would otherwise be impossible to save at all.
+  if (!svc && !editing && !(cost > 0)) {
     return 'Cost price is required and must be greater than 0.';
   }
   if (String(form.product_type || '').toUpperCase() !== 'RAW' && !(sell > 0)) {
@@ -61,6 +64,28 @@ export const stockFieldsFor = (form = {}) =>
         stock: parseInt(form.stock, 10) || 0,
         lowStockThreshold: parseInt(form.lowStockThreshold, 10) || 10,
       };
+
+/**
+ * Columns an EDIT must never send.
+ *
+ *  · stock is owned by the database: inventory_balances, copied onto
+ *    products.stock by a trigger. The form does not even show it; the value
+ *    on the form is whatever was loaded when the page opened, so writing it
+ *    back undid every sale and purchase made since.
+ *  · costPrice is owned by recompute_product_cost (weighted average of the
+ *    open batches). On an edit it is shown read-only.
+ *
+ * Create is different and is left alone: a new item has no balance and no
+ * batches, so its opening figures go in with the insert.
+ */
+export const SERVER_OWNED_ON_EDIT = ['stock', 'costPrice'];
+
+/** The row an edit saves: the create row minus the server-owned columns. */
+export const editFieldsFor = (row = {}) => {
+  const out = { ...row };
+  for (const k of SERVER_OWNED_ON_EDIT) delete out[k];
+  return out;
+};
 
 /**
  * What type a NEW item should start as, given the tenant's vertical.

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { validateItemPricing, stockFieldsFor, isServiceForm, defaultProductType } from '../../../lib/itemForm';
+import { validateItemPricing, stockFieldsFor, editFieldsFor, isServiceForm, defaultProductType } from '../../../lib/itemForm';
 import { CheckCircle2, Images, Upload, X, Loader2, Wand2, ChevronLeft } from 'lucide-react';
 import { genInternalBarcode } from '../../../lib/labelPrint';
 import { useDialogClose } from '../../../hooks/useDialogClose';
@@ -206,7 +206,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
       const attrError = validateAttributes(formData.attributes, activePacks);
       if (attrError) { setSaveError(attrError); setUploading(false); return; }
 
-      const priceError = validateItemPricing({ ...formData, businessType });
+      const priceError = validateItemPricing({ ...formData, businessType }, { editing: !!editingProduct });
       if (priceError) {
         setSaveError(priceError);
         setUploading(false);
@@ -271,7 +271,10 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         pr,
         new Promise((_, rej) => setTimeout(() => rej(new Error('Save timed out — check your connection and try again')), ms)),
       ]);
-      const result = await withTimeout(onSave(parsedData), 15000);
+      // An edit never sends stock or cost: the database owns both (see
+      // editFieldsFor). Create keeps its opening figures exactly as before.
+      const row = editingProduct ? editFieldsFor(parsedData) : parsedData;
+      const result = await withTimeout(onSave(row), 15000);
       if (result?.error) {
         setWriteError(result.error);
         return;
@@ -519,8 +522,14 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
               {!isService && (
                 <div>
                   <Label htmlFor="it-cost">Cost price, ₹</Label>
-                  <Input id="it-cost" required type="number" step="0.01" placeholder="0.00"
-                    value={formData.costPrice} onChange={e => set({ costPrice: e.target.value })} />
+                  {editingProduct ? (<>
+                    <Input id="it-cost" type="number" readOnly aria-readonly="true" tabIndex={-1}
+                      className="bg-tile text-mute" value={formData.costPrice ?? ''} />
+                    <Hint>Cost comes from purchases.</Hint>
+                  </>) : (
+                    <Input id="it-cost" required type="number" step="0.01" placeholder="0.00"
+                      value={formData.costPrice} onChange={e => set({ costPrice: e.target.value })} />
+                  )}
                 </div>
               )}
               <div>
