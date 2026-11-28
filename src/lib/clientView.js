@@ -282,3 +282,24 @@ export const whatsappUrl = (phone, text) => {
 };
 
 export const smsUrl = (phone, text) => `sms:${phoneDigits(phone)}?body=${encodeURIComponent(text)}`;
+
+/**
+ * The account page's window over a client's statement, as today: the
+ * balance brought forward (the running balance of the last row before the
+ * window), the rows inside it, what was billed and received inside it, and
+ * the closing balance across all history. Moved from ClientSettlement
+ * unchanged; nothing is recomputed, every balance is the statement's own.
+ */
+export function ledgerWindow(statementRows = [], rangeStart = null) {
+  let opening = 0;
+  if (rangeStart) statementRows.forEach((r) => { if (String(r.date || '') < rangeStart) opening = r.balance; });
+  const inRange = rangeStart ? statementRows.filter((r) => String(r.date || '') >= rangeStart) : statementRows;
+  return {
+    opening,
+    inRange,
+    hiddenBefore: statementRows.length - inRange.length,
+    closing: statementRows.length ? statementRows[statementRows.length - 1].balance : 0,
+    debit: inRange.reduce((s, r) => s + (r.debit || 0), 0),
+    credit: inRange.reduce((s, r) => s + (r.credit || 0), 0),
+  };
+}

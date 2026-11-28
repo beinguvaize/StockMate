@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   clientFacts, clientRows, filterClientRows, chipCounts, clientKpis, clientSummary, spanWords,
   rangeStartFor, reminderText, phoneDigits, whatsappUrl, smsUrl, money, limitUse, creditWords,
-  accountWords, ageTone, initialsOf, dayMonth,
+  accountWords, ageTone, initialsOf, dayMonth, ledgerWindow,
 } from './clientView';
 
 const NOW = Date.UTC(2026, 10, 26, 12); // 26 Nov 2026
@@ -151,5 +151,26 @@ describe('small words', () => {
     expect([ageTone(5), ageTone(30), ageTone(60), ageTone(null)]).toEqual(['neutral', 'warn', 'bad', 'neutral']);
     expect(initialsOf('Shop One')).toBe('SO');
     expect(dayMonth('2026-10-16')).toBe('16 Oct');
+  });
+});
+
+describe('ledgerWindow (moved from the account page)', () => {
+  const rows = [
+    { id: 'a', date: '2026-10-05', debit: 1000, credit: 0, balance: 1000 },
+    { id: 'b', date: '2026-10-20', debit: 0, credit: 400, balance: 600 },
+    { id: 'c', date: '2026-11-03', debit: 500, credit: 0, balance: 1100 },
+    { id: 'd', date: '2026-11-10', debit: 0, credit: 100, balance: 1000 },
+  ];
+  it('carries the balance in and totals only the window', () => {
+    const w = ledgerWindow(rows, '2026-11-01');
+    expect(w.opening).toBe(600);
+    expect(w.inRange.map((r) => r.id)).toEqual(['c', 'd']);
+    expect(w.hiddenBefore).toBe(2);
+    expect([w.debit, w.credit, w.closing]).toEqual([500, 100, 1000]);
+    expect(w.opening + w.debit - w.credit).toBe(w.closing);
+  });
+  it('shows everything with no window', () => {
+    const w = ledgerWindow(rows, null);
+    expect([w.opening, w.hiddenBefore, w.debit]).toEqual([0, 0, 1500]);
   });
 });
