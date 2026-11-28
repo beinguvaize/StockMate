@@ -11,6 +11,7 @@ import { supabase } from '../../lib/supabase';
 import { shareToWhatsApp } from '../../lib/gstEngine';
 import { formatCurrency, formatDate, todayISOInAppTZ } from '../../lib/utils';
 import { documentRules } from '../../lib/gstDocument';
+import { resolveInvoiceTemplate, INVOICE_MODELS } from '../../lib/printSettings';
 import { resolveInvoiceStatus, invoiceOutstanding, dueWords, paymentCheck } from '../../lib/invoiceList';
 import { paymentsSummary, buildTimeline, creditTermsDays, collectedShare, whenWords } from '../../lib/invoiceDetail';
 import { Button } from '../../components/ui/button';
@@ -103,6 +104,8 @@ const InvoiceDetail = () => {
 
   const today = todayISOInAppTZ();
   const docTitle = documentRules(businessProfile || {}).title;
+  const styleId = resolveInvoiceTemplate(businessProfile?.print_settings, businessProfile || {});
+  const styleName = INVOICE_MODELS.find((m) => m.id === styleId)?.name || 'Older design';
   const status = resolveInvoiceStatus(inv);
   const unpaid = status !== 'PAID';
   const out = invoiceOutstanding(inv);
@@ -200,7 +203,7 @@ const InvoiceDetail = () => {
               options={[['a4', 'Invoice A4'], ['pos', 'POS receipt']]} />
             {view === 'a4' && (
               <span className="text-[12.5px] text-body">
-                Print settings · <button type="button" onClick={() => navigate('/settings?tab=print')} className="font-tight font-semibold text-amber-text hover:underline underline-offset-4">Change</button>
+                Style <b className="font-semibold text-ink">{styleName}</b> · <button type="button" onClick={() => navigate('/settings/invoice')} className="font-tight font-semibold text-amber-text hover:underline underline-offset-4">Change</button>
               </span>
             )}
           </div>

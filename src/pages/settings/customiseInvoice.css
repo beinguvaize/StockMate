@@ -1,0 +1,23 @@
+/* Style thumbnails on the Customise invoice page (approved invoices-22).
+   Drawn shapes, not screenshots, so they stay crisp at any size. */
+.cz-mini{height:96px;background:#fff;border-radius:4px;box-shadow:0 0 0 1px var(--color-line),0 4px 10px -6px rgba(17,20,24,.3);position:relative;overflow:hidden}
+.cz-mini i{position:absolute;display:block}
+.cz-mini-classic .a{inset:8px 8px auto 8px;height:8px;background:#E3E3E1;border:1px solid var(--color-ink-2)}
+.cz-mini-classic .b{left:8px;right:8px;top:18px;height:20px;border:1px solid var(--color-ink-2);border-top:0;background:linear-gradient(90deg,transparent 49%,var(--color-ink-2) 49%,var(--color-ink-2) 51%,transparent 51%)}
+.cz-mini-classic .c{left:8px;right:8px;top:38px;height:34px;border:1px solid var(--color-ink-2);border-top:0;background:repeating-linear-gradient(0deg,transparent 0 6px,#D9DBDE 6px 7px)}
+.cz-mini-classic .d{left:8px;right:8px;top:72px;height:16px;border:1px solid var(--color-ink-2);border-top:0}
+.cz-mini-modern .a{left:10px;top:10px;width:30px;height:6px;background:var(--color-ink-2);border-radius:2px}
+.cz-mini-modern .b{right:10px;top:9px;width:28px;height:9px;background:var(--cz-acc,var(--color-ink));border-radius:2px}
+.cz-mini-modern .c{left:10px;right:10px;top:26px;height:14px;border-top:1.5px solid var(--cz-acc,var(--color-ink));background:linear-gradient(90deg,var(--color-ink) 0 34%,transparent 34%) 0 4px/100% 6px no-repeat}
+.cz-mini-modern .d{left:10px;right:10px;top:48px;height:26px;background:repeating-linear-gradient(0deg,transparent 0 6px,#E3E3E1 6px 7px)}
+.cz-mini-modern .e{right:10px;top:78px;width:40px;height:8px;background:var(--color-ink);border-radius:2px}
+.cz-mini-bold .a{left:0;right:0;top:0;height:24px;background:var(--cz-acc,#1e3a5f)}
+.cz-mini-bold .b{left:8px;top:7px;width:10px;height:10px;background:#fff;border-radius:2px}
+.cz-mini-bold .c{left:8px;right:8px;top:44px;height:6px;background:var(--cz-acc,#1e3a5f)}
+.cz-mini-bold .d{left:8px;right:8px;top:52px;height:24px;background:repeating-linear-gradient(0deg,transparent 0 6px,#E3E3E1 6px 7px)}
+.cz-mini-bold .e{right:8px;top:80px;width:40px;height:9px;background:var(--cz-acc,#1e3a5f);border-radius:2px}
+.cz-mini-compact .a{left:8px;right:8px;top:8px;height:6px;border-bottom:1.5px solid var(--color-ink)}
+.cz-mini-compact .b{left:8px;right:8px;top:18px;height:6px;border-bottom:1px solid var(--color-faint)}
+.cz-mini-compact .c{left:8px;right:8px;top:28px;height:52px;background:repeating-linear-gradient(0deg,transparent 0 3px,#D9DBDE 3px 4px)}
+.cz-mini-compact .d{right:8px;top:84px;width:36px;height:5px;background:var(--color-ink)}
+.cz-mini-legacy .a{inset:10px;border:1px dashed var(--color-faint);border-radius:3px}

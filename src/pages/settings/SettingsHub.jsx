@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   User, Building, Printer, Users as UsersIcon, CreditCard,
   LifeBuoy, ChevronRight, Check, BellRing, Zap, Tag, Database,
@@ -322,7 +323,10 @@ const PrintPanel = ({ tenantId }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [businessProfile?.bill_settings]);
   const key = `print_settings_${tenantId || 'default'}`;
-  const PREF_BASE = { paper: '80', copies: 1, autoPrint: false, invoiceTemplate: 'classic', receiptTemplate: 'classic', docTexts: {}, invOpts: {}, invAccent: '#0f172a', customFields: [] };
+  // No invoiceTemplate here: a shop that never chose an A4 design must not
+  // have one written for it by saving the receipt settings (the A4 design is
+  // chosen on Customise invoice; lib/printSettings has the default).
+  const PREF_BASE = { paper: '80', copies: 1, autoPrint: false, receiptTemplate: 'classic', docTexts: {}, invOpts: {}, invAccent: '#0f172a', customFields: [] };
   const [prefs, setPrefs] = useState(() => {
     // Tenant-level settings (DB) are the source of truth; localStorage only
     // bridges saves made before print_settings moved server-side.
@@ -417,13 +421,23 @@ const PrintPanel = ({ tenantId }) => {
       </Card>
 
       <Card
+        title="A4 invoice"
+        description="Style, colour, what shows and the text, for each document type. Phone and web print the same."
+        footer={<Link to="/settings/invoice" className="inline-flex items-center gap-1.5 h-9 px-4 rounded-pill bg-gray-900 text-white text-[13px] font-medium hover:bg-gray-800">Customise invoice <ChevronRight size={14} /></Link>}
+      >
+        <p className="text-[12.5px] text-muted-foreground">Tax invoice, bill of supply and the plain invoice each keep their own settings.</p>
+      </Card>
+
+      <Card
         title="Document designer"
         description="Choose a design and click the highlighted text in the preview to edit it. Changes apply to printed documents after saving."
         footer={<PrimaryBtn onClick={save}>{saved ? <span className="inline-flex items-center gap-1.5"><Check size={13} /> Saved</span> : 'Save design & text'}</PrimaryBtn>}
       >
         {/* doc tabs */}
         <div className="inline-flex rounded-md border border-border overflow-hidden mb-4">
-          {[['receipt', 'Thermal receipt'], ['invoice', 'A4 tax invoice']].map(([v, l], i) => (
+          {/* The A4 invoice is designed on Customise invoice now; this
+              designer keeps the thermal receipt. */}
+          {[['receipt', 'Thermal receipt']].map(([v, l], i) => (
             <button key={v} onClick={() => setDocTab(v)}
               className={`px-4 py-2 text-[13px] font-medium transition-colors ${i > 0 ? 'border-l border-border' : ''} ${
                 docTab === v ? 'bg-gray-900 text-white' : 'bg-white text-ink-secondary hover:bg-muted'}`}>

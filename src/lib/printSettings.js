@@ -121,3 +121,36 @@ export function withDocTypeSaved(prefs = {}, docKey, values = {}) {
   };
   return { ...p, docTypes };
 }
+
+/** The form's values for one document type, from what is stored. */
+export function formValuesFor(prefs = {}, docKey = 'TAX_INVOICE') {
+  const r = resolvePrintFor(prefs, docKey);
+  return {
+    invoiceTemplate: r.template,
+    invAccent: r.accent || DEFAULT_MODEL_ACCENT,
+    invOpts: r.opts,
+    docTexts: r.texts,
+  };
+}
+
+/** The form's values when "Reset to default" is pressed. */
+export const defaultFormValues = () => ({
+  invoiceTemplate: DEFAULT_INVOICE_TEMPLATE,
+  invAccent: DEFAULT_MODEL_ACCENT,
+  invOpts: { ...MODEL_OPT_DEFAULTS },
+  docTexts: { ...MODEL_TEXT_DEFAULTS },
+});
+
+/** How many settings differ between two form values ("4 unsaved changes"). */
+export function countChanges(a = {}, b = {}) {
+  let n = 0;
+  if ((a.invoiceTemplate || '') !== (b.invoiceTemplate || '')) n++;
+  if ((a.invAccent || '') !== (b.invAccent || '')) n++;
+  for (const group of ['invOpts', 'docTexts']) {
+    const x = obj(a[group]); const y = obj(b[group]);
+    for (const k of new Set([...Object.keys(x), ...Object.keys(y)])) {
+      if ((x[k] ?? '') !== (y[k] ?? '')) n++;
+    }
+  }
+  return n;
+}

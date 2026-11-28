@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   resolvePrintFor, resolveInvoiceTemplate, withDocTypeSaved, docTypeKeyFor, lockedOptsFor,
-  DEFAULT_INVOICE_TEMPLATE, LEGACY_TEMPLATE_IDS, isInvoiceModel,
+  DEFAULT_INVOICE_TEMPLATE, LEGACY_TEMPLATE_IDS, isInvoiceModel, formValuesFor, defaultFormValues, countChanges,
 } from './printSettings';
 
 const REGULAR = { gst_no: '29AAAAA0000A1Z5', tax_mode: 'EXCLUSIVE' };
@@ -60,5 +60,26 @@ describe('document type and locked fields', () => {
   it('locks GSTIN, HSN and buyer address on a tax invoice only', () => {
     expect(lockedOptsFor('TAX_INVOICE')).toEqual({ gstin: true, hsn: true, clientAddr: true });
     expect(lockedOptsFor('BILL_OF_SUPPLY')).toEqual({});
+  });
+});
+
+describe('the Customise form', () => {
+  it('starts from what is stored, old flat keys included', () => {
+    const f = formValuesFor({ invoiceTemplate: 'compact', invAccent: '#166534', invOpts: { bank: false } }, 'TAX_INVOICE');
+    expect(f.invoiceTemplate).toBe('compact');
+    expect(f.invAccent).toBe('#166534');
+    expect(f.invOpts.bank).toBe(false);
+  });
+  it('reset is the new Modern with every default', () => {
+    const d = defaultFormValues();
+    expect(d.invoiceTemplate).toBe('model-modern');
+    expect(d.invOpts.taxSummary).toBe('below');
+    expect(d.docTexts.signLabel).toBe('Authorised signatory');
+  });
+  it('counts what differs, setting by setting', () => {
+    const a = defaultFormValues();
+    expect(countChanges(a, defaultFormValues())).toBe(0);
+    const b = { ...a, invoiceTemplate: 'model-bold', invAccent: '#166534', invOpts: { ...a.invOpts, discountCol: false, upiQr: false } };
+    expect(countChanges(b, a)).toBe(4);
   });
 });

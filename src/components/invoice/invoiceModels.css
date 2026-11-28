@@ -160,6 +160,12 @@
 .im .disc{white-space:nowrap}
 .im .muted{color:#6E737A}
 
+/* the shop's custom label: value lines */
+.im .cfx{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:9.5px;color:#2E343B;margin:0 0 12px}
+.im .cfx b{color:#111418;font-weight:600}
+.m-classic .cfx{margin:0}
+.m-compact .cfx{margin:4px 0 0}
+
 /* print: the page margins come from @page; the sheet fills the page */
 @media print {
   .im{width:100%!important;min-height:0!important;padding:0!important;box-shadow:none!important}
