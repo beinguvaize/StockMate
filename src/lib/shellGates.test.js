@@ -2,10 +2,19 @@ import { describe, it, expect } from 'vitest';
 import { shellGates, lowStockBadge, openItem } from './shellGates';
 import { posStoresFrom, currentStoreOf, readPosStore } from './posStore';
 
-const items = (over = {}) => ['dashboard', 'sales', 'invoices', 'inventory', 'clients', 'suppliers', 'reports']
+const items = (over = {}) => ['dashboard', 'sales', 'invoices', 'inventory', 'clients', 'suppliers', 'reports', 'expenses', 'purchases']
   .map(key => ({ key, path: `/${key}`, label: key, ...(over[key] || {}) }));
 
 describe('shellGates', () => {
+  it('dashboard quick actions follow their page and the right to add there', () => {
+    expect(shellGates(items(), () => true).quick).toEqual({ expense: true, purchase: true });
+    const viewOnly = shellGates(items(), (m, a) => a === 'view');
+    expect(viewOnly.quick).toEqual({ expense: false, purchase: false });
+    expect(viewOnly.collect).toBe(false);
+    const hidden = shellGates(items({ expenses: { hidden: true }, purchases: { locked: true } }), () => true);
+    expect(hidden.quick).toEqual({ expense: false, purchase: false });
+  });
+
   it('follows the menu item gates', () => {
     const all = shellGates(items(), () => true);
     expect(all).toMatchObject({ kpis: true, lowStock: true, collect: true, sell: true });

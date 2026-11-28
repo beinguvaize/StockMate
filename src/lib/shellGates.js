@@ -42,6 +42,12 @@ export function shellGates(items, can = () => false) {
       invoice: !!openItem(items, 'invoices'),
     },
     sell: !!openItem(items, 'sales'),
+    // The Dashboard's quick actions (top bar). Each needs its page open AND
+    // the right to add there; "Collect payment" is `collect` above.
+    quick: {
+      expense: !!openItem(items, 'expenses') && !!can('expenses', 'edit'),
+      purchase: !!openItem(items, 'purchases') && !!can('purchases', 'edit'),
+    },
   };
 }
 

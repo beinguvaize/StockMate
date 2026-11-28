@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect} from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Button from '../shared/Button';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
@@ -105,6 +106,16 @@ const Expenses = () => {
  };
  const [repeatHint, setRepeatHint] = useState('');
  const [isAdding, setIsAdding] = useState(false);
+ // The Dashboard's "Record expense" lands here as ?new=1: open the new-expense
+ // form, then drop the param so a refresh does not open it again.
+ const [searchParams, setSearchParams] = useSearchParams();
+ useEffect(() => {
+   if (searchParams.get('new') !== '1') return;
+   if (hasPermission('ADD_EXPENSE')) setIsAdding(true);
+   const next = new URLSearchParams(searchParams);
+   next.delete('new');
+   setSearchParams(next, { replace: true });
+ }, [searchParams, setSearchParams, hasPermission]);
  const [editingExpense, setEditingExpense] = useState(null);
  const [saving, setSaving] = useState(false);
  const [formError, setFormError] = useState('');

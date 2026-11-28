@@ -789,6 +789,34 @@ export const pageTitleFor = (pathname, t = (k) => k) => {
   return hit ? hit[1] : '';
 };
 
+/**
+ * The Dashboard's quick actions: Record expense, Add purchase, Collect
+ * payment, all grey (secondary) as the approved mockup draws them. Each shows
+ * only when its page is open to this user and they may add there. Drawn in
+ * the top bar from lg, and by the Dashboard itself above its figures below
+ * that, where the top bar has no room.
+ */
+export const DashboardQuickActions = ({ className = '' }) => {
+  const navigate = useNavigate();
+  const { basePath, gates } = useNavModel();
+  const quick = [
+    gates.quick?.expense && { key: 'expense', label: 'Record expense', to: '/expenses?new=1' },
+    gates.quick?.purchase && { key: 'purchase', label: 'Add purchase', to: '/purchases?new=1' },
+    gates.collect && { key: 'collect', label: 'Collect payment', to: '/clients/collect' },
+  ].filter(Boolean);
+  if (!quick.length) return null;
+  return (
+    <div className={`flex flex-wrap items-center gap-1.5 ${className}`} data-testid="dashboard-quick-actions">
+      {quick.map(q => (
+        <Button key={q.key} variant="secondary" size="sm" onClick={() => navigate(`${basePath}${q.to}`)}
+          data-testid={`quick-${q.key}`}>
+          {q.label}
+        </Button>
+      ))}
+    </div>
+  );
+};
+
 const TopBar = ({ onOpenSearch }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -797,6 +825,8 @@ const TopBar = ({ onOpenSearch }) => {
   const title = pageTitleFor(location.pathname, t);
   const isSales = location.pathname.endsWith('/sales');
   const onCollect = location.pathname.endsWith('/clients/collect');
+  // The Dashboard carries three quick actions in place of the dark pill.
+  const isDashboard = location.pathname.endsWith('/dashboard');
   const hint = shortcutLabel();
   return (
     <header className="hidden md:flex items-center gap-3 px-7 py-4 border-b border-sep min-h-[68px]">
@@ -820,7 +850,8 @@ const TopBar = ({ onOpenSearch }) => {
         <SyncStatus variant="bar" />
       </div>
       <NotificationsBell tenantId={currentTenantId} gates={gates} basePath={basePath} />
-      {gates.collect && !onCollect && (
+      {isDashboard && <DashboardQuickActions className="hidden lg:flex shrink-0" />}
+      {gates.collect && !onCollect && !isDashboard && (
         <Button variant="dark" onClick={() => navigate(`${basePath}/clients/collect`)} data-testid="collect-payment"
           className={`shrink-0 ${isSales ? 'hidden 2xl:inline-flex' : 'hidden lg:inline-flex'}`}>
           Collect payment

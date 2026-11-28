@@ -40,6 +40,14 @@ const PurchasesPage = () => {
   // new-purchase form with that product on its first line, then drop the param.
   const [searchParams, setSearchParams] = useSearchParams();
   const [reorderId, setReorderId] = useState(null);
+  // The Dashboard's "Add purchase" lands here as ?new=1: open the form empty.
+  useEffect(() => {
+    if (searchParams.get('new') !== '1') return;
+    setShowAddModal(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('new');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
   useEffect(() => {
     const id = searchParams.get('reorder');
     if (!id) return;
