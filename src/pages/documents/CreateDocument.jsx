@@ -16,10 +16,10 @@ import { useNotifications } from '../../context/NotificationContext';
 import { useSales } from '../../hooks/useSales';
 import { useInventory } from '../../hooks/useInventory';
 import { useEstimates } from '../../hooks/useEstimates';
-import { useAccounts, accountForMethod } from '../../hooks/useAccounts';
+import { usePeople } from '../../hooks/usePeople';
 import { calculateGST, shareToWhatsApp } from '../../lib/gstEngine';
 import { tierPrice } from '../../lib/priceResolver';
-import { browserPostsCollection, creditInvoiceTakesMoney, CREDIT_INVOICE_PAID_MSG } from '../../lib/documentLedger';
+import { collectionGoesToClientSettlement, creditInvoiceTakesMoney, CREDIT_INVOICE_PAID_MSG } from '../../lib/documentLedger';
 import { PartyPicker, DocItemGrid, TotalsPanel, Field, inr } from '../../components/documents/DocParts';
 
 const genId = (p) => `${p}-${Date.now().toString(36).toUpperCase()}`;
@@ -52,7 +52,9 @@ const CreateDocument = () => {
   const { clients = [], sales = [], invoices = [], placeSale, processSalesReturn, settleSale } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
   const { products = [] } = useInventory(currentTenantId);
   const { create: createEstimate } = useEstimates(currentTenantId);
-  const { accounts = [], addTxn } = useAccounts(currentTenantId);
+  // Collect Payment's own call (settle_client_payment), reused for a payment
+  // in against a credit sale. No second copy of that write lives here.
+  const { recordClientPayment } = usePeople(currentTenantId);
 
   const initialType = DOC_TYPES[params.get('type')] ? params.get('type') : 'SALES_INVOICE';
   const [docType, setDocType] = useState(initialType);
@@ -71,20 +73,9 @@ const CreateDocument = () => {
   const [saving, setSaving] = useState(false);
   const [printBill, setPrintBill] = useState(null); // manual bill → invoice template preview
 
-  // Money lands in the payment method's account (no separate picker).
-  const depAcc = accountForMethod(accounts, payMethod);
-
-  // The database posts the money for a sale and for a payment in
-  // (post_sale_to_ledger, see lib/documentLedger.js). The ONE case it does
-  // not is a collection on a CREDIT sale, which settle_sale_payment's
-  // trigger skips; that receipt alone is still posted here, to the chosen
-  // account, exactly once. Nothing else in this page writes the ledger.
-  const postCreditSaleCollection = async (amount, saleId) => {
-    if (!depAcc || !(Number(amount) > 0)) return;
-    try {
-      await addTxn({ account_id: depAcc, direction: 'IN', amount, mode: payMethod, ref_type: 'PAYMENT', ref_id: saleId, note: party?.name || 'PAYMENT' });
-    } catch { /* ledger is non-blocking */ }
-  };
+  // The database posts every rupee this page takes in (post_sale_to_ledger
+  // and post_client_payment_to_ledger, see lib/documentLedger.js). Nothing in
+  // this page writes the ledger or a balance.
 
   const businessState = businessProfile?.state || businessProfile?.business_state || '';
 
@@ -245,11 +236,22 @@ const CreateDocument = () => {
             && Math.max(0, (Number(s.totalAmount) || 0) - (Number(s.paidAmount) || 0)) > 0.5)
           .sort((a, b) => new Date(a.date) - new Date(b.date));
         if (!open.length) return fail('No open invoice for this party to settle.');
+        if (collectionGoesToClientSettlement(open[0])) {
+          // Oldest open bill is on Credit: settle_sale_payment's trigger would
+          // post nothing, so this goes through Collect Payment's server path.
+          // settle_client_payment spreads the amount over the client's open
+          // bills, oldest first, and its client_payments row is posted to the
+          // ledger by the database.
+          const r = await recordClientPayment(party.id, Number(payAmount), date, notes, [], payMethod);
+          if (!r || r.success === false) return fail(r?.error || 'The server gave no reason.');
+          addNotification(r.queued
+            ? `Payment of ${inr(payAmount)} saved on this device; it will sync when online`
+            : `Payment of ${inr(payAmount)} recorded`, 'success');
+          return navigate('/clients');
+        }
+        // Non-credit sale: settle_sale_payment's trigger posts the collection.
         res = await settleSale(open[0].id, Number(payAmount));
-        if (res?.error) return fail(res.error.message);
-        // Non-credit sale: the trigger posted this collection. Credit sale:
-        // it posted nothing, so this is the only entry (see above).
-        if (browserPostsCollection(open[0])) await postCreditSaleCollection(Number(payAmount), open[0].id);
+        if (res?.error) return fail(res.error.message || res.error);
         addNotification(`Payment of ${inr(payAmount)} recorded`, 'success');
         return navigate('/clients');
       }
@@ -374,7 +376,7 @@ const CreateDocument = () => {
             <span className="mt-3.5 mb-1.5 block font-tight text-[12.5px] font-semibold text-ink-2">Paid by</span>
             <Seg value={payMethod} onChange={setPayMethod} ariaLabel="Paid by"
               options={[['CASH', 'Cash'], ['BANK', 'Bank'], ['UPI', 'UPI']]} />
-            <p className="mt-3 text-[12px] text-mute">Settles the party's oldest open invoice.</p>
+            <p className="mt-3 text-[12px] text-mute">Settles the party's oldest open invoice. On a credit bill it spreads over their open bills, oldest first.</p>
           </div>
         )}
 

@@ -20,18 +20,22 @@
  *
  *  · a sales invoice on Credit must not claim money received now (it would
  *    reach no account at all) -- creditInvoiceTakesMoney refuses it;
- *  · a payment in against a CREDIT sale still has no database writer through
- *    settle_sale_payment, so the browser entry is kept for exactly that case
- *    and no other (browserPostsCollection). Without it the money would not be
- *    in the ledger at all. Moving this to settle_client_payment (which posts
- *    it through client_payments) is an owner decision, not made here.
+ *  · a payment in whose oldest open bill is a CREDIT sale goes through
+ *    settle_client_payment, the server function Collect Payment calls
+ *    (usePeople.recordClientPayment with no invoice ids). It spreads the
+ *    amount over the client's open bills, oldest first, and its
+ *    client_payments row is posted by post_client_payment_to_ledger. The
+ *    browser writes no ledger or balance row for a payment in at all.
  */
 
 export const isCreditSale = (sale) =>
   String(sale?.paymentMethod ?? sale?.payment_method ?? '').toUpperCase() === 'CREDIT';
 
-/** True only when settle_sale_payment's trigger will post nothing. */
-export const browserPostsCollection = (sale) => isCreditSale(sale);
+/**
+ * True when settle_sale_payment's trigger would post nothing (a CREDIT sale),
+ * so the payment in must go through settle_client_payment instead.
+ */
+export const collectionGoesToClientSettlement = (sale) => isCreditSale(sale);
 
 export const CREDIT_INVOICE_PAID_MSG =
   'A credit sale is not paid now. Untick Mark paid and leave Amount received empty, or choose Cash, Bank or UPI.';

@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { readFileSync, readdirSync, statSync, existsSync } from 'fs';
 import { join, relative, sep } from 'path';
 import { describe, it, expect } from 'vitest';
-import { isCreditSale, browserPostsCollection, creditInvoiceTakesMoney } from './documentLedger';
+import { isCreditSale, collectionGoesToClientSettlement, creditInvoiceTakesMoney } from './documentLedger';
 
 /**
  * The document builder and the invoice screens must not post a sale or a
@@ -28,20 +28,15 @@ const files = [
 ];
 const rel = (f) => relative(SRC, f).split(sep).join('/');
 
-// The single permitted browser entry: a collection on a CREDIT sale, which
-// the trigger does not post. Its body is cut out before scanning, and the
-// test below pins that it is only ever reached for a CREDIT sale.
-const CREDIT_EXCEPTION = /const postCreditSaleCollection = async[\s\S]*?\n {2}\};\n/;
-
 describe('no browser ledger write for a sale or a payment in', () => {
   it('scans the document and invoice screens', () => {
     expect(files.map(rel)).toContain('pages/documents/CreateDocument.jsx');
   });
 
-  it('no file calls addTxn, outside the one credit-collection exception', () => {
+  it('no file calls addTxn or uses useAccounts to write', () => {
     const offenders = [];
     for (const f of files) {
-      const text = readFileSync(f, 'utf8').replace(CREDIT_EXCEPTION, '');
+      const text = readFileSync(f, 'utf8');
       for (const m of text.matchAll(/\baddTxn\s*\(/g)) offenders.push(`${rel(f)} @${m.index}`);
     }
     expect(offenders).toEqual([]);
@@ -58,24 +53,32 @@ describe('no browser ledger write for a sale or a payment in', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('the old postIncome helper is gone from the builder', () => {
+  it('the builder keeps no browser ledger helper', () => {
     const DOC = readFileSync(join(SRC, 'pages', 'documents', 'CreateDocument.jsx'), 'utf8');
-    expect(DOC).not.toMatch(/postIncome/);
-    // The exception is used once, behind the CREDIT check, and never for SALE.
-    const calls = [...DOC.matchAll(/await postCreditSaleCollection\(/g)];
-    expect(calls).toHaveLength(1);
-    expect(DOC).toMatch(/if \(browserPostsCollection\(open\[0\]\)\) await postCreditSaleCollection\(/);
-    expect(DOC.match(CREDIT_EXCEPTION)?.[0]).toMatch(/ref_type: 'PAYMENT'/);
-    expect(DOC.match(CREDIT_EXCEPTION)?.[0]).not.toMatch(/'SALE'/);
+    expect(DOC).not.toMatch(/postIncome|postCreditSaleCollection|addTxn/);
+    expect(DOC).not.toMatch(/useAccounts/);
+  });
+
+  it('a payment in on a credit sale reuses Collect Payment\'s server call', () => {
+    const DOC = readFileSync(join(SRC, 'pages', 'documents', 'CreateDocument.jsx'), 'utf8');
+    // The same hook call Collect Payment makes, with no invoice ids.
+    expect(DOC).toMatch(/const \{ recordClientPayment \} = usePeople\(currentTenantId\)/);
+    expect(DOC).toMatch(/if \(collectionGoesToClientSettlement\(open\[0\]\)\) \{/);
+    expect(DOC).toMatch(/recordClientPayment\(party\.id, Number\(payAmount\), date, notes, \[\], payMethod\)/);
+    // No second copy of the RPC call in the builder.
+    expect(DOC).not.toMatch(/settle_client_payment['"]/);
+    expect(DOC).not.toMatch(/restRpc|supabase\.rpc/);
+    // A failure goes to fail(), which classifies transport vs refusal.
+    expect(DOC).toMatch(/r\.success === false\) return fail\(r\?\.error/);
   });
 });
 
 describe('documentLedger rules', () => {
-  it('only a CREDIT sale has its collection posted by the browser', () => {
-    expect(browserPostsCollection({ paymentMethod: 'CREDIT' })).toBe(true);
-    expect(browserPostsCollection({ paymentMethod: 'credit' })).toBe(true);
+  it('only a CREDIT sale sends its payment in to settle_client_payment', () => {
+    expect(collectionGoesToClientSettlement({ paymentMethod: 'CREDIT' })).toBe(true);
+    expect(collectionGoesToClientSettlement({ paymentMethod: 'credit' })).toBe(true);
     for (const m of ['CASH', 'UPI', 'BANK', 'CARD', undefined]) {
-      expect(browserPostsCollection({ paymentMethod: m })).toBe(false);
+      expect(collectionGoesToClientSettlement({ paymentMethod: m })).toBe(false);
     }
     expect(isCreditSale({ payment_method: 'CREDIT' })).toBe(true);
     expect(isCreditSale(null)).toBe(false);
