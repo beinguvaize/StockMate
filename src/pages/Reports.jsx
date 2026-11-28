@@ -105,7 +105,7 @@ function ReportPicker({ reports, current, onPick }) {
           <div role="listbox" className="max-h-80 overflow-y-auto">
             {list.length === 0 && <p className="px-2.5 py-[22px] text-center text-[13px] text-mute">No report matches "{q}"</p>}
             {list.map((r) => (
-              <button key={r.id} type="button" role="option" aria-selected={r.id === current?.id}
+              <button data-card key={r.id} type="button" role="option" aria-selected={r.id === current?.id}
                 onClick={() => { onPick(r.id); setOpen(false); setQ(''); }}
                 className={cn('flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-[9px] text-left font-tight text-[13px] font-semibold text-ink transition-colors duration-(--dur-press) hover:bg-tile',
                   r.id === current?.id && 'bg-tile')}>
@@ -147,7 +147,7 @@ function ReportsHome({ grouped, total, onPick }) {
             </div>
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {list.map((r) => (
-                <button key={r.id} type="button" onClick={() => onPick(r.id)}
+                <button data-card key={r.id} type="button" onClick={() => onPick(r.id)}
                   className="m-press rounded-xl border border-line bg-surface px-3.5 py-3 text-left hover:bg-tile">
                   <b className="block font-tight text-[14px] font-semibold text-ink">{r.label}</b>
                   <small className="mt-0.5 block text-[12px] text-mute">{r.blurb}</small>

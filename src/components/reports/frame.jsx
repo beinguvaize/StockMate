@@ -113,7 +113,7 @@ export function ExportMenu({ onExcel, onPDF, onCSV, label = 'Export', tone = 'pr
       {open && (
         <div role="menu" className="menu-pop absolute right-0 z-40 mt-2 w-[200px] rounded-[14px] bg-surface p-1.5 shadow-[0_0_0_1px_rgba(17,20,24,.06),0_18px_40px_-14px_rgba(17,20,24,.35)]">
           {items.map(({ key, label: l, icon: Icon, run }) => (
-            <button key={key} type="button" role="menuitem" onClick={() => { setOpen(false); run(); }}
+            <button data-card key={key} type="button" role="menuitem" onClick={() => { setOpen(false); run(); }}
               className="flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-[9px] text-left font-tight text-[13px] font-semibold text-ink transition-colors duration-(--dur-press) hover:bg-tile">
               <Icon size={16} strokeWidth={1.9} className="text-ink-2" aria-hidden="true" />{l}
             </button>

@@ -247,7 +247,7 @@ const ReportTable = ({
               { label: 'Copy row as CSV', icon: Copy, run: () => copyRowAsCSV(contextMenu.row) },
               { label: 'Share link', icon: Share2, run: () => {} },
             ].map(({ label, icon: Icon, run }) => (
-              <button key={label} type="button" role="menuitem"
+              <button data-card key={label} type="button" role="menuitem"
                 onClick={() => { run(); setContextMenu({ show: false, x: 0, y: 0, row: null }); }}
                 className="flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-[9px] text-left font-tight text-[13px] font-semibold text-ink hover:bg-tile">
                 <Icon size={15} strokeWidth={1.9} className="text-ink-2" aria-hidden="true" />{label}
