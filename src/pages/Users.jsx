@@ -1,524 +1,391 @@
 import React, { useState } from 'react';
+import { Plus, Pencil, Trash2, UserX, Users as UsersIcon, Lock, Info, AlertTriangle, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { usePeople } from '../hooks/usePeople';
 import { useNotifications } from '../context/NotificationContext';
-import { DEFAULT_PERMISSIONS, MODULES_CONFIG } from '../lib/constants';
-import { supabase } from '../lib/supabase';
+import { MODULES_CONFIG } from '../lib/constants';
 import { staffCreateSchema, passwordStrength } from '../lib/validation';
+import { effectivePlan } from '../lib/tenancy';
+import { cn } from '../lib/utils';
 import {
- ShieldCheck, User, Plus, Trash2, Edit3, X, Check,
- Eye, Save, Package, Truck, Lock, ShieldAlert,
- UserPlus, Mail, Fingerprint, Activity, ShoppingCart, ShoppingBag, Wallet, Users as UsersIcon, BarChart3, Banknote, Settings as SettingsIcon, BookOpen, LayoutDashboard
-} from 'lucide-react';
+  ROLE_TEMPLATES, blankForm, formFromUser, pickTemplate, togglePermission, visibleUsers,
+  rolesOf, primaryRole, roleLabel, canOpenWords, userRowActions, initialsOf, avatarTone, seatNote, strengthWords,
+} from '../lib/usersView';
+import Dialog from '../components/ui/Dialog';
+import OptionCard, { OptionGroup } from '../components/ui/OptionCard';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import WriteFailure from '../components/invoices/WriteFailure';
+import { Toggle, Pill, Label, Hint } from '../components/expenses/parts';
 
-const MODULE_ICONS = {
- dashboard: LayoutDashboard,
- inventory: Package,
- sales: ShoppingCart,
- purchases: ShoppingBag,
- expenses: Wallet,
- clients: UsersIcon,
- suppliers: Truck,
- vehicles: Truck,
- reports: BarChart3,
- payroll: Banknote,
- users: UserPlus,
- settings: SettingsIcon,
- daybook: BookOpen
-};
+/**
+ * Users & roles (web redesign, approved mockups users-01 to 08).
+ *
+ * Who can sign in to this shop and what each login opens. Every write is the
+ * same usePeople call as before (addUser, updateUser, deleteUser); only the
+ * look changed, plus a question before deactivating and the server's own
+ * reason when a save or a removal is refused. View rules: lib/usersView.
+ */
 
-const ROLE_ICONS = {
-  OWNER: ShieldCheck,
-  SALES: User,
-  INVENTORY: Package,
-  STAFF: Fingerprint,
-  DRIVER: Truck,
-};
+const AV_TONE = { a: 'bg-amber-soft text-amber-text', b: 'bg-info-soft text-info-text', g: 'bg-good-soft text-good-text', '': 'bg-well text-ink-2' };
 
-const ROLE_COLORS = {
-  OWNER: { bg: 'rgba(59, 130, 246, 0.05)', color: '#3b82f6'},
-  SALES: { bg: 'rgba(16, 185, 129, 0.05)', color: '#10b981'},
-  INVENTORY: { bg: 'rgba(79, 70, 229, 0.05)', color: 'var(--color-accent-signature-hover)'},
-  STAFF: { bg: 'rgba(116, 117, 118, 0.05)', color: '#747576'},
-  DRIVER: { bg: 'rgba(245, 158, 11, 0.05)', color: '#f59e0b'},
-};
+const Empty = ({ icon: Icon, title, children, action }) => (
+  <div className="m-rise rounded-[14px] border border-dashed border-[#E2E2E0] px-5 pt-14 pb-[60px] text-center">
+    <div className="mx-auto mb-3.5 grid h-[52px] w-[52px] place-items-center rounded-2xl bg-tile text-body"><Icon size={24} strokeWidth={1.7} /></div>
+    <h4 className="font-tight text-[17px] font-semibold">{title}</h4>
+    <p className="mx-auto mt-1 mb-4 max-w-[440px] text-[13.5px] text-body">{children}</p>
+    {action}
+  </div>
+);
 
-const INTERNAL_ROLES = [
-  { id: 'OWNER', label: 'Owner of Tenant', description: 'Full access to all modules'},
-  { id: 'SALES', label: 'Sales Template', description: 'Sales, Clients & Day Book'},
-  { id: 'INVENTORY', label: 'Inventory Template', description: 'Inventory, Purchases & Suppliers'},
-  { id: 'DRIVER', label: 'Driver', description: 'Van sales & operations only'},
-  { id: 'CUSTOM', label: 'Custom Template', description: 'Manual permission mapping'},
-];
+const Header = ({ onAdd }) => (
+  <div className="m-rise mb-[18px] flex flex-wrap items-start gap-3">
+    <div className="min-w-0 flex-1">
+      <h3 className="font-tight text-[20px] font-semibold tracking-[-0.01em] text-ink">Users &amp; roles</h3>
+      <p className="mt-0.5 text-[13.5px] text-body">Who can sign in to this shop, and what each login can open and change.</p>
+    </div>
+    {onAdd && <Button onClick={onAdd}><Plus /> Add login</Button>}
+  </div>
+);
 
 const Users = () => {
   const { currentUser, hasPermission } = useAuth();
-  const { currentTenantId } = useTenant();
-  const { users: allUsers, addUser, updateUser, deleteUser, loading } = usePeople(currentTenantId);
-
-  // Hide GLOBAL_ADMIN accounts from tenant user portal — they are platform staff
-  const isGlobalAdmin = currentUser?.roles?.includes('GLOBAL_ADMIN');
-  const users = isGlobalAdmin
-    ? allUsers
-    : allUsers.filter(u => !(u.roles || []).includes('GLOBAL_ADMIN'));
+  const { currentTenantId, currentTenant, businessProfile } = useTenant();
+  const { users: allUsers, addUser, updateUser, deleteUser, loading, refetch } = usePeople(currentTenantId);
   const { addNotification } = useNotifications();
- const [isAdding, setIsAdding] = useState(false);
- const [editingUser, setEditingUser] = useState(null);
- const [formData, setFormData] = useState({ name: '', email: '', roles: ['STAFF'], permissions: { ...DEFAULT_PERMISSIONS}});
- const [isSaving, setIsSaving] = useState(false);
- const [deleteConfirm, setDeleteConfirm] = useState(null);
 
- const openAdd = () => {
- setEditingUser(null);
- setFormData({ name: '', email: '', roles: ['STAFF'], permissions: { ...DEFAULT_PERMISSIONS}});
- setIsAdding(true);
-};
+  const users = visibleUsers(allUsers, currentUser);
+  const shopName = businessProfile?.name || currentTenant?.name || 'this shop';
+  const plan = currentTenant ? effectivePlan(currentTenant) : null;
 
- const openEdit = (user) => {
- setEditingUser(user);
- setFormData({
- name: user.name,
- email: user.email,
- roles: user.roles || [user.role || 'STAFF'],
- permissions: user.permissions || { ...DEFAULT_PERMISSIONS}
-});
- setIsAdding(true);
-};
+  const [isAdding, setIsAdding] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [formData, setFormData] = useState(blankForm);
+  const [isSaving, setIsSaving] = useState(false);
+  const [formError, setFormError] = useState(null);     // a validation message or a server error
+  const [confirm, setConfirm] = useState(null);         // { kind: 'deactivate' | 'remove', user }
+  const [confirmError, setConfirmError] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [rowFailure, setRowFailure] = useState(null);
 
- const toggleModulePermission = (moduleKey, action) => {
- setFormData(prev => {
- const currentPerms = prev.permissions || { ...DEFAULT_PERMISSIONS};
- const modulePerms = currentPerms[moduleKey] || { view: false, edit: false};
- 
- const newModulePerms = { ...modulePerms, [action]: !modulePerms[action]};
- 
- if (action === 'view' && !newModulePerms.view) {
- newModulePerms.edit = false;
-}
- if (action === 'edit' && newModulePerms.edit) {
- newModulePerms.view = true;
-}
+  const closeForm = () => { setIsAdding(false); setEditingUser(null); setFormError(null); };
+  const openAdd = () => { setEditingUser(null); setFormData(blankForm()); setFormError(null); setIsAdding(true); };
+  const openEdit = (user) => { setEditingUser(user); setFormData(formFromUser(user)); setFormError(null); setIsAdding(true); };
 
- return {
- ...prev,
- permissions: { ...currentPerms, [moduleKey]: newModulePerms}
-};
-});
-};
+  // Body scroll lock while the form is open, as before.
+  React.useEffect(() => {
+    document.body.style.overflow = isAdding ? 'hidden' : 'unset';
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [isAdding]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isSaving) return;
-    
+    setFormError(null);
     setIsSaving(true);
-    
-    // Safety timeout: auth.admin.createUser (bcrypt) can take 20-30s on cold start
+
+    // auth.admin.createUser (bcrypt) can take 20-30s on a cold start.
     const timeout = setTimeout(() => {
       setIsSaving(false);
-      addNotification("Request timed out. Please check your connection or try again.", "warning");
+      addNotification('Request timed out. Please check your connection or try again.', 'warning');
     }, 45000);
 
     try {
       if (editingUser) {
-        // Update local profile
-        await updateUser({ ...editingUser, ...formData });
+        const res = await updateUser({ ...editingUser, ...formData });
+        if (res && !res.success) { setFormError(res.error || new Error('The server refused the change.')); return; }
       } else {
-        // Validate password strength before hitting Supabase
         const validation = staffCreateSchema.safeParse({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password || '',
-          roles: formData.roles
+          name: formData.name, email: formData.email, password: formData.password || '', roles: formData.roles,
         });
         if (!validation.success) {
-          const firstError = validation.error.issues?.[0]?.message || 'Validation failed';
-          addNotification(firstError, 'error');
-          clearTimeout(timeout);
-          setIsSaving(false);
+          setFormError({ validation: validation.error.issues?.[0]?.message || 'Validation failed' });
           return;
         }
-
-        // Create both Auth and User record via centralized AppContext method
-        const success = await addUser(formData);
-        if (!success) {
-          clearTimeout(timeout);
-          setIsSaving(false);
-          return;
-        }
+        let failure = null;
+        const success = await addUser(formData, { onError: (err) => { failure = err; } });
+        if (!success) { setFormError(failure || new Error('The login was not created.')); return; }
       }
       setIsAdding(false);
       setEditingUser(null);
-      setFormData({ name: '', email: '', roles: ['STAFF'], permissions: { ...DEFAULT_PERMISSIONS } });
+      setFormData(blankForm());
     } catch (err) {
-      console.error("Staff management error:", err);
-      alert(err.message || "Failed to process staff record");
+      console.error('Staff management error:', err?.message || err);
+      setFormError(err);
     } finally {
       clearTimeout(timeout);
       setIsSaving(false);
     }
   };
 
- const toggleStatus = (user) => {
- updateUser({ ...user, status: user.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'});
-};
+  const setStatus = async (user, status) => {
+    const res = await updateUser({ ...user, status });
+    return res && !res.success ? (res.error || new Error('The server refused the change.')) : null;
+  };
 
- const handleDelete = (userId) => {
- deleteUser(userId);
- setDeleteConfirm(null);
-};
+  const activate = async (user) => {
+    setRowFailure(null);
+    const err = await setStatus(user, 'ACTIVE');
+    if (err) setRowFailure(err);
+  };
 
- // Must be before any early return — hooks cannot be conditional
- React.useEffect(() => {
- if (isAdding || editingUser) {
- document.body.style.overflow = 'hidden';
-} else {
- document.body.style.overflow = 'unset';
-}
- return () => { document.body.style.overflow = 'unset';};
-}, [isAdding, editingUser]);
+  const runConfirm = async () => {
+    if (!confirm || busy) return;
+    setBusy(true); setConfirmError(null);
+    let err = null;
+    try {
+      if (confirm.kind === 'deactivate') err = await setStatus(confirm.user, 'INACTIVE');
+      else {
+        const res = await deleteUser(confirm.user.id);
+        if (!res?.success) err = res?.error || new Error('The server refused the removal.');
+      }
+    } catch (ex) { err = ex; }
+    setBusy(false);
+    if (err) { setConfirmError(err); return; }
+    setConfirm(null);
+  };
+  const closeConfirm = () => { if (!busy) { setConfirm(null); setConfirmError(null); } };
 
- if (!hasPermission('MANAGE_USERS')) {
- return (
- <div className="animate-fade-in flex flex-col items-center justify-center min-h-[60vh] p-5">
- <div className="glass-panel max-w-[500px] w-full text-center p-6 border-none">
- <div className="flex justify-center mb-8">
- <div className="bg-red-50 p-5 rounded-full text-red-500">
- <Lock size={64} strokeWidth={2.5} />
- </div>
- </div>
- <h2 className="text-4xl font-semibold text-[#111] mb-4">Access Denied</h2>
- <p className="text-sm font-bold text-[#747576] opacity-70 mb-10 leading-relaxed">
- Security Clearance Insufficient. Staff records are restricted to Administrators.
- </p>
- <button className="btn-signature w-full h-16" onClick={() => window.history.back()}>
- SYSTEM ABORT
- <div className="icon-nest">
- <ShieldAlert size={20} />
- </div>
- </button>
- </div>
- </div>
- );
-}
+  if (!hasPermission('MANAGE_USERS')) {
+    return (
+      <div className="flex flex-col pb-16">
+        <Header />
+        <Empty icon={Lock} title="Only the owner and admins manage logins"
+          action={<Button variant="secondary" onClick={() => window.history.back()}>Go back</Button>}>
+          Your login does not have the Users permission. Ask the owner to change it.
+        </Empty>
+      </div>
+    );
+  }
 
- return (
- <>
- <div className="animate-fade-in flex flex-col gap-10 pb-20">
- {/* Header Section */}
- <div className="flex justify-between items-center py-2 border-b border-black/5">
- <div className="flex items-center gap-3">
- <h1 className="text-xl font-black font-sora text-ink-primary leading-none">Staff<span className="text-accent-signature">.</span></h1>
- <span className="text-[10px] font-semibold text-muted-foreground hidden sm:block">Personnel & access control</span>
- </div>
- <button className="btn-signature flex items-center gap-2 text-xs font-black" onClick={openAdd}>
- <UserPlus size={12} /> Add Staff
- </button>
- </div>
+  const others = users.filter((u) => u.id !== currentUser?.id);
+  const seats = seatNote(users, plan);
+  const strength = formData.password ? passwordStrength(formData.password) : null;
+  const confirmName = confirm?.user?.name || 'this login';
+  const confirmFirst = String(confirmName).split(/\s+/)[0];
 
- {/* Personnel Ledger */}
- <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
- <div className="bg-ink-primary p-6 flex items-center gap-4">
- <Fingerprint size={24} className="text-accent-signature" />
- <h2 className="text-base font-bold font-semibold text-surface">Staff List.</h2>
- </div>
- 
- <div className="overflow-x-auto">
- <table className="w-full text-left border-collapse">
- <thead>
- <tr className="border-b border-black/5 bg-canvas">
- <th className="px-8 py-5 text-[9px] font-semibold text-ink-secondary opacity-70">Staff Member</th>
- <th className="px-8 py-5 text-[9px] font-semibold text-ink-secondary opacity-70">Access Levels</th>
- <th className="px-8 py-5 text-[9px] font-semibold text-ink-secondary opacity-70">Status</th>
- <th className="px-8 py-5 text-[9px] font-semibold text-ink-secondary opacity-70 text-right">Actions</th>
- </tr>
- </thead>
- <tbody className="divide-y divide-black/5 bg-surface">
- {users.map(user => {
- const userRoles = user.roles || [user.role || 'SALES'];
- const primaryRole = userRoles[0];
- const isGlobalAdminUser = userRoles.includes('GLOBAL_ADMIN');
- const canManage = !isGlobalAdminUser || currentUser?.roles?.includes('GLOBAL_ADMIN');
- return (
- <tr key={user.id} className={`group hover:bg-canvas transition-colors ${user.status !== 'ACTIVE' ? 'opacity-70 grayscale' : ''}`}>
- <td className="px-8 py-5">
- <div className="flex items-center gap-4">
- <div className="w-10 h-10 rounded-xl bg-white border border-border shadow-sm shadow-sm flex items-center justify-center text-ink-primary group-hover:bg-ink-primary group-hover:text-accent-signature transition-all duration-500">
- {(() => { const Icon = ROLE_ICONS[primaryRole] || User; return <Icon size={18} />;})()}
- </div>
- <div>
- <div className="text-sm font-semibold text-ink-primary leading-none mb-1.5">{user.name}</div>
- <div className="text-[9px] font-semibold text-ink-secondary opacity-70">{user.email}</div>
- </div>
- </div>
- </td>
- <td className="px-8 py-5">
- <div className="flex gap-1.5 flex-wrap">
- {userRoles.map(r => (
- <span key={r} className="px-3 py-1 rounded-pill bg-canvas text-ink-primary text-[8px] font-semibold border border-black/5 shadow-sm">
- {r}
- </span>
- ))}
- </div>
- </td>
- <td className="px-8 py-5">
- <div className="flex items-center gap-2.5">
- <div className={`w-2.5 h-2.5 rounded-full shadow-lg ${user.status === 'ACTIVE' ? 'bg-accent-signature shadow-accent-signature/40' : 'bg-red-500 shadow-red-500/40'}`} />
- <span className="text-[10px] font-semibold text-ink-primary opacity-60">
- {user.status}
- </span>
- </div>
- </td>
- <td className="px-8 py-5 text-right">
- <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-all duration-500 translate-x-2 group-hover:translate-x-0">
- {canManage ? (
- <>
- <button
- className="w-9 h-9 rounded-xl bg-surface border border-black/5 shadow-premium flex items-center justify-center text-ink-primary hover:bg-accent-signature transition-all"
- onClick={() => openEdit(user)}
- title="Edit Permissions"
- >
- <Edit3 size={16} />
- </button>
- <button
- className={`w-9 h-9 rounded-xl bg-surface border border-black/5 shadow-premium flex items-center justify-center transition-all ${user.status === 'ACTIVE' ? 'text-red-500 hover:bg-red-50' : 'text-green-500 hover:bg-green-50'}`}
- onClick={() => toggleStatus(user)}
- disabled={user.id === currentUser.id}
- title={user.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
- >
- <Activity size={16} />
- </button>
- {user.id !== currentUser.id && (
- <button
- className="w-9 h-9 rounded-xl bg-surface border border-black/5 shadow-premium flex items-center justify-center text-red-500 hover:bg-red-50 transition-all"
- onClick={() => { if(window.confirm('Remove staff record?')) handleDelete(user.id);}}
- >
- <Trash2 size={16} />
- </button>
- )}
- </>
- ) : (
- <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wide px-2">Platform Admin</span>
- )}
- </div>
- </td>
- </tr>
- );
-})}
- </tbody>
- </table>
- </div>
+  return (
+    <div className="flex flex-col pb-16">
+      <Header onAdd={openAdd} />
 
- {users.length === 0 && (
- <div className="p-40 text-center">
- <div className="flex justify-center mb-10 opacity-10">
- <Activity size={100} strokeWidth={1} />
- </div>
- <p className="text-[10px] font-semibold text-ink-secondary opacity-80 mb-6 uppercase">No staff members found</p>
- </div>
- )}
- </div>
- </div>
+      {rowFailure && (
+        <div className="mb-3 flex items-start gap-2">
+          <WriteFailure error={rowFailure} noun="change" onReread={() => { setRowFailure(null); refetch?.(); }} className="flex-1" />
+          <Button variant="secondary" size="icon-sm" aria-label="Dismiss" onClick={() => setRowFailure(null)}><X /></Button>
+        </div>
+      )}
 
- {/* Personnel Form Modal */}
- {isAdding && (
- <div className="modal-overlay">
- <div className="glass-modal !max-w-xl">
- <div className="flex justify-between items-start mb-3 border-b border-black/5 pb-3">
- <div>
- <h2 className="text-lg font-semibold text-ink-primary">
- {editingUser ? 'EDIT PERMISSIONS' : 'NEW STAFF'}
- </h2>
- <p className="text-[9px] font-semibold text-ink-secondary opacity-60">Configure access level & identity</p>
- </div>
- <button 
- onClick={() => { setIsAdding(false); setEditingUser(null);}}
- className="w-7 h-7 rounded-xl border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary"
- >
- <X size={14} />
- </button>
- </div>
+      {users.length > 0 && (
+        <div className="m-rise overflow-hidden rounded-[14px] border border-line bg-surface" style={{ '--i': 1 }}>
+          <Table>
+            <TableHeader>
+              <tr>
+                <TableHead>Login</TableHead>
+                <TableHead>Role template</TableHead>
+                <TableHead>Can open</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead numeric>Actions</TableHead>
+              </tr>
+            </TableHeader>
+            <TableBody>
+              {users.map((user) => {
+                const acts = userRowActions(user, currentUser);
+                const role = primaryRole(user);
+                const off = !acts.active;
+                return (
+                  <TableRow key={user.id}>
+                    <TableCell className="py-3">
+                      <div className="flex items-center gap-[11px]">
+                        <span aria-hidden="true" className={cn('grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full font-tight text-[12px] font-semibold', AV_TONE[avatarTone(role)])}>
+                          {initialsOf(user.name)}
+                        </span>
+                        <div className="min-w-0">
+                          <b className={cn('flex items-center gap-1.5 font-tight text-[14px] font-semibold', off ? 'text-mute' : 'text-ink')}>
+                            <span className="truncate">{user.name}</span>
+                            {acts.isSelf && <Pill small>You</Pill>}
+                          </b>
+                          <small className="block truncate text-[12px] text-mute">{user.email}</small>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="flex flex-wrap gap-1">{rolesOf(user).map((r) => <Pill key={r}>{roleLabel(r)}</Pill>)}</span>
+                    </TableCell>
+                    <TableCell><div className={cn('max-w-[260px] text-[12.5px]', off ? 'text-mute' : 'text-body')}>{canOpenWords(user)}</div></TableCell>
+                    <TableCell>
+                      <span className={cn('inline-flex items-center gap-1.5 whitespace-nowrap font-tight text-[12.5px] font-semibold', off ? 'text-mute' : 'text-ink')}>
+                        <i aria-hidden="true" className={cn('h-[7px] w-[7px] rounded-full', off ? 'bg-faint' : 'bg-good')} />
+                        {acts.active ? 'Active' : 'Inactive'}
+                      </span>
+                    </TableCell>
+                    <TableCell numeric>
+                      {acts.canManage ? (
+                        <div className="flex items-center justify-end gap-0.5 whitespace-nowrap">
+                          {acts.canEdit && (
+                            <Button variant="ghost" size="icon-sm" aria-label={`Edit ${user.name}`} title="Edit permissions" onClick={() => openEdit(user)}><Pencil /></Button>
+                          )}
+                          {acts.canToggle && (acts.active
+                            ? <Button variant="ghost" size="xs" onClick={() => { setConfirmError(null); setConfirm({ kind: 'deactivate', user }); }}>Deactivate</Button>
+                            : <Button variant="ghost" size="xs" onClick={() => activate(user)}>Activate</Button>)}
+                          {acts.canRemove && (
+                            <Button variant="ghost" size="icon-sm" aria-label={`Remove ${user.name}`} title="Remove login"
+                              className="text-bad-text hover:bg-bad-soft hover:text-bad-text"
+                              onClick={() => { setConfirmError(null); setConfirm({ kind: 'remove', user }); }}><Trash2 /></Button>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="font-tight text-[12px] font-semibold text-mute">Platform admin</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
- <form onSubmit={handleSubmit} className="space-y-2.5 mt-2">
- <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
- <div className="md:col-span-1">
- <label className="block text-[8px] font-semibold text-ink-secondary mb-0.5 ml-1 opacity-[0.85]">Legal Identity</label>
- <input 
- required 
- type="text" 
- className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" 
- placeholder="NAME..."
- value={formData.name} 
- onChange={e => setFormData({...formData, name: e.target.value})} 
- />
- </div>
- <div className="md:col-span-1">
- <label className="block text-[8px] font-semibold text-ink-secondary mb-0.5 ml-1 opacity-[0.85]">Email</label>
- <input 
- required 
- type="email" 
- className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" 
- placeholder=" institutional@domain.com"
- value={formData.email} 
- onChange={e => setFormData({...formData, email: e.target.value})} 
- />
- </div>
+      {loading && users.length === 0 ? (
+        <div className="rounded-[14px] border border-line px-4 py-12 text-center text-[13px] text-mute">Loading logins…</div>
+      ) : others.length === 0 ? (
+        <div className={users.length ? 'mt-4' : ''}>
+          <Empty icon={UsersIcon} title="No other logins yet"
+            action={<Button variant="ghost" className="shadow-[inset_0_0_0_1px_var(--color-line)]" onClick={openAdd}><Plus /> Add the first login</Button>}>
+            Add a login for each person who works on the counter, the stock or the van. Each one gets only the modules you allow.
+          </Empty>
+        </div>
+      ) : null}
 
- {!editingUser && (
- <div className="md:col-span-2">
- <label className="block text-[8px] font-semibold text-ink-secondary mb-0.5 ml-1 opacity-[0.85]">Security Secret</label>
- <input
- required
- type="password"
- className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all"
- placeholder="MIN 10 CHAR..."
- value={formData.password || ''}
- onChange={e => setFormData({...formData, password: e.target.value})}
- />
- {/* Inline password-strength bar */}
- {formData.password && (() => {
-   const { score, label } = passwordStrength(formData.password);
-   const segmentColors = ['bg-red-500', 'bg-orange-400', 'bg-yellow-400', 'bg-green-400', 'bg-emerald-500'];
-   const color = segmentColors[score] || 'bg-red-500';
-   return (
-     <div className="mt-1.5 px-1">
-       <div className="flex gap-1 mb-0.5">
-         {[0,1,2,3].map(i => (
-           <div key={i} className={`h-1 flex-1 rounded-full transition-all ${i < score ? color : 'bg-black/10'}`} />
-         ))}
-       </div>
-       <p className={`text-[8px] font-semibold capitalize ${score <= 1 ? 'text-red-500' : score <= 2 ? 'text-yellow-500' : 'text-green-500'}`}>
-         {label}
-       </p>
-     </div>
-   );
- })()}
- </div>
- )}
- </div>
+      {users.length > 0 && (
+        <div className="m-rise mt-3 flex items-start gap-2.5 rounded-xl bg-tile px-3.5 py-3 text-[13px] text-body" style={{ '--i': 2 }}>
+          <Info size={16} className="mt-px shrink-0 text-mute" aria-hidden="true" />
+          <span><b className="font-semibold text-ink">{seats.words}.</b> Removing a login keeps everything they entered. Payroll staff are separate: a login is only for people who use the app.</span>
+        </div>
+      )}
 
- <div>
- <label className="block text-[8px] font-semibold text-ink-secondary mb-1.5 opacity-[0.85]">Granular Module RBAC</label>
- <div className="space-y-1 max-h-[160px] overflow-y-auto pr-1.5 custom-scrollbar">
- <div className="grid grid-cols-12 gap-2 px-4 py-2 text-[8px] font-semibold text-ink-secondary opacity-[0.85]">
- <div className="col-span-6">Module Segment</div>
- <div className="col-span-3 text-center">View</div>
- <div className="col-span-3 text-center">Edit</div>
- </div>
- {MODULES_CONFIG.map(mod => {
- const perms = formData.permissions?.[mod.key] || { view: false, edit: false};
- const Icon = MODULE_ICONS[mod.key] || Package;
- return (
- <div key={mod.key} className="grid grid-cols-12 items-center gap-2 p-2 bg-canvas rounded-xl border border-black/5 group hover:border-accent-signature/30 transition-all">
- <div className="col-span-6 flex items-center gap-2.5">
- <div className="w-7 h-7 rounded-lg bg-surface flex items-center justify-center text-ink-primary shadow-sm border border-black/5 group-hover:bg-ink-primary group-hover:text-accent-signature transition-all shrink-0">
- <Icon size={12} />
- </div>
- <span className="text-[10px] font-semibold text-ink-primary truncate">{mod.label}</span>
- </div>
- <div className="col-span-3 flex justify-center">
- <button 
- type="button"
- onClick={() => toggleModulePermission(mod.key, 'view')}
- className={`w-10 h-6 rounded-xl relative transition-all ${perms.view ? 'bg-accent-signature' : 'bg-black/10'}`}
- >
- <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${perms.view ? 'left-5' : 'left-1'}`} />
- </button>
- </div>
- <div className="col-span-3 flex justify-center">
- <button 
- type="button"
- onClick={() => toggleModulePermission(mod.key, 'edit')}
- className={`w-10 h-6 rounded-xl relative transition-all ${perms.edit ? 'bg-ink-primary' : 'bg-black/10'}`}
- >
- <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${perms.edit ? 'left-5' : 'left-1'}`} />
- </button>
- </div>
- </div>
- );
-})}
- </div>
- </div>
+      {/* New login / Edit */}
+      <Dialog open={isAdding} onClose={closeForm} width={820}
+        title={editingUser ? `Edit ${editingUser.name}` : 'New login'}
+        subtitle={editingUser ? 'Permissions and role. The password is changed by the person themselves.' : `Someone who can sign in to ${shopName}`}
+        footer={(
+          <div className="flex w-full items-center gap-2 border-t border-sep pt-3.5">
+            <Button variant="secondary" onClick={closeForm}>Cancel</Button>
+            <Button type="submit" form="login-form" disabled={isSaving} className="ml-auto">
+              {isSaving ? 'Saving…' : editingUser ? 'Save permissions' : 'Create login'}
+            </Button>
+          </div>
+        )}>
+        <form id="login-form" onSubmit={handleSubmit} className="-mx-[22px] -my-4 grid border-t border-sep md:grid-cols-[300px_minmax(0,1fr)]">
+          <div className="flex flex-col px-[22px] py-4">
+            <Label htmlFor="login-name">Name</Label>
+            <Input id="login-name" required type="text" autoComplete="off" value={formData.name || ''}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="mb-3" />
+            <Label htmlFor="login-email">Email</Label>
+            <Input id="login-email" required type="email" autoComplete="off" value={formData.email || ''}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="mb-3" />
+            {!editingUser && (
+              <>
+                <Label htmlFor="login-password">Password</Label>
+                <Input id="login-password" required type="password" autoComplete="new-password" value={formData.password || ''}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
+                <div className="mt-[7px] flex gap-1" aria-hidden="true">
+                  {[0, 1, 2, 3].map((i) => (
+                    <i key={i} className={cn('h-1 flex-1 rounded-pill transition-colors duration-(--dur-press)',
+                      strength && i < strength.score ? (strength.score <= 1 ? 'bg-bad' : strength.score <= 2 ? 'bg-amber' : 'bg-good') : 'bg-well')} />
+                  ))}
+                </div>
+                <Hint className="mt-1.5 mb-3 block">
+                  {strength ? `${strengthWords(strength.score)}. ` : ''}At least 10 characters. Share it with them yourself; no email is sent.
+                </Hint>
+              </>
+            )}
+            <Label>Role template</Label>
+            <OptionGroup aria-label="Role template" className="gap-1.5">
+              {ROLE_TEMPLATES.map((t) => (
+                <OptionCard key={t.id} title={t.label} hint={t.hint} selected={!!formData.roles?.includes(t.id)}
+                  className="py-[9px]" onClick={() => setFormData((prev) => pickTemplate(prev, t.id))} />
+              ))}
+            </OptionGroup>
+          </div>
+          <div className="px-[22px] py-4 md:border-l md:border-sep">
+            <Label>What this login can do</Label>
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="font-tight text-[11.5px] font-semibold text-mute">
+                  <th className="border-b border-line py-1.5 text-left">Module</th>
+                  <th className="w-[70px] border-b border-line py-1.5 text-center">View</th>
+                  <th className="w-[70px] border-b border-line py-1.5 text-center">Edit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {MODULES_CONFIG.map((mod) => {
+                  const perms = formData.permissions?.[mod.key] || { view: false, edit: false };
+                  return (
+                    <tr key={mod.key} className="text-[13px]">
+                      <td className="border-b border-sep py-1.5">{mod.label}</td>
+                      <td className="border-b border-sep py-1.5 text-center">
+                        <span className="inline-flex"><Toggle on={perms.view} label={`${mod.label} view`} onChange={() => setFormData((prev) => togglePermission(prev, mod.key, 'view'))} /></span>
+                      </td>
+                      <td className="border-b border-sep py-1.5 text-center">
+                        <span className="inline-flex"><Toggle on={perms.edit} label={`${mod.label} edit`} onChange={() => setFormData((prev) => togglePermission(prev, mod.key, 'edit'))} /></span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <Hint className="mt-2 block">Turning Edit on turns View on. Turning View off turns Edit off. Picking a template fills these; change any after.</Hint>
+            {formError && (formError.validation
+              ? <div role="alert" className="mt-2.5 rounded-[10px] bg-bad-soft px-3 py-2.5 text-[12.5px] text-bad-text">{formError.validation}</div>
+              : <WriteFailure error={formError} noun={editingUser ? 'change' : 'new login'} className="mt-2.5"
+                  onReread={() => { refetch?.(); closeForm(); }} />)}
+          </div>
+        </form>
+      </Dialog>
 
- <div>
- <label className="block text-[8px] font-semibold text-ink-secondary mb-1.5 opacity-[0.85]">Legacy Role Template</label>
- <div className="grid grid-cols-2 gap-2">
- {INTERNAL_ROLES.map(role => {
- const isSelected = formData.roles?.includes(role.id);
- const RoleIcon = ROLE_ICONS[role.id] || User;
- return (
- <div 
- key={role.id}
-  onClick={() => {
-    const ROLE_PERMISSIONS_MAP = {
-      OWNER: Object.keys(DEFAULT_PERMISSIONS).reduce((acc, key) => ({
-        ...acc,
-        [key]: { view: true, edit: true }
-      }), {}),
-      SALES: {
-        ...DEFAULT_PERMISSIONS,
-        // No dashboard — privacy
-        sales: { view: true, edit: true },
-        clients: { view: true, edit: true },
-        daybook: { view: true, edit: true }
-      },
-      INVENTORY: {
-        ...DEFAULT_PERMISSIONS,
-        // No dashboard — privacy
-        inventory: { view: true, edit: true },
-        purchases: { view: true, edit: true },
-        suppliers: { view: true, edit: true }
-      },
-      DRIVER: {
-        ...DEFAULT_PERMISSIONS,
-        // Van sales + route operations only
-        vehicles: { view: true, edit: true },
-        sales: { view: true, edit: true },
-      },
-      CUSTOM: { ...DEFAULT_PERMISSIONS }
-    };
-
-    setFormData(prev => ({
-      ...prev,
-      roles: isSelected ? ['STAFF'] : [role.id],
-      permissions: isSelected ? { ...DEFAULT_PERMISSIONS } : (ROLE_PERMISSIONS_MAP[role.id] || prev.permissions)
-    }));
-  }}
- className={`p-2 rounded-lg border-2 cursor-pointer transition-all flex items-center gap-2 group ${
- isSelected 
- ? 'bg-ink-primary border-ink-primary text-surface shadow-premium' 
- : 'bg-surface border-black/5 hover:border-black/10 text-ink-primary'
-}`}
- >
- <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-all ${
- isSelected ? 'bg-accent-signature text-button-text' : 'bg-canvas'
-}`}>
- <RoleIcon size={12} />
- </div>
- <div className="min-w-0">
- <div className="text-[9px] font-semibold leading-none">{role.label}</div>
- </div>
- </div>
- );
-})}
- </div>
- </div>
-
- <div className="grid grid-cols-2 gap-4 pt-4 border-t border-black/5">
- <button type="button" className="px-6 py-3 rounded-pill border border-black/10 font-semibold text-ink-primary text-[10px] hover:bg-black/5 transition-all cursor-pointer" onClick={() => { setIsAdding(false); setEditingUser(null);}}>Cancel</button>
- <button type="submit" disabled={isSaving} className="btn-signature !h-10 !text-sm flex items-center justify-center !rounded-pill">
- {isSaving ? 'SYNCHRONIZING...' : (editingUser ? 'UPDATE PERMISSIONS' : 'INITIALIZE PERSONNEL')}
- <div className="icon-nest ml-2.5 !w-7 !h-7">
- <UserPlus size={14} />
- </div>
- </button>
- </div>
- </form>
- </div>
- </div>
- )}
- </>
- );
+      {/* Deactivate / Remove */}
+      <Dialog open={!!confirm} onClose={closeConfirm} width={470}
+        label={confirm?.kind === 'remove' ? `Remove ${confirmName}?` : `Deactivate ${confirmName}?`}
+        header={confirm && (
+          <div className="flex items-start gap-3">
+            <span aria-hidden="true" className={cn('grid h-10 w-10 shrink-0 place-items-center rounded-xl',
+              confirm.kind === 'remove' ? 'bg-bad-soft text-bad-text' : 'bg-amber-soft text-amber-text')}>
+              {confirm.kind === 'remove' ? <AlertTriangle size={18} /> : <UserX size={18} />}
+            </span>
+            <div className="min-w-0">
+              <h3 className="font-tight text-[18px] font-semibold tracking-[-0.01em]">
+                {confirm.kind === 'remove' ? `Remove ${confirmName}?` : `Deactivate ${confirmName}?`}
+              </h3>
+              <p className="mt-0.5 truncate text-[13px] text-body">{roleLabel(primaryRole(confirm.user))} · {confirm.user.email}</p>
+            </div>
+          </div>
+        )}
+        footer={confirm && (
+          <>
+            <Button variant="secondary" onClick={closeConfirm} disabled={busy}>Cancel</Button>
+            <Button variant="destructive" onClick={runConfirm} disabled={busy}>
+              {busy ? 'Working…' : confirm.kind === 'remove' ? 'Remove login' : 'Deactivate'}
+            </Button>
+          </>
+        )}>
+        {confirm && (
+          <>
+            <p className="text-[14px] text-ink-2">
+              {confirm.kind === 'remove'
+                ? 'The login is taken off this shop and can no longer sign in. Everything it recorded stays, under its name.'
+                : `${confirmFirst} can no longer sign in, on the web or the phone. Everything entered stays. You can activate the login again at any time.`}
+            </p>
+            {confirmError && (
+              <WriteFailure error={confirmError} noun={confirm.kind === 'remove' ? 'removal' : 'change'} className="mt-3"
+                onReread={() => { refetch?.(); setConfirm(null); setConfirmError(null); }} />
+            )}
+          </>
+        )}
+      </Dialog>
+    </div>
+  );
 };
 
 export default Users;

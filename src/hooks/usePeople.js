@@ -219,7 +219,9 @@ export const usePeople = (tenantId) => {
   };
 
   // ── User management ───────────────────────────────────────────────
-  const addUser = async (userData) => {
+  // `onError`, when given, receives the failure instead of a browser alert,
+  // so a screen can show the real reason in place. The calls are unchanged.
+  const addUser = async (userData, { onError } = {}) => {
     const newUser = {
       id: generateUUID(),
       name: userData.name,
@@ -260,8 +262,9 @@ export const usePeople = (tenantId) => {
         await fetchPeopleData();
         return true;
       } catch (err) {
-        console.error('addUser edge fn error:', err);
-        alert('Staff creation failed: ' + (err.message || 'Unknown error'));
+        console.error('addUser edge fn error:', err?.message || err);
+        if (onError) onError(err);
+        else alert('Staff creation failed: ' + (err.message || 'Unknown error'));
         return false;
       }
     }
@@ -270,7 +273,8 @@ export const usePeople = (tenantId) => {
     const { error } = await supabase.from('users').upsert(newUser);
     if (error) {
       console.error('addUser insert error:', error);
-      alert('Failed to save staff profile: ' + error.message);
+      if (onError) onError(error);
+      else alert('Failed to save staff profile: ' + error.message);
       return false;
     }
     await fetchPeopleData();
@@ -279,12 +283,17 @@ export const usePeople = (tenantId) => {
 
   const updateUser = async (updatedUser) => {
     // Never allow stripping GLOBAL_ADMIN role via tenant UI
-    if (updatedUser.roles?.includes('GLOBAL_ADMIN')) return;
+    // It returns what happened now, where it used to return nothing, so a
+    // refused save can show its reason. The write itself is unchanged.
+    if (updatedUser.roles?.includes('GLOBAL_ADMIN')) {
+      return { success: false, error: new Error('A global admin is not changed from here.') };
+    }
     const { error } = await supabase
       .from('users')
       .upsert(updatedUser);
     if (error) console.error('updateUser error:', error);
     else await fetchPeopleData();
+    return { success: !error, error: error || null };
   };
 
   const deleteUser = async (userId) => {
